@@ -14,10 +14,11 @@ import (
 
 type PublicFileController struct {
 	files *service.FileService
+	users *service.UserService
 }
 
-func NewPublicFileController(files *service.FileService) *PublicFileController {
-	return &PublicFileController{files: files}
+func NewPublicFileController(files *service.FileService, users *service.UserService) *PublicFileController {
+	return &PublicFileController{files: files, users: users}
 }
 
 func (ctl *PublicFileController) List(c *gin.Context) {
@@ -54,7 +55,8 @@ func (ctl *PublicFileController) Get(c *gin.Context) {
 }
 
 func (ctl *PublicFileController) Download(c *gin.Context) {
-	result, err := ctl.files.GenerateDownload(c.Request.Context(), parseUintParam(c, "id"))
+	fileID := parseUintParam(c, "id")
+	result, err := ctl.files.GenerateDownload(c.Request.Context(), fileID)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNotFound):
@@ -65,6 +67,10 @@ func (ctl *PublicFileController) Download(c *gin.Context) {
 			response.Error(c, http.StatusInternalServerError, "failed to create download link")
 		}
 		return
+	}
+
+	if userID := c.GetUint("userID"); userID > 0 && ctl.users != nil {
+		_ = ctl.users.RecordDownload(c.Request.Context(), userID, fileID)
 	}
 
 	response.Success(c, http.StatusOK, "download url generated", result)

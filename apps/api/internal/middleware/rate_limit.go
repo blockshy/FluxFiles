@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"fluxfiles/api/internal/service"
 	"fluxfiles/api/pkg/resilience"
 	"fluxfiles/api/pkg/response"
 
@@ -14,6 +15,29 @@ import (
 
 func RateLimit(limiter *resilience.RateLimiter, rule resilience.RateRule) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		key := fmt.Sprintf("%s:%s", c.ClientIP(), c.FullPath())
+		decision := limiter.Allow(c.Request.Context(), key, rule)
+		if !decision.Allowed {
+			c.Header("Retry-After", strconv.Itoa(int(decision.RetryAfter/time.Second)+1))
+			response.Error(c, http.StatusTooManyRequests, "rate limit exceeded, please retry later")
+			c.Abort()
+			return
+		}
+
+		c.Header("X-RateLimit-Remaining", strconv.Itoa(decision.Remaining))
+		c.Next()
+	}
+}
+
+func RateLimitFromSettings(limiter *resilience.RateLimiter, settings *service.SettingsService, ruleName string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rule := settings.DefaultRateLimitRule(ruleName)
+		if settings != nil {
+			if resolved, err := settings.GetRateLimitRule(c.Request.Context(), ruleName); err == nil {
+				rule = resolved
+			}
+		}
+
 		key := fmt.Sprintf("%s:%s", c.ClientIP(), c.FullPath())
 		decision := limiter.Allow(c.Request.Context(), key, rule)
 		if !decision.Allowed {

@@ -1,191 +1,115 @@
-/*
- Navicat Premium Data Transfer
+-- FluxFiles latest PostgreSQL schema
+-- Apply this file to create the current target database structure.
 
- Source Server         : 腾讯云-首尔-PostgreSQL_pgsql_xre88924
- Source Server Type    : PostgreSQL
- Source Server Version : 170009 (170009)
- Source Host           : 43.133.253.212:5432
- Source Catalog        : flux_files
- Source Schema         : public
+BEGIN;
 
- Target Server Type    : PostgreSQL
- Target Server Version : 170009 (170009)
- File Encoding         : 65001
+CREATE SCHEMA IF NOT EXISTS public;
 
- Date: 09/04/2026 18:25:30
-*/
-
-
--- ----------------------------
--- Sequence structure for files_id_seq
--- ----------------------------
-DROP SEQUENCE IF EXISTS "public"."files_id_seq";
-CREATE SEQUENCE "public"."files_id_seq" 
-INCREMENT 1
-MINVALUE  1
-MAXVALUE 9223372036854775807
-START 1
-CACHE 1;
-
--- ----------------------------
--- Sequence structure for operation_logs_id_seq
--- ----------------------------
-DROP SEQUENCE IF EXISTS "public"."operation_logs_id_seq";
-CREATE SEQUENCE "public"."operation_logs_id_seq" 
-INCREMENT 1
-MINVALUE  1
-MAXVALUE 9223372036854775807
-START 1
-CACHE 1;
-
--- ----------------------------
--- Sequence structure for users_id_seq
--- ----------------------------
-DROP SEQUENCE IF EXISTS "public"."users_id_seq";
-CREATE SEQUENCE "public"."users_id_seq" 
-INCREMENT 1
-MINVALUE  1
-MAXVALUE 9223372036854775807
-START 1
-CACHE 1;
-
--- ----------------------------
--- Table structure for files
--- ----------------------------
-DROP TABLE IF EXISTS "public"."files";
-CREATE TABLE "public"."files" (
-  "id" int8 NOT NULL DEFAULT nextval('files_id_seq'::regclass),
-  "name" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
-  "original_name" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
-  "object_key" varchar(512) COLLATE "pg_catalog"."default" NOT NULL,
-  "size" int8 NOT NULL,
-  "mime_type" varchar(128) COLLATE "pg_catalog"."default" NOT NULL,
-  "description" text COLLATE "pg_catalog"."default",
-  "category" varchar(128) COLLATE "pg_catalog"."default",
-  "tags" jsonb,
-  "is_public" bool NOT NULL DEFAULT true,
-  "download_count" int8 NOT NULL DEFAULT 0,
-  "created_by" int8,
-  "created_at" timestamptz(6),
-  "updated_at" timestamptz(6),
-  "deleted_at" timestamptz(6)
-)
-;
-
--- ----------------------------
--- Table structure for operation_logs
--- ----------------------------
-DROP TABLE IF EXISTS "public"."operation_logs";
-CREATE TABLE "public"."operation_logs" (
-  "id" int8 NOT NULL DEFAULT nextval('operation_logs_id_seq'::regclass),
-  "admin_user_id" int8 NOT NULL,
-  "action" varchar(64) COLLATE "pg_catalog"."default" NOT NULL,
-  "target_type" varchar(64) COLLATE "pg_catalog"."default" NOT NULL,
-  "target_id" varchar(128) COLLATE "pg_catalog"."default" NOT NULL,
-  "detail" text COLLATE "pg_catalog"."default",
-  "ip" varchar(64) COLLATE "pg_catalog"."default",
-  "created_at" timestamptz(6)
-)
-;
-
--- ----------------------------
--- Table structure for users
--- ----------------------------
-DROP TABLE IF EXISTS "public"."users";
-CREATE TABLE "public"."users" (
-  "id" int8 NOT NULL DEFAULT nextval('users_id_seq'::regclass),
-  "username" varchar(64) COLLATE "pg_catalog"."default" NOT NULL,
-  "password_hash" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
-  "role" varchar(32) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'admin'::character varying,
-  "created_at" timestamptz(6),
-  "updated_at" timestamptz(6),
-  "deleted_at" timestamptz(6)
-)
-;
-
--- ----------------------------
--- Alter sequences owned by
--- ----------------------------
-ALTER SEQUENCE "public"."files_id_seq"
-OWNED BY "public"."files"."id";
-SELECT setval('"public"."files_id_seq"', 1, true);
-
--- ----------------------------
--- Alter sequences owned by
--- ----------------------------
-ALTER SEQUENCE "public"."operation_logs_id_seq"
-OWNED BY "public"."operation_logs"."id";
-SELECT setval('"public"."operation_logs_id_seq"', 2, true);
-
--- ----------------------------
--- Alter sequences owned by
--- ----------------------------
-ALTER SEQUENCE "public"."users_id_seq"
-OWNED BY "public"."users"."id";
-SELECT setval('"public"."users_id_seq"', 1, true);
-
--- ----------------------------
--- Indexes structure for table files
--- ----------------------------
-CREATE INDEX "idx_files_category" ON "public"."files" USING btree (
-  "category" COLLATE "pg_catalog"."default" "pg_catalog"."text_ops" ASC NULLS LAST
-);
-CREATE INDEX "idx_files_deleted_at" ON "public"."files" USING btree (
-  "deleted_at" "pg_catalog"."timestamptz_ops" ASC NULLS LAST
-);
-CREATE INDEX "idx_files_is_public" ON "public"."files" USING btree (
-  "is_public" "pg_catalog"."bool_ops" ASC NULLS LAST
-);
-CREATE INDEX "idx_files_name" ON "public"."files" USING btree (
-  "name" COLLATE "pg_catalog"."default" "pg_catalog"."text_ops" ASC NULLS LAST
-);
-CREATE UNIQUE INDEX "idx_files_object_key" ON "public"."files" USING btree (
-  "object_key" COLLATE "pg_catalog"."default" "pg_catalog"."text_ops" ASC NULLS LAST
+CREATE TABLE IF NOT EXISTS public.users (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(64) NOT NULL,
+    email VARCHAR(128) NOT NULL,
+    display_name VARCHAR(128) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(32) NOT NULL DEFAULT 'user',
+    permissions JSONB NOT NULL DEFAULT '[]'::jsonb,
+    is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    last_login_at TIMESTAMPTZ NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ NULL,
+    CONSTRAINT users_username_key UNIQUE (username),
+    CONSTRAINT users_email_key UNIQUE (email)
 );
 
--- ----------------------------
--- Uniques structure for table files
--- ----------------------------
-ALTER TABLE "public"."files" ADD CONSTRAINT "files_object_key_key" UNIQUE ("object_key");
+CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON public.users(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_users_role ON public.users(role);
+CREATE INDEX IF NOT EXISTS idx_users_is_enabled ON public.users(is_enabled);
 
--- ----------------------------
--- Primary Key structure for table files
--- ----------------------------
-ALTER TABLE "public"."files" ADD CONSTRAINT "files_pkey" PRIMARY KEY ("id");
-
--- ----------------------------
--- Indexes structure for table operation_logs
--- ----------------------------
-CREATE INDEX "idx_operation_logs_admin_user_id" ON "public"."operation_logs" USING btree (
-  "admin_user_id" "pg_catalog"."int8_ops" ASC NULLS LAST
+CREATE TABLE IF NOT EXISTS public.files (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    object_key VARCHAR(512) NOT NULL,
+    size BIGINT NOT NULL,
+    mime_type VARCHAR(128) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    category VARCHAR(128) NOT NULL DEFAULT '',
+    tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+    is_public BOOLEAN NOT NULL DEFAULT TRUE,
+    download_count BIGINT NOT NULL DEFAULT 0,
+    created_by BIGINT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ NULL,
+    CONSTRAINT files_object_key_key UNIQUE (object_key),
+    CONSTRAINT files_created_by_fkey
+        FOREIGN KEY (created_by) REFERENCES public.users(id)
+        ON DELETE SET NULL
 );
 
--- ----------------------------
--- Primary Key structure for table operation_logs
--- ----------------------------
-ALTER TABLE "public"."operation_logs" ADD CONSTRAINT "operation_logs_pkey" PRIMARY KEY ("id");
+CREATE INDEX IF NOT EXISTS idx_files_name ON public.files(name);
+CREATE INDEX IF NOT EXISTS idx_files_category ON public.files(category);
+CREATE INDEX IF NOT EXISTS idx_files_is_public ON public.files(is_public);
+CREATE INDEX IF NOT EXISTS idx_files_deleted_at ON public.files(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_files_created_by ON public.files(created_by);
 
--- ----------------------------
--- Indexes structure for table users
--- ----------------------------
-CREATE INDEX "idx_users_deleted_at" ON "public"."users" USING btree (
-  "deleted_at" "pg_catalog"."timestamptz_ops" ASC NULLS LAST
+CREATE TABLE IF NOT EXISTS public.operation_logs (
+    id BIGSERIAL PRIMARY KEY,
+    admin_user_id BIGINT NOT NULL,
+    action VARCHAR(64) NOT NULL,
+    target_type VARCHAR(64) NOT NULL,
+    target_id VARCHAR(128) NOT NULL,
+    detail TEXT NOT NULL DEFAULT '',
+    ip VARCHAR(64) NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT operation_logs_admin_user_id_fkey
+        FOREIGN KEY (admin_user_id) REFERENCES public.users(id)
 );
-CREATE UNIQUE INDEX "idx_users_username" ON "public"."users" USING btree (
-  "username" COLLATE "pg_catalog"."default" "pg_catalog"."text_ops" ASC NULLS LAST
+
+CREATE INDEX IF NOT EXISTS idx_operation_logs_admin_user_id ON public.operation_logs(admin_user_id);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_action ON public.operation_logs(action);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_created_at ON public.operation_logs(created_at);
+
+CREATE TABLE IF NOT EXISTS public.user_favorites (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    file_id BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT user_favorites_user_id_fkey
+        FOREIGN KEY (user_id) REFERENCES public.users(id)
+        ON DELETE CASCADE,
+    CONSTRAINT user_favorites_file_id_fkey
+        FOREIGN KEY (file_id) REFERENCES public.files(id)
+        ON DELETE CASCADE,
+    CONSTRAINT uq_user_favorites_user_file UNIQUE (user_id, file_id)
 );
 
--- ----------------------------
--- Primary Key structure for table users
--- ----------------------------
-ALTER TABLE "public"."users" ADD CONSTRAINT "users_pkey" PRIMARY KEY ("id");
+CREATE INDEX IF NOT EXISTS idx_user_favorites_user_id ON public.user_favorites(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_favorites_file_id ON public.user_favorites(file_id);
+CREATE INDEX IF NOT EXISTS idx_user_favorites_created_at ON public.user_favorites(created_at);
 
--- ----------------------------
--- Foreign Keys structure for table files
--- ----------------------------
-ALTER TABLE "public"."files" ADD CONSTRAINT "files_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "public"."users" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE TABLE IF NOT EXISTS public.user_download_records (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    file_id BIGINT NOT NULL,
+    downloaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT user_download_records_user_id_fkey
+        FOREIGN KEY (user_id) REFERENCES public.users(id)
+        ON DELETE CASCADE,
+    CONSTRAINT user_download_records_file_id_fkey
+        FOREIGN KEY (file_id) REFERENCES public.files(id)
+        ON DELETE CASCADE
+);
 
--- ----------------------------
--- Foreign Keys structure for table operation_logs
--- ----------------------------
-ALTER TABLE "public"."operation_logs" ADD CONSTRAINT "operation_logs_admin_user_id_fkey" FOREIGN KEY ("admin_user_id") REFERENCES "public"."users" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE INDEX IF NOT EXISTS idx_user_download_records_user_id ON public.user_download_records(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_download_records_file_id ON public.user_download_records(file_id);
+CREATE INDEX IF NOT EXISTS idx_user_download_records_downloaded_at ON public.user_download_records(downloaded_at);
+
+CREATE TABLE IF NOT EXISTS public.system_settings (
+    key VARCHAR(128) PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMIT;

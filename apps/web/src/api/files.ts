@@ -23,4 +23,3 @@ export async function requestDownloadLink(id: number) {
   const response = await apiClient.get<ApiEnvelope<DownloadPayload>>(`/files/${id}/download`);
   return response.data.data;
 }
-

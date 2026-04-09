@@ -14,7 +14,6 @@ import (
 	"fluxfiles/api/internal/repository"
 	ossclient "fluxfiles/api/pkg/oss"
 	"fluxfiles/api/pkg/resilience"
-	"fluxfiles/api/pkg/validator"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -23,12 +22,12 @@ import (
 var safeFileName = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
 
 type FileService struct {
-	cfg       *config.Config
-	files     *repository.FileRepository
-	storage   *ossclient.Client
-	breakers  *resilience.Breakers
-	logs      *OperationLogService
-	validator *validator.UploadPolicy
+	cfg      *config.Config
+	files    *repository.FileRepository
+	storage  *ossclient.Client
+	breakers *resilience.Breakers
+	logs     *OperationLogService
+	settings *SettingsService
 }
 
 type PrepareUploadInput struct {
@@ -68,15 +67,15 @@ func NewFileService(
 	storage *ossclient.Client,
 	breakers *resilience.Breakers,
 	logs *OperationLogService,
-	uploadPolicy *validator.UploadPolicy,
+	settings *SettingsService,
 ) *FileService {
 	return &FileService{
-		cfg:       cfg,
-		files:     files,
-		storage:   storage,
-		breakers:  breakers,
-		logs:      logs,
-		validator: uploadPolicy,
+		cfg:      cfg,
+		files:    files,
+		storage:  storage,
+		breakers: breakers,
+		logs:     logs,
+		settings: settings,
 	}
 }
 
@@ -85,7 +84,13 @@ func (s *FileService) ListPublic(ctx context.Context, params repository.FileList
 	return s.list(ctx, params)
 }
 
-func (s *FileService) ListAdmin(ctx context.Context, params repository.FileListParams) ([]model.File, int64, error) {
+func (s *FileService) ListAdmin(ctx context.Context, actorID uint, permissions []string, params repository.FileListParams) ([]model.File, int64, error) {
+	if !canManageAnyFiles(permissions) {
+		return nil, 0, ErrForbidden
+	}
+	if !canManageAllFiles(permissions) {
+		params.OwnerID = &actorID
+	}
 	return s.list(ctx, params)
 }
 
@@ -127,7 +132,7 @@ func (s *FileService) GetPublic(ctx context.Context, id uint) (*model.File, erro
 	return result.(*model.File), nil
 }
 
-func (s *FileService) GetAdmin(ctx context.Context, id uint) (*model.File, error) {
+func (s *FileService) GetAdmin(ctx context.Context, id uint, actorID uint, permissions []string) (*model.File, error) {
 	result, err := s.breakers.DB.Execute(func() (any, error) {
 		return s.files.GetByID(ctx, id, false)
 	})
@@ -137,12 +142,23 @@ func (s *FileService) GetAdmin(ctx context.Context, id uint) (*model.File, error
 		}
 		return nil, ErrDependencyUnavailable
 	}
-	return result.(*model.File), nil
+	file := result.(*model.File)
+	if err := ensureFileAccess(file, actorID, permissions); err != nil {
+		return nil, err
+	}
+	return file, nil
 }
 
-func (s *FileService) DashboardStats(ctx context.Context) (*repository.DashboardStats, error) {
+func (s *FileService) DashboardStats(ctx context.Context, actorID uint, permissions []string) (*repository.DashboardStats, error) {
+	if !canManageAnyFiles(permissions) {
+		return nil, ErrForbidden
+	}
+	var ownerID *uint
+	if !canManageAllFiles(permissions) {
+		ownerID = &actorID
+	}
 	result, err := s.breakers.DB.Execute(func() (any, error) {
-		return s.files.DashboardStats(ctx)
+		return s.files.DashboardStats(ctx, ownerID)
 	})
 	if err != nil {
 		return nil, ErrDependencyUnavailable
@@ -155,11 +171,16 @@ func (s *FileService) PrepareUpload(ctx context.Context, input PrepareUploadInpu
 		return nil, ErrValidation
 	}
 
-	if err := s.validator.Validate(input.OriginalName, input.Size, input.MimeType); err != nil {
+	uploadPolicy, err := s.settings.BuildUploadPolicy(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := uploadPolicy.Validate(input.OriginalName, input.Size, input.MimeType); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
 
-	resolvedMimeType := s.validator.ResolveMimeType(input.OriginalName, input.MimeType)
+	resolvedMimeType := uploadPolicy.ResolveMimeType(input.OriginalName, input.MimeType)
 	objectKey := s.objectKey(input.OriginalName)
 	result, err := s.breakers.OSS.Execute(func() (any, error) {
 		return s.storage.PresignUpload(ctx, objectKey, resolvedMimeType)
@@ -191,7 +212,11 @@ func (s *FileService) Create(ctx context.Context, input CompleteUploadInput) (*m
 	}
 
 	objectMeta := result.(*ossclient.HeadObjectResult)
-	if err := s.validator.Validate(input.OriginalName, objectMeta.ContentLength, derefString(objectMeta.ContentType)); err != nil {
+	uploadPolicy, err := s.settings.BuildUploadPolicy(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := uploadPolicy.Validate(input.OriginalName, objectMeta.ContentLength, derefString(objectMeta.ContentType)); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
 
@@ -224,8 +249,16 @@ func (s *FileService) Create(ctx context.Context, input CompleteUploadInput) (*m
 	return file, nil
 }
 
-func (s *FileService) Update(ctx context.Context, id uint, adminID uint, ip string, values map[string]any) (*model.File, error) {
-	file, err := s.GetAdmin(ctx, id)
+func (s *FileService) CanPrepareUpload(permissions []string) bool {
+	return HasPermission(permissions, PermissionAdminFilesUpload)
+}
+
+func (s *FileService) GetUploadSettings(ctx context.Context) (UploadSettings, error) {
+	return s.settings.GetUploadSettings(ctx)
+}
+
+func (s *FileService) Update(ctx context.Context, id uint, adminID uint, permissions []string, ip string, values map[string]any) (*model.File, error) {
+	file, err := s.GetAdmin(ctx, id, adminID, permissions)
 	if err != nil {
 		return nil, err
 	}
@@ -237,15 +270,15 @@ func (s *FileService) Update(ctx context.Context, id uint, adminID uint, ip stri
 		return nil, ErrDependencyUnavailable
 	}
 
-	updated, err := s.GetAdmin(ctx, id)
+	updated, err := s.GetAdmin(ctx, id, adminID, permissions)
 	if err == nil {
 		s.logs.Record(ctx, adminID, "file.update", "file", strconv.FormatUint(uint64(id), 10), updated.Name, ip)
 	}
 	return updated, err
 }
 
-func (s *FileService) Delete(ctx context.Context, id uint, adminID uint, ip string) error {
-	file, err := s.GetAdmin(ctx, id)
+func (s *FileService) Delete(ctx context.Context, id uint, adminID uint, permissions []string, ip string) error {
+	file, err := s.GetAdmin(ctx, id, adminID, permissions)
 	if err != nil {
 		return err
 	}
@@ -275,7 +308,7 @@ func (s *FileService) GenerateDownload(ctx context.Context, id uint) (*DownloadR
 	}
 
 	result, err := s.breakers.OSS.Execute(func() (any, error) {
-		url, expiresAt, innerErr := s.storage.PresignDownload(ctx, file.ObjectKey)
+		url, expiresAt, innerErr := s.storage.PresignDownload(ctx, file.ObjectKey, file.OriginalName)
 		if innerErr != nil {
 			return nil, innerErr
 		}
@@ -292,6 +325,33 @@ func (s *FileService) GenerateDownload(ctx context.Context, id uint) (*DownloadR
 	}
 
 	return result.(*DownloadResult), nil
+}
+
+func canManageAllFiles(permissions []string) bool {
+	return HasPermission(permissions, PermissionAdminFilesAll)
+}
+
+func canManageAnyFiles(permissions []string) bool {
+	return canManageAllFiles(permissions) ||
+		HasPermission(permissions, PermissionAdminFilesOwn) ||
+		HasPermission(permissions, PermissionAdminFilesUpload) ||
+		HasPermission(permissions, PermissionAdminFilesEdit) ||
+		HasPermission(permissions, PermissionAdminFilesDelete)
+}
+
+func ensureFileAccess(file *model.File, actorID uint, permissions []string) error {
+	if canManageAllFiles(permissions) {
+		return nil
+	}
+	if !HasPermission(permissions, PermissionAdminFilesOwn) {
+		if !(HasPermission(permissions, PermissionAdminFilesUpload) || HasPermission(permissions, PermissionAdminFilesEdit) || HasPermission(permissions, PermissionAdminFilesDelete)) {
+			return ErrForbidden
+		}
+	}
+	if file.CreatedBy == nil || *file.CreatedBy != actorID {
+		return ErrForbidden
+	}
+	return nil
 }
 
 func (s *FileService) objectKey(originalName string) string {

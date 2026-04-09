@@ -18,6 +18,7 @@ type FileListParams struct {
 	SortOrder      string
 	PublicOnly     bool
 	IncludeDeleted bool
+	OwnerID        *uint
 }
 
 type DashboardStats struct {
@@ -40,7 +41,23 @@ func (r *FileRepository) Create(ctx context.Context, file *model.File) error {
 }
 
 func (r *FileRepository) Update(ctx context.Context, file *model.File, values map[string]any) error {
-	return r.db.WithContext(ctx).Model(file).Updates(values).Error
+	if name, ok := values["name"].(string); ok {
+		file.Name = name
+	}
+	if description, ok := values["description"].(string); ok {
+		file.Description = description
+	}
+	if category, ok := values["category"].(string); ok {
+		file.Category = category
+	}
+	if isPublic, ok := values["is_public"].(bool); ok {
+		file.IsPublic = isPublic
+	}
+	if tags, ok := values["tags"].([]string); ok {
+		file.Tags = tags
+	}
+
+	return r.db.WithContext(ctx).Save(file).Error
 }
 
 func (r *FileRepository) IncrementDownload(ctx context.Context, id uint) error {
@@ -61,7 +78,12 @@ func (r *FileRepository) GetByID(ctx context.Context, id uint, includeDeleted bo
 	}
 
 	var file model.File
-	if err := lookup.First(&file, id).Error; err != nil {
+	if err := lookup.
+		Table("files").
+		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name").
+		Joins("LEFT JOIN users uploader ON uploader.id = files.created_by").
+		Where("files.id = ?", id).
+		First(&file).Error; err != nil {
 		return nil, err
 	}
 	return &file, nil
@@ -93,6 +115,9 @@ func (r *FileRepository) List(ctx context.Context, params FileListParams) ([]mod
 
 	if params.PublicOnly {
 		query = query.Where("is_public = ?", true)
+	}
+	if params.OwnerID != nil {
+		query = query.Where("files.created_by = ?", *params.OwnerID)
 	}
 
 	if keyword := strings.TrimSpace(strings.ToLower(params.Search)); keyword != "" {
@@ -127,6 +152,8 @@ func (r *FileRepository) List(ctx context.Context, params FileListParams) ([]mod
 
 	var files []model.File
 	if err := query.
+		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name").
+		Joins("LEFT JOIN users uploader ON uploader.id = files.created_by").
 		Order(fmt.Sprintf("%s %s", sortColumn, order)).
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
@@ -137,22 +164,27 @@ func (r *FileRepository) List(ctx context.Context, params FileListParams) ([]mod
 	return files, total, nil
 }
 
-func (r *FileRepository) DashboardStats(ctx context.Context) (*DashboardStats, error) {
+func (r *FileRepository) DashboardStats(ctx context.Context, ownerID *uint) (*DashboardStats, error) {
 	stats := &DashboardStats{}
 
-	if err := r.db.WithContext(ctx).Model(&model.File{}).Count(&stats.TotalFiles).Error; err != nil {
+	baseQuery := r.db.WithContext(ctx).Model(&model.File{})
+	if ownerID != nil {
+		baseQuery = baseQuery.Where("created_by = ?", *ownerID)
+	}
+
+	if err := baseQuery.Count(&stats.TotalFiles).Error; err != nil {
 		return nil, err
 	}
 
-	if err := r.db.WithContext(ctx).Model(&model.File{}).Where("is_public = ?", true).Count(&stats.PublicFiles).Error; err != nil {
+	if err := baseQuery.Where("is_public = ?", true).Count(&stats.PublicFiles).Error; err != nil {
 		return nil, err
 	}
 
-	if err := r.db.WithContext(ctx).Model(&model.File{}).Select("COALESCE(SUM(download_count), 0)").Scan(&stats.TotalDownloads).Error; err != nil {
+	if err := baseQuery.Select("COALESCE(SUM(download_count), 0)").Scan(&stats.TotalDownloads).Error; err != nil {
 		return nil, err
 	}
 
-	if err := r.db.WithContext(ctx).Model(&model.File{}).Select("COALESCE(SUM(size), 0)").Scan(&stats.TotalStorage).Error; err != nil {
+	if err := baseQuery.Select("COALESCE(SUM(size), 0)").Scan(&stats.TotalStorage).Error; err != nil {
 		return nil, err
 	}
 

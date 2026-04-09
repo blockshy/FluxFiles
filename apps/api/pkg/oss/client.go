@@ -3,6 +3,8 @@ package oss
 import (
 	"context"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"fluxfiles/api/internal/config"
@@ -45,16 +47,31 @@ func New(cfg config.StorageConfig) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) PresignDownload(ctx context.Context, objectKey string) (string, time.Time, error) {
+func (c *Client) PresignDownload(ctx context.Context, objectKey, downloadName string) (string, time.Time, error) {
 	download, err := c.client.Presign(ctx, &ossv2.GetObjectRequest{
-		Bucket: ossv2.Ptr(c.bucket),
-		Key:    ossv2.Ptr(objectKey),
+		Bucket:                     ossv2.Ptr(c.bucket),
+		Key:                        ossv2.Ptr(objectKey),
+		ResponseContentDisposition: ossv2.Ptr(buildAttachmentDisposition(downloadName)),
 	}, ossv2.PresignExpires(c.signedTTL))
 	if err != nil {
 		return "", time.Time{}, err
 	}
 
 	return download.URL, download.Expiration, nil
+}
+
+func buildAttachmentDisposition(fileName string) string {
+	fileName = strings.TrimSpace(fileName)
+	if fileName == "" {
+		fileName = "download"
+	}
+
+	ascii := strings.NewReplacer("\\", "_", "\"", "_", ";", "_", "\r", "", "\n", "").Replace(fileName)
+	if ascii == "" {
+		ascii = "download"
+	}
+
+	return "attachment; filename=\"" + ascii + "\"; filename*=UTF-8''" + url.QueryEscape(fileName)
 }
 
 func (c *Client) PresignUpload(ctx context.Context, objectKey, contentType string) (*PresignedUpload, error) {

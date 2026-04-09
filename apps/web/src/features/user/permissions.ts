@@ -1,0 +1,61 @@
+import type { UserAccount } from '../../api/types';
+
+export const PERMISSION_ADMIN_FILES_OWN = 'admin.files.own';
+export const PERMISSION_ADMIN_FILES_ALL = 'admin.files.all';
+export const PERMISSION_ADMIN_FILES_UPLOAD = 'admin.files.upload';
+export const PERMISSION_ADMIN_FILES_EDIT = 'admin.files.edit';
+export const PERMISSION_ADMIN_FILES_DELETE = 'admin.files.delete';
+export const PERMISSION_ADMIN_USERS_CREATE = 'admin.users.create';
+export const PERMISSION_ADMIN_USERS_EDIT = 'admin.users.edit';
+export const PERMISSION_ADMIN_SETTINGS = 'admin.settings';
+export const PERMISSION_ADMIN_AUDIT = 'admin.audit';
+
+export const ALL_ADMIN_PERMISSIONS = [
+  PERMISSION_ADMIN_FILES_OWN,
+  PERMISSION_ADMIN_FILES_ALL,
+  PERMISSION_ADMIN_FILES_UPLOAD,
+  PERMISSION_ADMIN_FILES_EDIT,
+  PERMISSION_ADMIN_FILES_DELETE,
+  PERMISSION_ADMIN_USERS_CREATE,
+  PERMISSION_ADMIN_USERS_EDIT,
+  PERMISSION_ADMIN_SETTINGS,
+  PERMISSION_ADMIN_AUDIT,
+];
+
+export function hasPermission(user: UserAccount | null | undefined, permission: string) {
+  return Boolean(user?.permissions?.includes(permission));
+}
+
+export function canAccessAdmin(user: UserAccount | null | undefined) {
+  return user?.role === 'admin' && ALL_ADMIN_PERMISSIONS.some((permission) => hasPermission(user, permission));
+}
+
+export function canAccessAdminFiles(user: UserAccount | null | undefined) {
+  return (
+    hasPermission(user, PERMISSION_ADMIN_FILES_OWN) ||
+    hasPermission(user, PERMISSION_ADMIN_FILES_ALL) ||
+    hasPermission(user, PERMISSION_ADMIN_FILES_UPLOAD) ||
+    hasPermission(user, PERMISSION_ADMIN_FILES_EDIT) ||
+    hasPermission(user, PERMISSION_ADMIN_FILES_DELETE)
+  );
+}
+
+export function canAccessAdminUsers(user: UserAccount | null | undefined) {
+  return hasPermission(user, PERMISSION_ADMIN_USERS_CREATE) || hasPermission(user, PERMISSION_ADMIN_USERS_EDIT);
+}
+
+export function getAdminHomePath(user: UserAccount | null | undefined) {
+  if (canAccessAdminFiles(user)) {
+    return '/admin/files';
+  }
+  if (canAccessAdminUsers(user)) {
+    return '/admin/users';
+  }
+  if (hasPermission(user, PERMISSION_ADMIN_SETTINGS)) {
+    return '/admin/settings';
+  }
+  if (hasPermission(user, PERMISSION_ADMIN_AUDIT)) {
+    return '/admin/logs';
+  }
+  return '/';
+}

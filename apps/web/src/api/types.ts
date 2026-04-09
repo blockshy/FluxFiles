@@ -9,6 +9,7 @@ export interface Pagination {
   page: number;
   pageSize: number;
   total: number;
+  totalPages?: number;
 }
 
 export interface PaginatedPayload<T> {
@@ -28,6 +29,9 @@ export interface FileRecord {
   tags: string[];
   isPublic: boolean;
   downloadCount: number;
+  createdBy?: number;
+  createdByUsername?: string;
+  createdByDisplayName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -39,16 +43,80 @@ export interface DashboardStats {
   totalStorage: number;
 }
 
+export interface UserAccount {
+  id: number;
+  username: string;
+  email: string;
+  displayName: string;
+  role: string;
+  permissions: string[];
+  isEnabled: boolean;
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminUser {
   id: number;
   username: string;
+  email: string;
+  displayName: string;
   role: string;
+  permissions: string[];
+  isEnabled: boolean;
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface LoginPayload {
   token: string;
   expiresAt: string;
   user: AdminUser;
+}
+
+export interface UserLoginPayload {
+  token: string;
+  expiresAt: string;
+  user: UserAccount;
+}
+
+export interface RegisterPayload {
+  username: string;
+  email: string;
+  displayName: string;
+  password: string;
+  captchaId?: string;
+  captchaAnswer?: string;
+}
+
+export interface CaptchaSettings {
+  loginEnabled: boolean;
+  registrationEnabled: boolean;
+}
+
+export interface CaptchaChallenge {
+  id: string;
+  question: string;
+}
+
+export interface PublicRegisterConfig {
+  registrationEnabled: boolean;
+  captcha: CaptchaSettings;
+}
+
+export interface UpdateProfilePayload {
+  email: string;
+  displayName: string;
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface UserDownloadRecord extends FileRecord {
+  downloadedAt: string;
 }
 
 export interface DownloadPayload {
@@ -89,4 +157,100 @@ export interface PreparedUpload {
 export interface CompleteUploadPayload extends UpdateFilePayload {
   objectKey: string;
   originalName: string;
+}
+
+export interface UserQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+}
+
+export interface OperationLogQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+  action?: string;
+  targetType?: string;
+}
+
+export interface CreateManagedUserPayload {
+  username: string;
+  email: string;
+  displayName: string;
+  password: string;
+  role: string;
+  permissions: string[];
+  isEnabled: boolean;
+}
+
+export interface UpdateManagedUserPayload {
+  email: string;
+  displayName: string;
+  role: string;
+  permissions: string[];
+  isEnabled: boolean;
+}
+
+export interface AdminSettings {
+  registrationEnabled: boolean;
+  captcha: CaptchaSettings;
+  rateLimits: RateLimitSettings;
+  uploadSettings: UploadSettings;
+}
+
+export interface RateLimitRuleSettings {
+  limit: number;
+  windowSeconds: number;
+}
+
+export interface RateLimitSettings {
+  login: RateLimitRuleSettings;
+  download: RateLimitRuleSettings;
+  upload: RateLimitRuleSettings;
+  list: RateLimitRuleSettings;
+}
+
+export interface UploadSettings {
+  restrictFileSize: boolean;
+  maxSizeBytes: number;
+  restrictFileTypes: boolean;
+  allowedExtensions: string[];
+  allowedMimeTypes: string[];
+}
+
+export interface PermissionTemplate {
+  key: string;
+  name: string;
+  description: string;
+  permissions: string[];
+}
+
+export interface PermissionTemplateSettings {
+  templates: PermissionTemplate[];
+}
+
+export interface AuditFieldChange {
+  field: string;
+  label: string;
+  before?: unknown;
+  after?: unknown;
+}
+
+export interface AuditDetail {
+  summary: string;
+  changes?: AuditFieldChange[];
+  meta?: Record<string, unknown>;
+}
+
+export interface OperationLogRecord {
+  id: number;
+  adminUserId: number;
+  adminUsername: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  detail: string;
+  detailParsed?: AuditDetail | null;
+  ip: string;
+  createdAt: string;
 }

@@ -87,7 +87,7 @@ func (p *UploadPolicy) Validate(filename string, size int64, mimeType string) er
 		return fmt.Errorf("empty file is not allowed")
 	}
 
-	if size > p.MaxSizeBytes {
+	if p.MaxSizeBytes > 0 && size > p.MaxSizeBytes {
 		return fmt.Errorf("file exceeds size limit of %d bytes", p.MaxSizeBytes)
 	}
 

@@ -5,8 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 import App from './App';
-import { AuthProvider } from './features/admin/AuthProvider';
+import { LocaleProvider } from './features/i18n/LocaleProvider';
 import { ThemeProvider } from './features/theme/ThemeProvider';
+import { UserAuthProvider } from './features/user/AuthProvider';
 import { appBasename } from './lib/base';
 import './styles/global.css';
 
@@ -24,14 +25,16 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter basename={appBasename}>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
-        </BrowserRouter>
-      </QueryClientProvider>
-    </ThemeProvider>
+    <LocaleProvider>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter basename={appBasename}>
+            <UserAuthProvider>
+              <App />
+            </UserAuthProvider>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </ThemeProvider>
+    </LocaleProvider>
   </React.StrictMode>,
 );

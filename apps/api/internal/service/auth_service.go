@@ -65,8 +65,12 @@ func (s *AuthService) EnsureBootstrapAdmin(ctx context.Context) error {
 
 	return s.users.Create(ctx, &model.User{
 		Username:     s.cfg.AdminBootstrapUser,
+		Email:        fmt.Sprintf("%s@local.fluxfiles", strings.ToLower(s.cfg.AdminBootstrapUser)),
+		DisplayName:  s.cfg.AdminBootstrapUser,
 		PasswordHash: string(passwordHash),
 		Role:         "admin",
+		Permissions:  append([]string(nil), AllAdminPermissions...),
+		IsEnabled:    true,
 	})
 }
 
@@ -97,6 +101,9 @@ func (s *AuthService) Login(ctx context.Context, username, password, ip string) 
 		s.recordFailure(ctx, username, ip)
 		return nil, ErrUnauthorized
 	}
+	if !user.IsEnabled {
+		return nil, ErrForbidden
+	}
 
 	if err := s.clearFailures(ctx, username, ip); err != nil {
 		return nil, err
@@ -106,6 +113,7 @@ func (s *AuthService) Login(ctx context.Context, username, password, ip string) 
 	if err != nil {
 		return nil, err
 	}
+	_ = s.users.TouchLastLogin(ctx, user.ID)
 
 	return &LoginResult{
 		Token:     token,
@@ -116,6 +124,20 @@ func (s *AuthService) Login(ctx context.Context, username, password, ip string) 
 
 func (s *AuthService) ParseToken(token string) (*auth.Claims, error) {
 	return s.jwtManager.Parse(token)
+}
+
+func (s *AuthService) GetUserByID(ctx context.Context, userID uint) (*model.User, error) {
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUnauthorized
+		}
+		return nil, ErrDependencyUnavailable
+	}
+	if !user.IsEnabled {
+		return nil, ErrForbidden
+	}
+	return user, nil
 }
 
 func (s *AuthService) isBlocked(ctx context.Context, username, ip string) (bool, error) {

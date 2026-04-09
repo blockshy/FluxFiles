@@ -9,29 +9,36 @@ import (
 type User struct {
 	ID           uint           `gorm:"primaryKey" json:"id"`
 	Username     string         `gorm:"size:64;uniqueIndex;not null" json:"username"`
+	Email        string         `gorm:"size:128;uniqueIndex;not null" json:"email"`
+	DisplayName  string         `gorm:"size:128;not null" json:"displayName"`
 	PasswordHash string         `gorm:"size:255;not null" json:"-"`
-	Role         string         `gorm:"size:32;not null;default:admin" json:"role"`
+	Role         string         `gorm:"size:32;not null;default:user" json:"role"`
+	Permissions  []string       `gorm:"type:jsonb;serializer:json;not null;default:'[]'" json:"permissions"`
+	IsEnabled    bool           `gorm:"not null;default:true" json:"isEnabled"`
+	LastLoginAt  *time.Time     `json:"lastLoginAt,omitempty"`
 	CreatedAt    time.Time      `json:"createdAt"`
 	UpdatedAt    time.Time      `json:"updatedAt"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type File struct {
-	ID            uint           `gorm:"primaryKey" json:"id"`
-	Name          string         `gorm:"size:255;index;not null" json:"name"`
-	OriginalName  string         `gorm:"size:255;not null" json:"originalName"`
-	ObjectKey     string         `gorm:"size:512;uniqueIndex;not null" json:"objectKey"`
-	Size          int64          `gorm:"not null" json:"size"`
-	MimeType      string         `gorm:"size:128;not null" json:"mimeType"`
-	Description   string         `gorm:"type:text" json:"description"`
-	Category      string         `gorm:"size:128;index" json:"category"`
-	Tags          []string       `gorm:"type:jsonb;serializer:json" json:"tags"`
-	IsPublic      bool           `gorm:"not null;default:true;index" json:"isPublic"`
-	DownloadCount int64          `gorm:"not null;default:0" json:"downloadCount"`
-	CreatedBy     *uint          `json:"createdBy,omitempty"`
-	CreatedAt     time.Time      `json:"createdAt"`
-	UpdatedAt     time.Time      `json:"updatedAt"`
-	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                   uint           `gorm:"primaryKey" json:"id"`
+	Name                 string         `gorm:"size:255;index;not null" json:"name"`
+	OriginalName         string         `gorm:"size:255;not null" json:"originalName"`
+	ObjectKey            string         `gorm:"size:512;uniqueIndex;not null" json:"objectKey"`
+	Size                 int64          `gorm:"not null" json:"size"`
+	MimeType             string         `gorm:"size:128;not null" json:"mimeType"`
+	Description          string         `gorm:"type:text" json:"description"`
+	Category             string         `gorm:"size:128;index" json:"category"`
+	Tags                 []string       `gorm:"type:jsonb;serializer:json" json:"tags"`
+	IsPublic             bool           `gorm:"not null;default:true;index" json:"isPublic"`
+	DownloadCount        int64          `gorm:"not null;default:0" json:"downloadCount"`
+	CreatedBy            *uint          `json:"createdBy,omitempty"`
+	CreatedByUsername    string         `gorm:"-" json:"createdByUsername,omitempty"`
+	CreatedByDisplayName string         `gorm:"-" json:"createdByDisplayName,omitempty"`
+	CreatedAt            time.Time      `json:"createdAt"`
+	UpdatedAt            time.Time      `json:"updatedAt"`
+	DeletedAt            gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type OperationLog struct {
@@ -43,4 +50,24 @@ type OperationLog struct {
 	Detail      string    `gorm:"type:text" json:"detail"`
 	IP          string    `gorm:"size:64" json:"ip"`
 	CreatedAt   time.Time `json:"createdAt"`
+}
+
+type UserFavorite struct {
+	ID        uint      `gorm:"primaryKey"`
+	UserID    uint      `gorm:"not null;index:idx_user_favorites_user_file,unique"`
+	FileID    uint      `gorm:"not null;index:idx_user_favorites_user_file,unique"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type UserDownloadRecord struct {
+	ID           uint      `gorm:"primaryKey"`
+	UserID       uint      `gorm:"not null;index"`
+	FileID       uint      `gorm:"not null;index"`
+	DownloadedAt time.Time `gorm:"not null;index" json:"downloadedAt"`
+}
+
+type SystemSetting struct {
+	Key       string    `gorm:"primaryKey;size:128" json:"key"`
+	Value     string    `gorm:"type:text;not null" json:"value"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }

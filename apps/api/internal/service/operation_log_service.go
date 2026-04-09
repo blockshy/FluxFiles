@@ -25,3 +25,53 @@ func (s *OperationLogService) Record(ctx context.Context, adminUserID uint, acti
 		IP:          ip,
 	})
 }
+
+type OperationLogListResult struct {
+	Items      []repository.OperationLogItem `json:"items"`
+	Page       int                           `json:"page"`
+	PageSize   int                           `json:"pageSize"`
+	Total      int64                         `json:"total"`
+	TotalPages int                           `json:"totalPages"`
+}
+
+type ListOperationLogsInput struct {
+	Page       int
+	PageSize   int
+	Search     string
+	Action     string
+	TargetType string
+}
+
+func (s *OperationLogService) List(ctx context.Context, input ListOperationLogsInput) (*OperationLogListResult, error) {
+	items, total, err := s.repo.List(ctx, repository.OperationLogListQuery{
+		Page:       input.Page,
+		PageSize:   input.PageSize,
+		Search:     input.Search,
+		Action:     input.Action,
+		TargetType: input.TargetType,
+	})
+	if err != nil {
+		return nil, ErrDependencyUnavailable
+	}
+
+	page := input.Page
+	if page < 1 {
+		page = 1
+	}
+	pageSize := input.PageSize
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	totalPages := int((total + int64(pageSize) - 1) / int64(pageSize))
+
+	return &OperationLogListResult{
+		Items:      items,
+		Page:       page,
+		PageSize:   pageSize,
+		Total:      total,
+		TotalPages: totalPages,
+	}, nil
+}

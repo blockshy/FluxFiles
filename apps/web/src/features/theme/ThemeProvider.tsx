@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { ConfigProvider, theme as antdTheme } from 'antd';
+import enUS from 'antd/locale/en_US';
 import zhCN from 'antd/locale/zh_CN';
+import { useI18n } from '../i18n/LocaleProvider';
 
 type ThemeMode = 'light' | 'dark';
 
@@ -25,6 +27,7 @@ function readStoredTheme(): ThemeMode {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  const { locale } = useI18n();
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => readStoredTheme());
 
   useEffect(() => {
@@ -72,7 +75,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <ThemeContext.Provider value={value}>
-      <ConfigProvider locale={zhCN} theme={configTheme}>
+      <ConfigProvider locale={locale === 'zh-CN' ? zhCN : enUS} theme={configTheme}>
         {children}
       </ConfigProvider>
     </ThemeContext.Provider>

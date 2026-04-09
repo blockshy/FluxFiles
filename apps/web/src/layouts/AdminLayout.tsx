@@ -1,52 +1,83 @@
-import { CloudServerOutlined, LogoutOutlined } from '@ant-design/icons';
+import { CloudServerOutlined, FileSearchOutlined, HomeOutlined, LogoutOutlined, SettingOutlined, TeamOutlined } from '@ant-design/icons';
 import { Button, Layout, Menu, Typography } from 'antd';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../features/admin/AuthProvider';
+import { LocaleToggle } from '../features/i18n/LocaleToggle';
+import { useI18n } from '../features/i18n/LocaleProvider';
 import { ThemeToggle } from '../features/theme/ThemeToggle';
+import {
+  PERMISSION_ADMIN_AUDIT,
+  PERMISSION_ADMIN_FILES_ALL,
+  PERMISSION_ADMIN_FILES_OWN,
+  PERMISSION_ADMIN_FILES_UPLOAD,
+  PERMISSION_ADMIN_FILES_EDIT,
+  PERMISSION_ADMIN_FILES_DELETE,
+  PERMISSION_ADMIN_SETTINGS,
+  PERMISSION_ADMIN_USERS_CREATE,
+  PERMISSION_ADMIN_USERS_EDIT,
+  hasPermission,
+} from '../features/user/permissions';
+import { useUserAuth } from '../features/user/AuthProvider';
 
 const { Header, Sider, Content } = Layout;
 
 export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout } = useUserAuth();
+  const { t, locale } = useI18n();
+
+  const items = [];
+  if (
+    hasPermission(user, PERMISSION_ADMIN_FILES_OWN) ||
+    hasPermission(user, PERMISSION_ADMIN_FILES_ALL) ||
+    hasPermission(user, PERMISSION_ADMIN_FILES_UPLOAD) ||
+    hasPermission(user, PERMISSION_ADMIN_FILES_EDIT) ||
+    hasPermission(user, PERMISSION_ADMIN_FILES_DELETE)
+  ) {
+    items.push({ key: '/admin/files', icon: <CloudServerOutlined />, label: <Link to="/admin/files">{t('admin.files')}</Link> });
+  }
+  if (hasPermission(user, PERMISSION_ADMIN_USERS_CREATE) || hasPermission(user, PERMISSION_ADMIN_USERS_EDIT)) {
+    items.push({ key: '/admin/users', icon: <TeamOutlined />, label: <Link to="/admin/users">{t('admin.users')}</Link> });
+  }
+  if (hasPermission(user, PERMISSION_ADMIN_SETTINGS)) {
+    items.push({ key: '/admin/settings', icon: <SettingOutlined />, label: <Link to="/admin/settings">{t('admin.settings')}</Link> });
+  }
+  if (hasPermission(user, PERMISSION_ADMIN_AUDIT)) {
+    items.push({ key: '/admin/logs', icon: <FileSearchOutlined />, label: <Link to="/admin/logs">{t('admin.logs')}</Link> });
+  }
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider width={232} theme="dark">
         <div className="sider-brand">FluxFiles Console</div>
-        <Menu
-          theme="dark"
-          selectedKeys={[location.pathname]}
-          items={[
-            {
-              key: '/admin/files',
-              icon: <CloudServerOutlined />,
-              label: <Link to="/admin/files">文件管理</Link>,
-            },
-          ]}
-        />
+        <Menu theme="dark" selectedKeys={[location.pathname]} items={items} />
       </Sider>
 
       <Layout>
         <Header className="admin-header">
           <div className="admin-header-meta">
             <Typography.Title level={4} style={{ margin: 0, lineHeight: 1.2 }}>
-              管理后台
+              {t('admin.console')}
             </Typography.Title>
-            <Typography.Text type="secondary">已登录管理员：{user?.username ?? '-'}</Typography.Text>
+            <Typography.Text type="secondary">
+              {t('admin.signedInAs')}: {user?.username ?? '-'}
+            </Typography.Text>
           </div>
 
           <div className="admin-header-actions">
+            <LocaleToggle />
             <ThemeToggle />
+            <Button icon={<HomeOutlined />} onClick={() => navigate('/')}>
+              {locale === 'zh-CN' ? '返回首页' : 'Back to home'}
+            </Button>
             <Button
               icon={<LogoutOutlined />}
               onClick={() => {
                 logout();
-                navigate('/admin/login', { replace: true });
+                navigate('/login', { replace: true });
               }}
             >
-              退出登录
+              {t('nav.logout')}
             </Button>
           </div>
         </Header>

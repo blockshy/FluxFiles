@@ -16,7 +16,6 @@ import (
 	"fluxfiles/api/pkg/logger"
 	ossclient "fluxfiles/api/pkg/oss"
 	"fluxfiles/api/pkg/resilience"
-	"fluxfiles/api/pkg/validator"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -67,15 +66,20 @@ func New() (*App, error) {
 	breakers := resilience.NewBreakers(log)
 	rateLimiter := resilience.NewRateLimiter(redisClient, log, cfg.Redis.Prefix)
 	jwtManager := auth.NewJWTManager(cfg.Security.JWTSecret, cfg.Security.JWTExpireHours)
-	uploadPolicy := validator.NewUploadPolicy(cfg.Security.MaxUploadSizeBytes, cfg.Security.AllowedFileExtensions, cfg.Security.AllowedMimeTypes)
 
 	userRepo := repository.NewUserRepository(db)
 	fileRepo := repository.NewFileRepository(db)
 	logRepo := repository.NewOperationLogRepository(db)
+	userLibraryRepo := repository.NewUserLibraryRepository(db)
+	settingsRepo := repository.NewSystemSettingRepository(db)
 
 	logService := service.NewOperationLogService(logRepo)
 	authService := service.NewAuthService(cfg.Security, userRepo, redisClient, jwtManager)
-	fileService := service.NewFileService(cfg, fileRepo, storage, breakers, logService, uploadPolicy)
+	settingsService := service.NewSettingsService(settingsRepo, cfg.RateLimit, cfg.Security)
+	captchaService := service.NewCaptchaService(redisClient, cfg.Redis.Prefix)
+	userService := service.NewUserService(userRepo, userLibraryRepo)
+	adminService := service.NewAdminService(userRepo, settingsService, logService)
+	fileService := service.NewFileService(cfg, fileRepo, storage, breakers, logService, settingsService)
 
 	if err := authService.EnsureBootstrapAdmin(context.Background()); err != nil {
 		return nil, fmt.Errorf("bootstrap admin: %w", err)
@@ -85,9 +89,15 @@ func New() (*App, error) {
 		Config:      cfg,
 		Logger:      log,
 		AuthService: authService,
-		PublicFiles: controller.NewPublicFileController(fileService),
+		UserService: userService,
+		PublicFiles: controller.NewPublicFileController(fileService, userService),
+		PublicAuth:  controller.NewPublicAuthController(authService, userService, settingsService, captchaService),
 		AdminAuth:   controller.NewAdminAuthController(authService),
 		AdminFiles:  controller.NewAdminFileController(fileService),
+		AdminUsers:  controller.NewAdminUserController(adminService),
+		AdminLogs:   controller.NewAdminLogController(logService),
+		UserFiles:   controller.NewUserFileController(userService),
+		Settings:    settingsService,
 		RateLimiter: rateLimiter,
 	})
 

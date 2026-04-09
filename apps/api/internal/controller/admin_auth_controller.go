@@ -40,14 +40,19 @@ func (ctl *AdminAuthController) Login(c *gin.Context) {
 		}
 		return
 	}
+	if result.User == nil || result.User.Role != "admin" {
+		response.Error(c, http.StatusForbidden, "admin privileges required")
+		return
+	}
 
 	response.Success(c, http.StatusOK, "login successful", result)
 }
 
 func (ctl *AdminAuthController) Me(c *gin.Context) {
 	response.Success(c, http.StatusOK, "ok", gin.H{
-		"id":       c.GetUint("adminUserID"),
-		"username": c.GetString("adminUsername"),
-		"role":     "admin",
+		"id":          c.GetUint("adminUserID"),
+		"username":    c.GetString("adminUsername"),
+		"role":        "admin",
+		"permissions": c.GetStringSlice("userPermissions"),
 	})
 }

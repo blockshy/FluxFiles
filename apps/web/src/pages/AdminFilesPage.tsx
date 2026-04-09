@@ -3,18 +3,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { Button, Card, Input, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useDeferredValue, useState } from 'react';
-import {
-  createAdminFile,
-  deleteAdminFile,
-  fetchAdminFiles,
-  fetchAdminStats,
-  prepareAdminUpload,
-  updateAdminFile,
-  uploadFileToOSS,
-} from '../api/admin';
+import { useDeferredValue, useMemo, useState } from 'react';
+import { createAdminFile, deleteAdminFile, fetchAdminFiles, fetchAdminStats, fetchAdminUploadSettings, prepareAdminUpload, updateAdminFile, uploadFileToOSS } from '../api/admin';
 import type { FileRecord, UpdateFilePayload } from '../api/types';
 import { FileFormModal } from '../features/admin/FileFormModal';
+import { useI18n } from '../features/i18n/LocaleProvider';
+import { useUserAuth } from '../features/user/AuthProvider';
+import {
+  hasPermission,
+  PERMISSION_ADMIN_FILES_ALL,
+  PERMISSION_ADMIN_FILES_DELETE,
+  PERMISSION_ADMIN_FILES_EDIT,
+  PERMISSION_ADMIN_FILES_UPLOAD,
+} from '../features/user/permissions';
 import { formatBytes, formatDate } from '../lib/format';
 
 interface SubmitPayload extends UpdateFilePayload {
@@ -43,17 +44,12 @@ const mimeTypeByExtension: Record<string, string> = {
 
 function extractErrorMessage(error: unknown, fallback: string) {
   if (axios.isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) {
-      return message;
+    const text = error.response?.data?.message;
+    if (typeof text === 'string' && text.trim()) {
+      return text;
     }
   }
-
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return fallback;
+  return error instanceof Error && error.message.trim() ? error.message : fallback;
 }
 
 export function AdminFilesPage() {
@@ -64,53 +60,32 @@ export function AdminFilesPage() {
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [modalState, setModalState] = useState<{
-    open: boolean;
-    mode: 'create' | 'edit';
-    file?: FileRecord | null;
-  }>({
-    open: false,
-    mode: 'create',
-    file: null,
-  });
+  const [modalState, setModalState] = useState<{ open: boolean; mode: 'create' | 'edit'; file?: FileRecord | null }>({ open: false, mode: 'create', file: null });
   const deferredSearch = useDeferredValue(search.trim());
+  const { t, locale } = useI18n();
+  const { user } = useUserAuth();
+
+  const canManageAll = hasPermission(user, PERMISSION_ADMIN_FILES_ALL);
+  const canUpload = hasPermission(user, PERMISSION_ADMIN_FILES_UPLOAD);
+  const canEdit = hasPermission(user, PERMISSION_ADMIN_FILES_EDIT);
+  const canDelete = hasPermission(user, PERMISSION_ADMIN_FILES_DELETE);
 
   const filesQuery = useQuery({
     queryKey: ['admin-files', page, pageSize, deferredSearch, sortBy, sortOrder],
-    queryFn: () =>
-      fetchAdminFiles({
-        page,
-        pageSize,
-        search: deferredSearch || undefined,
-        sortBy,
-        sortOrder,
-      }),
+    queryFn: () => fetchAdminFiles({ page, pageSize, search: deferredSearch || undefined, sortBy, sortOrder }),
   });
-
-  const statsQuery = useQuery({
-    queryKey: ['admin-stats'],
-    queryFn: fetchAdminStats,
-  });
+  const statsQuery = useQuery({ queryKey: ['admin-stats'], queryFn: fetchAdminStats });
+  const uploadSettingsQuery = useQuery({ queryKey: ['admin-upload-settings'], queryFn: fetchAdminUploadSettings, enabled: canUpload });
 
   const createMutation = useMutation({
     mutationFn: async (payload: SubmitPayload) => {
-      if (!payload.file) {
-        throw new Error('missing file');
-      }
-
+      if (!payload.file) throw new Error('missing file');
       const file = payload.file;
       const dotIndex = file.name.lastIndexOf('.');
       const extension = dotIndex >= 0 ? file.name.slice(dotIndex).toLowerCase() : '';
       const mimeType = file.type || mimeTypeByExtension[extension] || 'application/octet-stream';
-
-      const prepared = await prepareAdminUpload({
-        originalName: file.name,
-        size: file.size,
-        mimeType,
-      });
-
+      const prepared = await prepareAdminUpload({ originalName: file.name, size: file.size, mimeType });
       await uploadFileToOSS(prepared.uploadUrl, file, prepared.headers);
-
       return createAdminFile({
         objectKey: prepared.objectKey,
         originalName: file.name,
@@ -122,233 +97,113 @@ export function AdminFilesPage() {
       });
     },
     onSuccess: () => {
-      messageApi.success('文件已直传到 OSS 并完成入库。');
+      messageApi.success(t('files.uploadSuccess'));
       setModalState({ open: false, mode: 'create', file: null });
       void queryClient.invalidateQueries({ queryKey: ['admin-files'] });
       void queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
     },
-    onError: (error) => {
-      messageApi.error(extractErrorMessage(error, '上传失败，请检查 OSS 配置、文件类型或浏览器控制台。'));
-    },
+    onError: (error) => messageApi.error(extractErrorMessage(error, t('files.uploadSuccess'))),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: UpdateFilePayload }) => updateAdminFile(id, payload),
     onSuccess: () => {
-      messageApi.success('文件信息已更新。');
+      messageApi.success(t('files.updateSuccess'));
       setModalState({ open: false, mode: 'create', file: null });
       void queryClient.invalidateQueries({ queryKey: ['admin-files'] });
-    },
-    onError: (error) => {
-      messageApi.error(extractErrorMessage(error, '文件更新失败。'));
+      void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteAdminFile,
     onSuccess: () => {
-      messageApi.success('文件已删除。');
+      messageApi.success(t('files.deleteSuccess'));
       void queryClient.invalidateQueries({ queryKey: ['admin-files'] });
       void queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
-    },
-    onError: (error) => {
-      messageApi.error(extractErrorMessage(error, '文件删除失败。'));
+      void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
     },
   });
 
-  const columns: ColumnsType<FileRecord> = [
-    {
-      title: '展示名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: 220,
-      render: (value) => <Typography.Text strong>{value}</Typography.Text>,
-    },
-    {
-      title: '文件名称',
-      dataIndex: 'originalName',
-      key: 'originalName',
-      width: 260,
-      render: (value) => <Typography.Text type="secondary">{value}</Typography.Text>,
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      width: 260,
-      render: (value) => (
-        <div className="table-text-ellipsis" title={value || '暂无描述'}>
-          {value || '暂无描述'}
-        </div>
-      ),
-    },
-    {
-      title: '分类',
-      dataIndex: 'category',
-      key: 'category',
-      width: 120,
-      render: (value) => value || '-',
-    },
-    {
-      title: '标签',
-      dataIndex: 'tags',
-      key: 'tags',
-      width: 180,
-      render: (value: string[]) => (
-        <Space size={[4, 4]} wrap>
-          {value?.length ? value.map((tag) => <Tag key={tag}>{tag}</Tag>) : '-'}
-        </Space>
-      ),
-    },
-    {
-      title: '大小',
-      dataIndex: 'size',
-      key: 'size',
-      width: 120,
-      render: (value) => formatBytes(value),
-    },
-    {
-      title: '可见性',
-      dataIndex: 'isPublic',
-      key: 'isPublic',
-      width: 110,
-      render: (value) => (value ? <Tag color="green">公开</Tag> : <Tag color="default">隐藏</Tag>),
-    },
-    {
-      title: '下载次数',
-      dataIndex: 'downloadCount',
-      key: 'downloadCount',
-      width: 110,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updatedAt',
-      key: 'updatedAt',
-      width: 160,
-      render: (value) => formatDate(value),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 150,
-      render: (_, record) => (
-        <Space>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => setModalState({ open: true, mode: 'edit', file: record })}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确认删除这个文件？"
-            description="删除后会按当前配置决定是否同步删除 OSS 对象。"
-            okText="删除"
-            cancelText="取消"
-            onConfirm={() => deleteMutation.mutate(record.id)}
-          >
-            <Button danger type="link" icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  const columns = useMemo<ColumnsType<FileRecord>>(() => {
+    const baseColumns: ColumnsType<FileRecord> = [
+      { title: locale === 'zh-CN' ? '显示名称' : 'Name', dataIndex: 'name', key: 'name', width: 220, render: (value) => <Typography.Text strong>{value}</Typography.Text> },
+      { title: locale === 'zh-CN' ? '原文件名' : 'Original name', dataIndex: 'originalName', key: 'originalName', width: 240, render: (value) => <Typography.Text type="secondary">{value}</Typography.Text> },
+      { title: locale === 'zh-CN' ? '描述' : 'Description', dataIndex: 'description', key: 'description', width: 220, render: (value) => <div className="table-text-ellipsis" title={value || '-'}>{value || '-'}</div> },
+      { title: locale === 'zh-CN' ? '分类' : 'Category', dataIndex: 'category', key: 'category', width: 120, render: (value) => value || '-' },
+      { title: locale === 'zh-CN' ? '标签' : 'Tags', dataIndex: 'tags', key: 'tags', width: 180, render: (value: string[]) => <Space size={[4, 4]} wrap>{value?.length ? value.map((tag) => <Tag key={tag}>{tag}</Tag>) : '-'}</Space> },
+      { title: locale === 'zh-CN' ? '大小' : 'Size', dataIndex: 'size', key: 'size', width: 110, render: (value) => formatBytes(value) },
+      { title: locale === 'zh-CN' ? '公开' : 'Public', dataIndex: 'isPublic', key: 'isPublic', width: 100, render: (value) => (value ? <Tag color="green">{locale === 'zh-CN' ? '公开' : 'Public'}</Tag> : <Tag>{locale === 'zh-CN' ? '隐藏' : 'Hidden'}</Tag>) },
+      { title: locale === 'zh-CN' ? '下载量' : 'Downloads', dataIndex: 'downloadCount', key: 'downloadCount', width: 110 },
+      { title: locale === 'zh-CN' ? '上传用户' : 'Uploader', key: 'createdByUser', width: 180, render: (_, record) => record.createdByDisplayName || record.createdByUsername || '-' },
+      { title: locale === 'zh-CN' ? '更新时间' : 'Updated at', dataIndex: 'updatedAt', key: 'updatedAt', width: 160, render: (value) => formatDate(value) },
+    ];
+
+    if (canEdit || canDelete) {
+      baseColumns.push({
+        title: locale === 'zh-CN' ? '操作' : 'Action',
+        key: 'action',
+        width: canEdit && canDelete ? 180 : 110,
+        fixed: 'right',
+        render: (_, record) => (
+          <Space size={8} wrap={false}>
+            {canEdit ? <Button type="link" icon={<EditOutlined />} onClick={() => setModalState({ open: true, mode: 'edit', file: record })}>{t('files.edit')}</Button> : null}
+            {canDelete ? (
+              <Popconfirm title={t('files.deleteConfirm')} description={t('files.deleteDesc')} okText={t('files.delete')} cancelText={t('common.cancel')} onConfirm={() => deleteMutation.mutate(record.id)}>
+                <Button danger type="link" icon={<DeleteOutlined />}>{t('files.delete')}</Button>
+              </Popconfirm>
+            ) : null}
+          </Space>
+        ),
+      });
+    }
+
+    return baseColumns;
+  }, [canDelete, canEdit, deleteMutation, locale, t]);
+
+  const scrollX = canEdit || canDelete ? 1810 : 1630;
 
   return (
     <>
       {contextHolder}
-
       <div className="metric-grid">
-        <div className="metric-card">
-          <div className="metric-label">文件总数</div>
-          <div className="metric-value">{statsQuery.data?.totalFiles ?? 0}</div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-label">公开文件</div>
-          <div className="metric-value">{statsQuery.data?.publicFiles ?? 0}</div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-label">累计下载</div>
-          <div className="metric-value">{statsQuery.data?.totalDownloads ?? 0}</div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-label">占用存储</div>
-          <div className="metric-value">{formatBytes(statsQuery.data?.totalStorage ?? 0)}</div>
-        </div>
+        <div className="metric-card"><div className="metric-label">{t('files.dashboard.total')}</div><div className="metric-value">{statsQuery.data?.totalFiles ?? 0}</div></div>
+        <div className="metric-card"><div className="metric-label">{t('files.dashboard.public')}</div><div className="metric-value">{statsQuery.data?.publicFiles ?? 0}</div></div>
+        <div className="metric-card"><div className="metric-label">{t('files.dashboard.downloads')}</div><div className="metric-value">{statsQuery.data?.totalDownloads ?? 0}</div></div>
+        <div className="metric-card"><div className="metric-label">{t('files.dashboard.storage')}</div><div className="metric-value">{formatBytes(statsQuery.data?.totalStorage ?? 0)}</div></div>
       </div>
 
       <Card className="surface-card">
         <div className="toolbar-row">
           <div>
-            <h2 className="section-title">文件管理</h2>
-            <p className="section-subtitle">上传由浏览器直传 OSS，后端只负责签名与元数据入库。</p>
+            <h2 className="section-title">{t('files.title')}</h2>
+            <p className="section-subtitle">
+              {canManageAll
+                ? (locale === 'zh-CN' ? '可管理全部文件，并查看上传用户。' : 'Manage all files and review uploader information.')
+                : (locale === 'zh-CN' ? '当前仅可处理自己上传的文件。' : 'You can act only on files uploaded by yourself.')}
+            </p>
           </div>
-
           <div className="toolbar-controls">
-            <Input
-              allowClear
-              placeholder="搜索展示名称、文件名称、描述、分类"
-              style={{ width: 300 }}
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-            />
-            <Select
-              style={{ width: 150 }}
-              value={sortBy}
-              options={[
-                { label: '按上传时间', value: 'createdAt' },
-                { label: '按展示名称', value: 'name' },
-                { label: '按下载次数', value: 'downloadCount' },
-              ]}
-              onChange={(value) => {
-                setSortBy(value);
-                setPage(1);
-              }}
-            />
-            <Select
-              style={{ width: 110 }}
-              value={sortOrder}
-              options={[
-                { label: '降序', value: 'desc' },
-                { label: '升序', value: 'asc' },
-              ]}
-              onChange={(value) => {
-                setSortOrder(value);
-                setPage(1);
-              }}
-            />
-            <Button icon={<ReloadOutlined />} onClick={() => filesQuery.refetch()}>
-              刷新
-            </Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setModalState({ open: true, mode: 'create', file: null })}
-            >
-              上传文件
-            </Button>
+            <Input allowClear placeholder={t('files.search')} style={{ width: 320 }} value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
+            <Select style={{ width: 160 }} value={sortBy} options={[{ label: locale === 'zh-CN' ? '按上传时间' : 'Created at', value: 'createdAt' }, { label: locale === 'zh-CN' ? '按名称' : 'Name', value: 'name' }, { label: locale === 'zh-CN' ? '按下载量' : 'Downloads', value: 'downloadCount' }]} onChange={(value) => { setSortBy(value); setPage(1); }} />
+            <Select style={{ width: 120 }} value={sortOrder} options={[{ label: locale === 'zh-CN' ? '降序' : 'Desc', value: 'desc' }, { label: locale === 'zh-CN' ? '升序' : 'Asc', value: 'asc' }]} onChange={(value) => { setSortOrder(value); setPage(1); }} />
+            <Button icon={<ReloadOutlined />} onClick={() => filesQuery.refetch()}>{t('files.refresh')}</Button>
+            {canUpload ? (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalState({ open: true, mode: 'create', file: null })}>
+                {canManageAll ? t('files.upload') : (locale === 'zh-CN' ? '上传我的文件' : 'Upload my file')}
+              </Button>
+            ) : null}
           </div>
         </div>
 
         <Table<FileRecord>
           rowKey="id"
           columns={columns}
+          scroll={{ x: scrollX }}
           dataSource={filesQuery.data?.items ?? []}
           loading={filesQuery.isLoading || statsQuery.isLoading}
-          pagination={{
-            current: page,
-            pageSize,
-            total: filesQuery.data?.pagination.total ?? 0,
-            onChange: (nextPage, nextPageSize) => {
-              setPage(nextPage);
-              setPageSize(nextPageSize);
-            },
-          }}
+          pagination={{ current: page, pageSize, total: filesQuery.data?.pagination.total ?? 0, onChange: (nextPage, nextPageSize) => { setPage(nextPage); setPageSize(nextPageSize); } }}
         />
       </Card>
 
@@ -357,17 +212,14 @@ export function AdminFilesPage() {
         mode={modalState.mode}
         initialValue={modalState.file}
         loading={createMutation.isPending || updateMutation.isPending}
+        uploadSettings={uploadSettingsQuery.data}
         onCancel={() => setModalState({ open: false, mode: 'create', file: null })}
         onSubmit={async (payload) => {
           if (modalState.mode === 'create') {
             await createMutation.mutateAsync(payload);
             return;
           }
-
-          if (!modalState.file) {
-            return;
-          }
-
+          if (!modalState.file) return;
           await updateMutation.mutateAsync({
             id: modalState.file.id,
             payload: {

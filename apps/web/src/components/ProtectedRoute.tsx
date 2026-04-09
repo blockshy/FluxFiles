@@ -1,13 +1,22 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../features/admin/AuthProvider';
+import { canAccessAdmin } from '../features/user/permissions';
+import { useUserAuth } from '../features/user/AuthProvider';
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { token } = useAuth();
+  const { ready, token, user } = useUserAuth();
   const location = useLocation();
 
+  if (!ready) {
+    return null;
+  }
+
   if (!token) {
-    return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (!canAccessAdmin(user)) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

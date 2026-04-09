@@ -22,6 +22,8 @@ func NewAdminFileController(files *service.FileService) *AdminFileController {
 }
 
 func (ctl *AdminFileController) List(c *gin.Context) {
+	adminID := c.GetUint("adminUserID")
+	permissions := currentPermissions(c)
 	params := repository.FileListParams{
 		Page:      parseInt(c.DefaultQuery("page", "1"), 1),
 		PageSize:  parseInt(c.DefaultQuery("pageSize", "10"), 10),
@@ -30,9 +32,14 @@ func (ctl *AdminFileController) List(c *gin.Context) {
 		SortOrder: c.DefaultQuery("sortOrder", "desc"),
 	}
 
-	items, total, err := ctl.files.ListAdmin(c.Request.Context(), params)
+	items, total, err := ctl.files.ListAdmin(c.Request.Context(), adminID, permissions, params)
 	if err != nil {
-		response.Error(c, http.StatusServiceUnavailable, "file service is temporarily unavailable")
+		switch {
+		case errors.Is(err, service.ErrForbidden):
+			response.Error(c, http.StatusForbidden, "insufficient permissions")
+		default:
+			response.Error(c, http.StatusServiceUnavailable, "file service is temporarily unavailable")
+		}
 		return
 	}
 
@@ -40,10 +47,14 @@ func (ctl *AdminFileController) List(c *gin.Context) {
 }
 
 func (ctl *AdminFileController) Get(c *gin.Context) {
-	file, err := ctl.files.GetAdmin(c.Request.Context(), parseUintParam(c, "id"))
+	file, err := ctl.files.GetAdmin(c.Request.Context(), parseUintParam(c, "id"), c.GetUint("adminUserID"), currentPermissions(c))
 	if err != nil {
 		if errors.Is(err, service.ErrNotFound) {
 			response.Error(c, http.StatusNotFound, "file not found")
+			return
+		}
+		if errors.Is(err, service.ErrForbidden) {
+			response.Error(c, http.StatusForbidden, "insufficient permissions")
 			return
 		}
 		response.Error(c, http.StatusServiceUnavailable, "file service is temporarily unavailable")
@@ -54,6 +65,11 @@ func (ctl *AdminFileController) Get(c *gin.Context) {
 }
 
 func (ctl *AdminFileController) Create(c *gin.Context) {
+	if !service.HasPermission(currentPermissions(c), service.PermissionAdminFilesUpload) {
+		response.Error(c, http.StatusForbidden, "insufficient permissions")
+		return
+	}
+
 	var req dto.CompleteUploadRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid request payload: "+err.Error())
@@ -87,6 +103,11 @@ func (ctl *AdminFileController) Create(c *gin.Context) {
 }
 
 func (ctl *AdminFileController) PrepareUpload(c *gin.Context) {
+	if !service.HasPermission(currentPermissions(c), service.PermissionAdminFilesUpload) {
+		response.Error(c, http.StatusForbidden, "insufficient permissions")
+		return
+	}
+
 	var req dto.PrepareUploadRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid request payload: "+err.Error())
@@ -113,7 +134,23 @@ func (ctl *AdminFileController) PrepareUpload(c *gin.Context) {
 	response.Success(c, http.StatusOK, "upload prepared", result)
 }
 
+func (ctl *AdminFileController) UploadSettings(c *gin.Context) {
+	settings, err := ctl.files.GetUploadSettings(c.Request.Context())
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
+		return
+	}
+	response.Success(c, http.StatusOK, "ok", gin.H{
+		"uploadSettings": settings,
+	})
+}
+
 func (ctl *AdminFileController) Update(c *gin.Context) {
+	if !service.HasPermission(currentPermissions(c), service.PermissionAdminFilesEdit) {
+		response.Error(c, http.StatusForbidden, "insufficient permissions")
+		return
+	}
+
 	var req dto.UpdateFileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid request payload")
@@ -128,11 +165,13 @@ func (ctl *AdminFileController) Update(c *gin.Context) {
 		"is_public":   req.IsPublic,
 	}
 
-	file, err := ctl.files.Update(c.Request.Context(), parseUintParam(c, "id"), c.GetUint("adminUserID"), c.ClientIP(), values)
+	file, err := ctl.files.Update(c.Request.Context(), parseUintParam(c, "id"), c.GetUint("adminUserID"), currentPermissions(c), c.ClientIP(), values)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNotFound):
 			response.Error(c, http.StatusNotFound, "file not found")
+		case errors.Is(err, service.ErrForbidden):
+			response.Error(c, http.StatusForbidden, "insufficient permissions")
 		case errors.Is(err, service.ErrDependencyUnavailable):
 			response.Error(c, http.StatusServiceUnavailable, "file service is temporarily unavailable")
 		default:
@@ -145,10 +184,17 @@ func (ctl *AdminFileController) Update(c *gin.Context) {
 }
 
 func (ctl *AdminFileController) Delete(c *gin.Context) {
-	if err := ctl.files.Delete(c.Request.Context(), parseUintParam(c, "id"), c.GetUint("adminUserID"), c.ClientIP()); err != nil {
+	if !service.HasPermission(currentPermissions(c), service.PermissionAdminFilesDelete) {
+		response.Error(c, http.StatusForbidden, "insufficient permissions")
+		return
+	}
+
+	if err := ctl.files.Delete(c.Request.Context(), parseUintParam(c, "id"), c.GetUint("adminUserID"), currentPermissions(c), c.ClientIP()); err != nil {
 		switch {
 		case errors.Is(err, service.ErrNotFound):
 			response.Error(c, http.StatusNotFound, "file not found")
+		case errors.Is(err, service.ErrForbidden):
+			response.Error(c, http.StatusForbidden, "insufficient permissions")
 		case errors.Is(err, service.ErrDependencyUnavailable):
 			response.Error(c, http.StatusServiceUnavailable, "file service is temporarily unavailable")
 		default:
@@ -161,11 +207,27 @@ func (ctl *AdminFileController) Delete(c *gin.Context) {
 }
 
 func (ctl *AdminFileController) Stats(c *gin.Context) {
-	stats, err := ctl.files.DashboardStats(c.Request.Context())
+	stats, err := ctl.files.DashboardStats(c.Request.Context(), c.GetUint("adminUserID"), currentPermissions(c))
 	if err != nil {
+		if errors.Is(err, service.ErrForbidden) {
+			response.Error(c, http.StatusForbidden, "insufficient permissions")
+			return
+		}
 		response.Error(c, http.StatusServiceUnavailable, "statistics service is temporarily unavailable")
 		return
 	}
 
 	response.Success(c, http.StatusOK, "ok", stats)
+}
+
+func currentPermissions(c *gin.Context) []string {
+	value, ok := c.Get("userPermissions")
+	if !ok {
+		return []string{}
+	}
+	permissions, ok := value.([]string)
+	if !ok {
+		return []string{}
+	}
+	return permissions
 }
