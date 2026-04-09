@@ -1,0 +1,78 @@
+# =========================================================
+# FluxFiles Development Compose
+# 用途：
+# 1. 提供独立于生产配置的本地开发 / 测试环境
+# 2. 使用 .env.dev，不读取生产 .env
+# 3. 包含 postgres / redis / api / web 四个服务
+# 启动：
+# docker compose -f docker-compose.dev.yml --env-file .env.dev up -d --build
+# =========================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fluxfiles-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_DEV_PORT:-15432}:5432"
+    volumes:
+      - fluxfiles-dev-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: fluxfiles-dev-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_DEV_PORT:-16379}:6379"
+    volumes:
+      - fluxfiles-dev-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: fluxfiles-dev-api
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    ports:
+      - "${API_PORT:-18080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    container_name: fluxfiles-dev-web
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    ports:
+      - "${WEB_PORT:-8081}:80"
+    depends_on:
+      - api
+
+volumes:
+  fluxfiles-dev-postgres-data:
+  fluxfiles-dev-redis-data:

@@ -1,4 +1,0 @@
--- Deprecated placeholder.
--- FluxFiles no longer keeps duplicated schema SQL in the application directory.
--- The latest full PostgreSQL schema is maintained only in:
--- deploy/pgsql/public.sql
