@@ -28,6 +28,7 @@ type FileService struct {
 	breakers *resilience.Breakers
 	logs     *OperationLogService
 	settings *SettingsService
+	taxonomy *TaxonomyService
 }
 
 type PrepareUploadInput struct {
@@ -68,6 +69,7 @@ func NewFileService(
 	breakers *resilience.Breakers,
 	logs *OperationLogService,
 	settings *SettingsService,
+	taxonomy *TaxonomyService,
 ) *FileService {
 	return &FileService{
 		cfg:      cfg,
@@ -76,6 +78,7 @@ func NewFileService(
 		breakers: breakers,
 		logs:     logs,
 		settings: settings,
+		taxonomy: taxonomy,
 	}
 }
 
@@ -207,6 +210,11 @@ func (s *FileService) Create(ctx context.Context, input CompleteUploadInput) (*m
 	if strings.TrimSpace(input.ObjectKey) == "" || strings.TrimSpace(input.OriginalName) == "" {
 		return nil, ErrValidation
 	}
+	if s.taxonomy != nil {
+		if err := s.taxonomy.ValidateSelections(ctx, input.Category, input.Tags); err != nil {
+			return nil, err
+		}
+	}
 
 	result, err := s.breakers.OSS.Execute(func() (any, error) {
 		return s.storage.HeadObject(ctx, input.ObjectKey)
@@ -268,6 +276,15 @@ func (s *FileService) Update(ctx context.Context, id uint, adminID uint, permiss
 	}
 
 	values["tags"] = normalizeTags(toStringSlice(values["tags"]))
+	if s.taxonomy != nil {
+		category := file.Category
+		if rawCategory, ok := values["category"].(string); ok {
+			category = strings.TrimSpace(rawCategory)
+		}
+		if err := s.taxonomy.ValidateSelections(ctx, category, values["tags"].([]string)); err != nil {
+			return nil, err
+		}
+	}
 	if _, err := s.breakers.DB.Execute(func() (any, error) {
 		return nil, s.files.Update(ctx, file, values)
 	}); err != nil {

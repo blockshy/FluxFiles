@@ -92,6 +92,10 @@ type UpdatePermissionTemplatesRequest struct {
 	Templates []PermissionTemplateRequest `json:"templates" binding:"required,min=1"`
 }
 
+type SaveTaxonomyRequest struct {
+	Name string `json:"name" binding:"required,min=1,max=128"`
+}
+
 type UpdateFileRequest struct {
 	Name        string   `json:"name" binding:"required,min=1,max=255"`
 	Description string   `json:"description" binding:"max=5000"`

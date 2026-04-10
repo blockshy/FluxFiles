@@ -76,6 +76,56 @@ CREATE INDEX IF NOT EXISTS idx_operation_logs_admin_user_id ON public.operation_
 CREATE INDEX IF NOT EXISTS idx_operation_logs_action ON public.operation_logs(action);
 CREATE INDEX IF NOT EXISTS idx_operation_logs_created_at ON public.operation_logs(created_at);
 
+CREATE TABLE IF NOT EXISTS public.categories (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(128) NOT NULL,
+    created_by BIGINT NOT NULL,
+    updated_by BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ NULL,
+    CONSTRAINT categories_name_key UNIQUE (name),
+    CONSTRAINT categories_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+    CONSTRAINT categories_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_categories_deleted_at ON public.categories(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_categories_created_by ON public.categories(created_by);
+CREATE INDEX IF NOT EXISTS idx_categories_updated_by ON public.categories(updated_by);
+
+CREATE TABLE IF NOT EXISTS public.tags (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(128) NOT NULL,
+    created_by BIGINT NOT NULL,
+    updated_by BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ NULL,
+    CONSTRAINT tags_name_key UNIQUE (name),
+    CONSTRAINT tags_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+    CONSTRAINT tags_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tags_deleted_at ON public.tags(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_tags_created_by ON public.tags(created_by);
+CREATE INDEX IF NOT EXISTS idx_tags_updated_by ON public.tags(updated_by);
+
+CREATE TABLE IF NOT EXISTS public.taxonomy_change_logs (
+    id BIGSERIAL PRIMARY KEY,
+    taxonomy_type VARCHAR(32) NOT NULL,
+    taxonomy_id BIGINT NOT NULL,
+    action VARCHAR(32) NOT NULL,
+    before_data TEXT NOT NULL DEFAULT '',
+    after_data TEXT NOT NULL DEFAULT '',
+    admin_user_id BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT taxonomy_change_logs_admin_user_id_fkey FOREIGN KEY (admin_user_id) REFERENCES public.users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_taxonomy_change_logs_type_id ON public.taxonomy_change_logs(taxonomy_type, taxonomy_id);
+CREATE INDEX IF NOT EXISTS idx_taxonomy_change_logs_admin_user_id ON public.taxonomy_change_logs(admin_user_id);
+CREATE INDEX IF NOT EXISTS idx_taxonomy_change_logs_created_at ON public.taxonomy_change_logs(created_at);
+
 CREATE TABLE IF NOT EXISTS public.user_favorites (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,

@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Button, Card, Input, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useDeferredValue, useMemo, useState } from 'react';
-import { createAdminFile, deleteAdminFile, fetchAdminFiles, fetchAdminStats, fetchAdminUploadSettings, prepareAdminUpload, updateAdminFile, uploadFileToOSS } from '../api/admin';
+import { createAdminFile, deleteAdminFile, fetchAdminCategoryOptions, fetchAdminFiles, fetchAdminStats, fetchAdminTagOptions, fetchAdminUploadSettings, prepareAdminUpload, updateAdminFile, uploadFileToOSS } from '../api/admin';
 import type { FileRecord, UpdateFilePayload } from '../api/types';
 import { FileFormModal } from '../features/admin/FileFormModal';
 import { useI18n } from '../features/i18n/LocaleProvider';
@@ -76,6 +76,8 @@ export function AdminFilesPage() {
   });
   const statsQuery = useQuery({ queryKey: ['admin-stats'], queryFn: fetchAdminStats });
   const uploadSettingsQuery = useQuery({ queryKey: ['admin-upload-settings'], queryFn: fetchAdminUploadSettings, enabled: canUpload });
+  const categoryOptionsQuery = useQuery({ queryKey: ['admin-category-options'], queryFn: fetchAdminCategoryOptions });
+  const tagOptionsQuery = useQuery({ queryKey: ['admin-tag-options'], queryFn: fetchAdminTagOptions });
 
   const createMutation = useMutation({
     mutationFn: async (payload: SubmitPayload) => {
@@ -213,6 +215,8 @@ export function AdminFilesPage() {
         initialValue={modalState.file}
         loading={createMutation.isPending || updateMutation.isPending}
         uploadSettings={uploadSettingsQuery.data}
+        categoryOptions={(categoryOptionsQuery.data ?? []).map((item) => ({ label: item.name, value: item.name }))}
+        tagOptions={(tagOptionsQuery.data ?? []).map((item) => ({ label: item.name, value: item.name }))}
         onCancel={() => setModalState({ open: false, mode: 'create', file: null })}
         onSubmit={async (payload) => {
           if (modalState.mode === 'create') {

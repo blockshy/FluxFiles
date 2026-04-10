@@ -1,4 +1,4 @@
-import { CloudServerOutlined, FileSearchOutlined, HomeOutlined, LogoutOutlined, SettingOutlined, TeamOutlined } from '@ant-design/icons';
+import { CloudServerOutlined, FileSearchOutlined, FolderOpenOutlined, HomeOutlined, LogoutOutlined, SettingOutlined, TagsOutlined, TeamOutlined } from '@ant-design/icons';
 import { Button, Layout, Menu, Typography } from 'antd';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { LocaleToggle } from '../features/i18n/LocaleToggle';
@@ -14,6 +14,16 @@ import {
   PERMISSION_ADMIN_SETTINGS,
   PERMISSION_ADMIN_USERS_CREATE,
   PERMISSION_ADMIN_USERS_EDIT,
+  PERMISSION_ADMIN_CATEGORIES_VIEW,
+  PERMISSION_ADMIN_CATEGORIES_CREATE,
+  PERMISSION_ADMIN_CATEGORIES_EDIT,
+  PERMISSION_ADMIN_CATEGORIES_DELETE,
+  PERMISSION_ADMIN_CATEGORIES_LOGS,
+  PERMISSION_ADMIN_TAGS_VIEW,
+  PERMISSION_ADMIN_TAGS_CREATE,
+  PERMISSION_ADMIN_TAGS_EDIT,
+  PERMISSION_ADMIN_TAGS_DELETE,
+  PERMISSION_ADMIN_TAGS_LOGS,
   hasPermission,
 } from '../features/user/permissions';
 import { useUserAuth } from '../features/user/AuthProvider';
@@ -38,6 +48,24 @@ export function AdminLayout() {
   }
   if (hasPermission(user, PERMISSION_ADMIN_USERS_CREATE) || hasPermission(user, PERMISSION_ADMIN_USERS_EDIT)) {
     items.push({ key: '/admin/users', icon: <TeamOutlined />, label: <Link to="/admin/users">{t('admin.users')}</Link> });
+  }
+  if (
+    hasPermission(user, PERMISSION_ADMIN_CATEGORIES_VIEW) ||
+    hasPermission(user, PERMISSION_ADMIN_CATEGORIES_CREATE) ||
+    hasPermission(user, PERMISSION_ADMIN_CATEGORIES_EDIT) ||
+    hasPermission(user, PERMISSION_ADMIN_CATEGORIES_DELETE) ||
+    hasPermission(user, PERMISSION_ADMIN_CATEGORIES_LOGS)
+  ) {
+    items.push({ key: '/admin/categories', icon: <FolderOpenOutlined />, label: <Link to="/admin/categories">{t('admin.categories')}</Link> });
+  }
+  if (
+    hasPermission(user, PERMISSION_ADMIN_TAGS_VIEW) ||
+    hasPermission(user, PERMISSION_ADMIN_TAGS_CREATE) ||
+    hasPermission(user, PERMISSION_ADMIN_TAGS_EDIT) ||
+    hasPermission(user, PERMISSION_ADMIN_TAGS_DELETE) ||
+    hasPermission(user, PERMISSION_ADMIN_TAGS_LOGS)
+  ) {
+    items.push({ key: '/admin/tags', icon: <TagsOutlined />, label: <Link to="/admin/tags">{t('admin.tags')}</Link> });
   }
   if (hasPermission(user, PERMISSION_ADMIN_SETTINGS)) {
     items.push({ key: '/admin/settings', icon: <SettingOutlined />, label: <Link to="/admin/settings">{t('admin.settings')}</Link> });

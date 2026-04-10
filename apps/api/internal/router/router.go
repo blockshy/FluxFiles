@@ -14,19 +14,20 @@ import (
 )
 
 type Dependencies struct {
-	Config      *config.Config
-	Logger      *slog.Logger
-	AuthService *service.AuthService
-	UserService *service.UserService
-	PublicFiles *controller.PublicFileController
-	PublicAuth  *controller.PublicAuthController
-	AdminAuth   *controller.AdminAuthController
-	AdminFiles  *controller.AdminFileController
-	AdminUsers  *controller.AdminUserController
-	AdminLogs   *controller.AdminLogController
-	UserFiles   *controller.UserFileController
-	Settings    *service.SettingsService
-	RateLimiter *resilience.RateLimiter
+	Config          *config.Config
+	Logger          *slog.Logger
+	AuthService     *service.AuthService
+	UserService     *service.UserService
+	PublicFiles     *controller.PublicFileController
+	PublicAuth      *controller.PublicAuthController
+	AdminAuth       *controller.AdminAuthController
+	AdminFiles      *controller.AdminFileController
+	AdminTaxonomies *controller.AdminTaxonomyController
+	AdminUsers      *controller.AdminUserController
+	AdminLogs       *controller.AdminLogController
+	UserFiles       *controller.UserFileController
+	Settings        *service.SettingsService
+	RateLimiter     *resilience.RateLimiter
 }
 
 func New(deps Dependencies) *gin.Engine {
@@ -113,6 +114,46 @@ func New(deps Dependencies) *gin.Engine {
 	adminUsers.GET("/users", deps.AdminUsers.List)
 	adminUsers.POST("/users", deps.AdminUsers.Create)
 	adminUsers.PUT("/users/:id", deps.AdminUsers.Update)
+
+	adminCategories := adminAuthorized.Group("/categories")
+	adminCategories.Use(middleware.RequireAnyPermission(
+		deps.AuthService,
+		service.PermissionAdminFilesOwn,
+		service.PermissionAdminFilesAll,
+		service.PermissionAdminFilesUpload,
+		service.PermissionAdminFilesEdit,
+		service.PermissionAdminCategoriesView,
+		service.PermissionAdminCategoriesCreate,
+		service.PermissionAdminCategoriesEdit,
+		service.PermissionAdminCategoriesDelete,
+		service.PermissionAdminCategoriesLogs,
+	))
+	adminCategories.GET("", deps.AdminTaxonomies.ListCategories)
+	adminCategories.GET("/options", deps.AdminTaxonomies.CategoryOptions)
+	adminCategories.POST("", deps.AdminTaxonomies.CreateCategory)
+	adminCategories.PUT("/:id", deps.AdminTaxonomies.UpdateCategory)
+	adminCategories.DELETE("/:id", deps.AdminTaxonomies.DeleteCategory)
+	adminCategories.GET("/:id/logs", deps.AdminTaxonomies.CategoryLogs)
+
+	adminTags := adminAuthorized.Group("/tags")
+	adminTags.Use(middleware.RequireAnyPermission(
+		deps.AuthService,
+		service.PermissionAdminFilesOwn,
+		service.PermissionAdminFilesAll,
+		service.PermissionAdminFilesUpload,
+		service.PermissionAdminFilesEdit,
+		service.PermissionAdminTagsView,
+		service.PermissionAdminTagsCreate,
+		service.PermissionAdminTagsEdit,
+		service.PermissionAdminTagsDelete,
+		service.PermissionAdminTagsLogs,
+	))
+	adminTags.GET("", deps.AdminTaxonomies.ListTags)
+	adminTags.GET("/options", deps.AdminTaxonomies.TagOptions)
+	adminTags.POST("", deps.AdminTaxonomies.CreateTag)
+	adminTags.PUT("/:id", deps.AdminTaxonomies.UpdateTag)
+	adminTags.DELETE("/:id", deps.AdminTaxonomies.DeleteTag)
+	adminTags.GET("/:id/logs", deps.AdminTaxonomies.TagLogs)
 
 	adminSettings := adminAuthorized.Group("")
 	adminSettings.Use(middleware.RequirePermission(deps.AuthService, service.PermissionAdminSettings))

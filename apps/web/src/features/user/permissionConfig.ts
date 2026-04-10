@@ -9,6 +9,16 @@ import {
   PERMISSION_ADMIN_SETTINGS,
   PERMISSION_ADMIN_USERS_CREATE,
   PERMISSION_ADMIN_USERS_EDIT,
+  PERMISSION_ADMIN_CATEGORIES_VIEW,
+  PERMISSION_ADMIN_CATEGORIES_CREATE,
+  PERMISSION_ADMIN_CATEGORIES_EDIT,
+  PERMISSION_ADMIN_CATEGORIES_DELETE,
+  PERMISSION_ADMIN_CATEGORIES_LOGS,
+  PERMISSION_ADMIN_TAGS_VIEW,
+  PERMISSION_ADMIN_TAGS_CREATE,
+  PERMISSION_ADMIN_TAGS_EDIT,
+  PERMISSION_ADMIN_TAGS_DELETE,
+  PERMISSION_ADMIN_TAGS_LOGS,
 } from './permissions';
 
 export interface PermissionGroup {
@@ -31,6 +41,16 @@ export function getPermissionLabels(locale: AppLocale): Record<string, string> {
     [PERMISSION_ADMIN_FILES_DELETE]: locale === 'zh-CN' ? '文件删除' : 'File delete',
     [PERMISSION_ADMIN_USERS_CREATE]: locale === 'zh-CN' ? '用户新建' : 'User create',
     [PERMISSION_ADMIN_USERS_EDIT]: locale === 'zh-CN' ? '用户编辑' : 'User edit',
+    [PERMISSION_ADMIN_CATEGORIES_VIEW]: locale === 'zh-CN' ? '分类查看' : 'Category view',
+    [PERMISSION_ADMIN_CATEGORIES_CREATE]: locale === 'zh-CN' ? '分类新建' : 'Category create',
+    [PERMISSION_ADMIN_CATEGORIES_EDIT]: locale === 'zh-CN' ? '分类编辑' : 'Category edit',
+    [PERMISSION_ADMIN_CATEGORIES_DELETE]: locale === 'zh-CN' ? '分类删除' : 'Category delete',
+    [PERMISSION_ADMIN_CATEGORIES_LOGS]: locale === 'zh-CN' ? '分类记录查看' : 'Category logs',
+    [PERMISSION_ADMIN_TAGS_VIEW]: locale === 'zh-CN' ? '标签查看' : 'Tag view',
+    [PERMISSION_ADMIN_TAGS_CREATE]: locale === 'zh-CN' ? '标签新建' : 'Tag create',
+    [PERMISSION_ADMIN_TAGS_EDIT]: locale === 'zh-CN' ? '标签编辑' : 'Tag edit',
+    [PERMISSION_ADMIN_TAGS_DELETE]: locale === 'zh-CN' ? '标签删除' : 'Tag delete',
+    [PERMISSION_ADMIN_TAGS_LOGS]: locale === 'zh-CN' ? '标签记录查看' : 'Tag logs',
     [PERMISSION_ADMIN_SETTINGS]: locale === 'zh-CN' ? '系统设置' : 'Settings',
     [PERMISSION_ADMIN_AUDIT]: locale === 'zh-CN' ? '审计日志' : 'Audit logs',
   };
@@ -58,6 +78,28 @@ export function getPermissionGroups(locale: AppLocale): PermissionGroup[] {
       ],
     },
     {
+      key: 'categories',
+      title: locale === 'zh-CN' ? '分类权限' : 'Category permissions',
+      options: [
+        PERMISSION_ADMIN_CATEGORIES_VIEW,
+        PERMISSION_ADMIN_CATEGORIES_CREATE,
+        PERMISSION_ADMIN_CATEGORIES_EDIT,
+        PERMISSION_ADMIN_CATEGORIES_DELETE,
+        PERMISSION_ADMIN_CATEGORIES_LOGS,
+      ],
+    },
+    {
+      key: 'tags',
+      title: locale === 'zh-CN' ? '标签权限' : 'Tag permissions',
+      options: [
+        PERMISSION_ADMIN_TAGS_VIEW,
+        PERMISSION_ADMIN_TAGS_CREATE,
+        PERMISSION_ADMIN_TAGS_EDIT,
+        PERMISSION_ADMIN_TAGS_DELETE,
+        PERMISSION_ADMIN_TAGS_LOGS,
+      ],
+    },
+    {
       key: 'system',
       title: locale === 'zh-CN' ? '系统权限' : 'System permissions',
       options: [
@@ -76,6 +118,8 @@ export function getPermissionCombinationFeedback(locale: AppLocale, permissions:
   const canEditFile = selected.has(PERMISSION_ADMIN_FILES_EDIT);
   const canDeleteFile = selected.has(PERMISSION_ADMIN_FILES_DELETE);
   const canUploadFile = selected.has(PERMISSION_ADMIN_FILES_UPLOAD);
+  const categoryView = selected.has(PERMISSION_ADMIN_CATEGORIES_VIEW);
+  const tagView = selected.has(PERMISSION_ADMIN_TAGS_VIEW);
 
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -102,6 +146,30 @@ export function getPermissionCombinationFeedback(locale: AppLocale, permissions:
     warnings.push(locale === 'zh-CN'
       ? '当前仅授予文件上传，不授予文件编辑或删除，用户将只能上传新文件。'
       : 'Upload-only permission allows creating new files, but not editing or deleting existing ones.');
+  }
+
+  if (
+    (selected.has(PERMISSION_ADMIN_CATEGORIES_CREATE) ||
+      selected.has(PERMISSION_ADMIN_CATEGORIES_EDIT) ||
+      selected.has(PERMISSION_ADMIN_CATEGORIES_DELETE) ||
+      selected.has(PERMISSION_ADMIN_CATEGORIES_LOGS)) &&
+    !categoryView
+  ) {
+    errors.push(locale === 'zh-CN'
+      ? '分类的新建、编辑、删除、记录查看权限依赖“分类查看”。'
+      : 'Category create/edit/delete/logs require category view.');
+  }
+
+  if (
+    (selected.has(PERMISSION_ADMIN_TAGS_CREATE) ||
+      selected.has(PERMISSION_ADMIN_TAGS_EDIT) ||
+      selected.has(PERMISSION_ADMIN_TAGS_DELETE) ||
+      selected.has(PERMISSION_ADMIN_TAGS_LOGS)) &&
+    !tagView
+  ) {
+    errors.push(locale === 'zh-CN'
+      ? '标签的新建、编辑、删除、记录查看权限依赖“标签查看”。'
+      : 'Tag create/edit/delete/logs require tag view.');
   }
 
   return { errors, warnings };

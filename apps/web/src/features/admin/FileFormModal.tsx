@@ -20,6 +20,8 @@ interface FileFormModalProps {
   initialValue?: FileRecord | null;
   loading: boolean;
   uploadSettings?: UploadSettings;
+  categoryOptions: { label: string; value: string }[];
+  tagOptions: { label: string; value: string }[];
   onCancel: () => void;
   onSubmit: (payload: SubmitPayload) => Promise<void>;
 }
@@ -32,7 +34,7 @@ function normalizeFileNameExtension(name: string) {
   return name.slice(index).toLowerCase();
 }
 
-export function FileFormModal({ open, mode, initialValue, loading, uploadSettings, onCancel, onSubmit }: FileFormModalProps) {
+export function FileFormModal({ open, mode, initialValue, loading, uploadSettings, categoryOptions, tagOptions, onCancel, onSubmit }: FileFormModalProps) {
   const [form] = Form.useForm<UpdateFilePayload>();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -145,10 +147,10 @@ export function FileFormModal({ open, mode, initialValue, loading, uploadSetting
           <Input.TextArea rows={4} />
         </Form.Item>
         <Form.Item name="category" label={locale === 'zh-CN' ? '分类' : 'Category'}>
-          <Input />
+          <Select allowClear options={categoryOptions} placeholder={locale === 'zh-CN' ? '请选择分类' : 'Select a category'} />
         </Form.Item>
         <Form.Item name="tags" label={locale === 'zh-CN' ? '标签' : 'Tags'}>
-          <Select mode="tags" tokenSeparators={[',']} />
+          <Select mode="multiple" options={tagOptions} placeholder={locale === 'zh-CN' ? '请选择标签' : 'Select tags'} />
         </Form.Item>
         <Form.Item name="isPublic" label={locale === 'zh-CN' ? '公开展示' : 'Public'} valuePropName="checked">
           <Switch checkedChildren={t('common.on')} unCheckedChildren={t('common.off')} />

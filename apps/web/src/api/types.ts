@@ -198,6 +198,12 @@ export interface UserQuery {
   search?: string;
 }
 
+export interface TaxonomyQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+}
+
 export interface OperationLogQuery {
   page: number;
   pageSize: number;
@@ -285,5 +291,33 @@ export interface OperationLogRecord {
   detail: string;
   detailParsed?: AuditDetail | null;
   ip: string;
+  createdAt: string;
+}
+
+export interface TaxonomyRecord {
+  id: number;
+  name: string;
+  createdBy: number;
+  updatedBy: number;
+  createdByUsername?: string;
+  updatedByUsername?: string;
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaveTaxonomyPayload {
+  name: string;
+}
+
+export interface TaxonomyLogRecord {
+  id: number;
+  taxonomyType: string;
+  taxonomyId: number;
+  action: string;
+  beforeData: string;
+  afterData: string;
+  adminUserId: number;
+  adminUsername?: string;
   createdAt: string;
 }

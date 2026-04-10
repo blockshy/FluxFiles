@@ -63,6 +63,44 @@ type OperationLog struct {
 	CreatedAt   time.Time `json:"createdAt"`
 }
 
+type Category struct {
+	ID                uint           `gorm:"primaryKey" json:"id"`
+	Name              string         `gorm:"size:128;uniqueIndex;not null" json:"name"`
+	CreatedBy         uint           `gorm:"not null;index" json:"createdBy"`
+	UpdatedBy         uint           `gorm:"not null;index" json:"updatedBy"`
+	CreatedByUsername string         `gorm:"->;column:created_by_username;-:migration" json:"createdByUsername,omitempty"`
+	UpdatedByUsername string         `gorm:"->;column:updated_by_username;-:migration" json:"updatedByUsername,omitempty"`
+	UsageCount        int64          `gorm:"->;column:usage_count;-:migration" json:"usageCount"`
+	CreatedAt         time.Time      `json:"createdAt"`
+	UpdatedAt         time.Time      `json:"updatedAt"`
+	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type Tag struct {
+	ID                uint           `gorm:"primaryKey" json:"id"`
+	Name              string         `gorm:"size:128;uniqueIndex;not null" json:"name"`
+	CreatedBy         uint           `gorm:"not null;index" json:"createdBy"`
+	UpdatedBy         uint           `gorm:"not null;index" json:"updatedBy"`
+	CreatedByUsername string         `gorm:"->;column:created_by_username;-:migration" json:"createdByUsername,omitempty"`
+	UpdatedByUsername string         `gorm:"->;column:updated_by_username;-:migration" json:"updatedByUsername,omitempty"`
+	UsageCount        int64          `gorm:"->;column:usage_count;-:migration" json:"usageCount"`
+	CreatedAt         time.Time      `json:"createdAt"`
+	UpdatedAt         time.Time      `json:"updatedAt"`
+	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type TaxonomyChangeLog struct {
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	TaxonomyType  string    `gorm:"size:32;index;not null" json:"taxonomyType"`
+	TaxonomyID    uint      `gorm:"not null;index" json:"taxonomyId"`
+	Action        string    `gorm:"size:32;not null" json:"action"`
+	BeforeData    string    `gorm:"type:text;not null;default:''" json:"beforeData"`
+	AfterData     string    `gorm:"type:text;not null;default:''" json:"afterData"`
+	AdminUserID   uint      `gorm:"not null;index" json:"adminUserId"`
+	AdminUsername string    `gorm:"->;column:admin_username;-:migration" json:"adminUsername,omitempty"`
+	CreatedAt     time.Time `json:"createdAt"`
+}
+
 type UserFavorite struct {
 	ID        uint      `gorm:"primaryKey"`
 	UserID    uint      `gorm:"not null;index:idx_user_favorites_user_file,unique"`

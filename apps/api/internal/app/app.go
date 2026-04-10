@@ -70,6 +70,8 @@ func New() (*App, error) {
 	userRepo := repository.NewUserRepository(db)
 	fileRepo := repository.NewFileRepository(db)
 	logRepo := repository.NewOperationLogRepository(db)
+	taxonomyRepo := repository.NewTaxonomyRepository(db)
+	taxonomyLogRepo := repository.NewTaxonomyLogRepository(db)
 	userLibraryRepo := repository.NewUserLibraryRepository(db)
 	settingsRepo := repository.NewSystemSettingRepository(db)
 
@@ -79,26 +81,28 @@ func New() (*App, error) {
 	captchaService := service.NewCaptchaService(redisClient, cfg.Redis.Prefix)
 	userService := service.NewUserService(userRepo, userLibraryRepo, fileRepo)
 	adminService := service.NewAdminService(userRepo, settingsService, logService)
-	fileService := service.NewFileService(cfg, fileRepo, storage, breakers, logService, settingsService)
+	taxonomyService := service.NewTaxonomyService(db, taxonomyRepo, taxonomyLogRepo, fileRepo, logService)
+	fileService := service.NewFileService(cfg, fileRepo, storage, breakers, logService, settingsService, taxonomyService)
 
 	if err := authService.EnsureBootstrapAdmin(context.Background()); err != nil {
 		return nil, fmt.Errorf("bootstrap admin: %w", err)
 	}
 
 	httpRouter := router.New(router.Dependencies{
-		Config:      cfg,
-		Logger:      log,
-		AuthService: authService,
-		UserService: userService,
-		PublicFiles: controller.NewPublicFileController(fileService, userService),
-		PublicAuth:  controller.NewPublicAuthController(authService, userService, settingsService, captchaService),
-		AdminAuth:   controller.NewAdminAuthController(authService),
-		AdminFiles:  controller.NewAdminFileController(fileService),
-		AdminUsers:  controller.NewAdminUserController(adminService),
-		AdminLogs:   controller.NewAdminLogController(logService),
-		UserFiles:   controller.NewUserFileController(userService),
-		Settings:    settingsService,
-		RateLimiter: rateLimiter,
+		Config:          cfg,
+		Logger:          log,
+		AuthService:     authService,
+		UserService:     userService,
+		PublicFiles:     controller.NewPublicFileController(fileService, userService),
+		PublicAuth:      controller.NewPublicAuthController(authService, userService, settingsService, captchaService),
+		AdminAuth:       controller.NewAdminAuthController(authService),
+		AdminFiles:      controller.NewAdminFileController(fileService),
+		AdminTaxonomies: controller.NewAdminTaxonomyController(taxonomyService),
+		AdminUsers:      controller.NewAdminUserController(adminService),
+		AdminLogs:       controller.NewAdminLogController(logService),
+		UserFiles:       controller.NewUserFileController(userService),
+		Settings:        settingsService,
+		RateLimiter:     rateLimiter,
 	})
 
 	server := &http.Server{

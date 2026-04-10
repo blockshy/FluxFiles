@@ -10,11 +10,23 @@ import {
   PERMISSION_ADMIN_FILES_EDIT,
   PERMISSION_ADMIN_FILES_DELETE,
   PERMISSION_ADMIN_AUDIT,
+  PERMISSION_ADMIN_CATEGORIES_CREATE,
+  PERMISSION_ADMIN_CATEGORIES_DELETE,
+  PERMISSION_ADMIN_CATEGORIES_EDIT,
+  PERMISSION_ADMIN_CATEGORIES_LOGS,
+  PERMISSION_ADMIN_CATEGORIES_VIEW,
   PERMISSION_ADMIN_SETTINGS,
+  PERMISSION_ADMIN_TAGS_CREATE,
+  PERMISSION_ADMIN_TAGS_DELETE,
+  PERMISSION_ADMIN_TAGS_EDIT,
+  PERMISSION_ADMIN_TAGS_LOGS,
+  PERMISSION_ADMIN_TAGS_VIEW,
   PERMISSION_ADMIN_USERS_CREATE,
   PERMISSION_ADMIN_USERS_EDIT,
 } from '../features/user/permissions';
+import { AdminCategoriesPage } from '../pages/AdminCategoriesPage';
 import { AdminLayout } from '../layouts/AdminLayout';
+import { AdminTagsPage } from '../pages/AdminTagsPage';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { AdminFilesPage } from '../pages/AdminFilesPage';
 import { AdminLogsPage } from '../pages/AdminLogsPage';
@@ -80,6 +92,22 @@ export function AppRouter() {
           element={
             <AdminPermissionRoute permission={[PERMISSION_ADMIN_USERS_CREATE, PERMISSION_ADMIN_USERS_EDIT]}>
               <AdminUsersPage />
+            </AdminPermissionRoute>
+          }
+        />
+        <Route
+          path="categories"
+          element={
+            <AdminPermissionRoute permission={[PERMISSION_ADMIN_CATEGORIES_VIEW, PERMISSION_ADMIN_CATEGORIES_CREATE, PERMISSION_ADMIN_CATEGORIES_EDIT, PERMISSION_ADMIN_CATEGORIES_DELETE, PERMISSION_ADMIN_CATEGORIES_LOGS]}>
+              <AdminCategoriesPage />
+            </AdminPermissionRoute>
+          }
+        />
+        <Route
+          path="tags"
+          element={
+            <AdminPermissionRoute permission={[PERMISSION_ADMIN_TAGS_VIEW, PERMISSION_ADMIN_TAGS_CREATE, PERMISSION_ADMIN_TAGS_EDIT, PERMISSION_ADMIN_TAGS_DELETE, PERMISSION_ADMIN_TAGS_LOGS]}>
+              <AdminTagsPage />
             </AdminPermissionRoute>
           }
         />

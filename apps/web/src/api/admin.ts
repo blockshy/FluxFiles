@@ -19,6 +19,10 @@ import type {
   PreparedUpload,
   PrepareUploadPayload,
   RateLimitSettings,
+  SaveTaxonomyPayload,
+  TaxonomyLogRecord,
+  TaxonomyQuery,
+  TaxonomyRecord,
   UploadSettings,
   UpdateManagedUserPayload,
   UpdateFilePayload,
@@ -155,4 +159,72 @@ export async function updateAdminFile(id: number, payload: UpdateFilePayload) {
 export async function deleteAdminFile(id: number) {
   const response = await apiClient.delete<ApiEnvelope<null>>(`/admin/files/${id}`);
   return response.data;
+}
+
+export async function fetchAdminCategories(query: TaxonomyQuery) {
+  const response = await apiClient.get<ApiEnvelope<PaginatedPayload<TaxonomyRecord>>>('/admin/categories', {
+    params: query,
+  });
+  return response.data.data;
+}
+
+export async function fetchAdminCategoryOptions() {
+  const response = await apiClient.get<ApiEnvelope<{ items: TaxonomyRecord[] }>>('/admin/categories/options');
+  return response.data.data.items;
+}
+
+export async function createAdminCategory(payload: SaveTaxonomyPayload) {
+  const response = await apiClient.post<ApiEnvelope<TaxonomyRecord>>('/admin/categories', payload);
+  return response.data.data;
+}
+
+export async function updateAdminCategory(id: number, payload: SaveTaxonomyPayload) {
+  const response = await apiClient.put<ApiEnvelope<TaxonomyRecord>>(`/admin/categories/${id}`, payload);
+  return response.data.data;
+}
+
+export async function deleteAdminCategory(id: number) {
+  const response = await apiClient.delete<ApiEnvelope<null>>(`/admin/categories/${id}`);
+  return response.data;
+}
+
+export async function fetchAdminCategoryLogs(id: number, query: TaxonomyQuery) {
+  const response = await apiClient.get<ApiEnvelope<PaginatedPayload<TaxonomyLogRecord>>>(`/admin/categories/${id}/logs`, {
+    params: query,
+  });
+  return response.data.data;
+}
+
+export async function fetchAdminTags(query: TaxonomyQuery) {
+  const response = await apiClient.get<ApiEnvelope<PaginatedPayload<TaxonomyRecord>>>('/admin/tags', {
+    params: query,
+  });
+  return response.data.data;
+}
+
+export async function fetchAdminTagOptions() {
+  const response = await apiClient.get<ApiEnvelope<{ items: TaxonomyRecord[] }>>('/admin/tags/options');
+  return response.data.data.items;
+}
+
+export async function createAdminTag(payload: SaveTaxonomyPayload) {
+  const response = await apiClient.post<ApiEnvelope<TaxonomyRecord>>('/admin/tags', payload);
+  return response.data.data;
+}
+
+export async function updateAdminTag(id: number, payload: SaveTaxonomyPayload) {
+  const response = await apiClient.put<ApiEnvelope<TaxonomyRecord>>(`/admin/tags/${id}`, payload);
+  return response.data.data;
+}
+
+export async function deleteAdminTag(id: number) {
+  const response = await apiClient.delete<ApiEnvelope<null>>(`/admin/tags/${id}`);
+  return response.data;
+}
+
+export async function fetchAdminTagLogs(id: number, query: TaxonomyQuery) {
+  const response = await apiClient.get<ApiEnvelope<PaginatedPayload<TaxonomyLogRecord>>>(`/admin/tags/${id}/logs`, {
+    params: query,
+  });
+  return response.data.data;
 }

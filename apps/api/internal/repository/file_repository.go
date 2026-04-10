@@ -195,3 +195,37 @@ func (r *FileRepository) DashboardStats(ctx context.Context, ownerID *uint) (*Da
 
 	return stats, nil
 }
+
+func (r *FileRepository) CountByCategory(ctx context.Context, category string) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.File{}).Where("category = ?", strings.TrimSpace(category)).Count(&count).Error
+	return count, err
+}
+
+func (r *FileRepository) CountByTag(ctx context.Context, tag string) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.File{}).
+		Where("jsonb_exists(tags, ?)", strings.TrimSpace(tag)).
+		Count(&count).Error
+	return count, err
+}
+
+func (r *FileRepository) RenameCategoryReferences(ctx context.Context, oldName, newName string) error {
+	return r.db.WithContext(ctx).Model(&model.File{}).Where("category = ?", oldName).Updates(map[string]any{
+		"category":   newName,
+		"updated_at": gorm.Expr("NOW()"),
+	}).Error
+}
+
+func (r *FileRepository) RenameTagReferences(ctx context.Context, oldName, newName string) error {
+	return r.db.WithContext(ctx).Exec(`
+		UPDATE files
+		SET tags = (
+			SELECT COALESCE(jsonb_agg(CASE WHEN value = to_jsonb(?::text) THEN to_jsonb(?::text) ELSE value END), '[]'::jsonb)
+			FROM jsonb_array_elements(tags) AS elem(value)
+		),
+		updated_at = NOW()
+		WHERE deleted_at IS NULL AND jsonb_exists(tags, ?)
+	`, oldName, newName, oldName).Error
+}

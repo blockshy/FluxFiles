@@ -7,15 +7,25 @@ import (
 )
 
 const (
-	PermissionAdminFilesOwn    = "admin.files.own"
-	PermissionAdminFilesAll    = "admin.files.all"
-	PermissionAdminFilesUpload = "admin.files.upload"
-	PermissionAdminFilesEdit   = "admin.files.edit"
-	PermissionAdminFilesDelete = "admin.files.delete"
-	PermissionAdminUsersCreate = "admin.users.create"
-	PermissionAdminUsersEdit   = "admin.users.edit"
-	PermissionAdminSettings    = "admin.settings"
-	PermissionAdminAudit       = "admin.audit"
+	PermissionAdminFilesOwn         = "admin.files.own"
+	PermissionAdminFilesAll         = "admin.files.all"
+	PermissionAdminFilesUpload      = "admin.files.upload"
+	PermissionAdminFilesEdit        = "admin.files.edit"
+	PermissionAdminFilesDelete      = "admin.files.delete"
+	PermissionAdminUsersCreate      = "admin.users.create"
+	PermissionAdminUsersEdit        = "admin.users.edit"
+	PermissionAdminCategoriesView   = "admin.categories.view"
+	PermissionAdminCategoriesCreate = "admin.categories.create"
+	PermissionAdminCategoriesEdit   = "admin.categories.edit"
+	PermissionAdminCategoriesDelete = "admin.categories.delete"
+	PermissionAdminCategoriesLogs   = "admin.categories.logs"
+	PermissionAdminTagsView         = "admin.tags.view"
+	PermissionAdminTagsCreate       = "admin.tags.create"
+	PermissionAdminTagsEdit         = "admin.tags.edit"
+	PermissionAdminTagsDelete       = "admin.tags.delete"
+	PermissionAdminTagsLogs         = "admin.tags.logs"
+	PermissionAdminSettings         = "admin.settings"
+	PermissionAdminAudit            = "admin.audit"
 )
 
 var AllAdminPermissions = []string{
@@ -26,6 +36,16 @@ var AllAdminPermissions = []string{
 	PermissionAdminFilesDelete,
 	PermissionAdminUsersCreate,
 	PermissionAdminUsersEdit,
+	PermissionAdminCategoriesView,
+	PermissionAdminCategoriesCreate,
+	PermissionAdminCategoriesEdit,
+	PermissionAdminCategoriesDelete,
+	PermissionAdminCategoriesLogs,
+	PermissionAdminTagsView,
+	PermissionAdminTagsCreate,
+	PermissionAdminTagsEdit,
+	PermissionAdminTagsDelete,
+	PermissionAdminTagsLogs,
 	PermissionAdminSettings,
 	PermissionAdminAudit,
 }
@@ -49,6 +69,23 @@ var DefaultPermissionTemplates = []PermissionTemplate{
 		Name:        "Ops Admin",
 		Description: "Manage files and view audit logs",
 		Permissions: []string{PermissionAdminFilesAll, PermissionAdminFilesUpload, PermissionAdminFilesEdit, PermissionAdminFilesDelete, PermissionAdminAudit},
+	},
+	{
+		Key:         "taxonomy_admin",
+		Name:        "Taxonomy Admin",
+		Description: "Manage categories, tags, and their change logs",
+		Permissions: []string{
+			PermissionAdminCategoriesView,
+			PermissionAdminCategoriesCreate,
+			PermissionAdminCategoriesEdit,
+			PermissionAdminCategoriesDelete,
+			PermissionAdminCategoriesLogs,
+			PermissionAdminTagsView,
+			PermissionAdminTagsCreate,
+			PermissionAdminTagsEdit,
+			PermissionAdminTagsDelete,
+			PermissionAdminTagsLogs,
+		},
 	},
 	{
 		Key:         "user_admin",
@@ -132,7 +169,20 @@ func ValidatePermissionCombination(permissions []string) error {
 	if (HasPermission(permissions, PermissionAdminFilesEdit) || HasPermission(permissions, PermissionAdminFilesDelete)) && !hasFileScope {
 		return fmt.Errorf("%w: file edit/delete permissions require own-file or all-file scope", ErrValidation)
 	}
+	if err := validateTaxonomyPermissionViewDependency(permissions, PermissionAdminCategoriesView, PermissionAdminCategoriesCreate, PermissionAdminCategoriesEdit, PermissionAdminCategoriesDelete, PermissionAdminCategoriesLogs); err != nil {
+		return err
+	}
+	if err := validateTaxonomyPermissionViewDependency(permissions, PermissionAdminTagsView, PermissionAdminTagsCreate, PermissionAdminTagsEdit, PermissionAdminTagsDelete, PermissionAdminTagsLogs); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func validateTaxonomyPermissionViewDependency(permissions []string, viewPermission string, required ...string) error {
+	if HasAnyPermission(permissions, required...) && !HasPermission(permissions, viewPermission) {
+		return fmt.Errorf("%w: taxonomy management and log permissions require view permission", ErrValidation)
+	}
 	return nil
 }
 
