@@ -229,10 +229,10 @@ export function AdminFilesPage() {
         render: (_, record) => (
           <div className="table-action-cell align-right">
             <Space size={8} wrap={false}>
-              {canEdit ? <Button type="link" icon={<EditOutlined />} className="stable-action-button" onClick={() => setModalState({ open: true, mode: 'edit', file: record })}>{t('files.edit')}</Button> : null}
+              {canEdit ? <Button icon={<EditOutlined />} className="stable-action-button table-action-button" onClick={() => setModalState({ open: true, mode: 'edit', file: record })}>{t('files.edit')}</Button> : null}
               {canDelete ? (
                 <Popconfirm title={t('files.deleteConfirm')} description={t('files.deleteDesc')} okText={t('files.delete')} cancelText={t('common.cancel')} onConfirm={() => deleteMutation.mutate(record.id)}>
-                  <Button danger type="link" icon={<DeleteOutlined />} className="stable-action-button">{t('files.delete')}</Button>
+                  <Button danger icon={<DeleteOutlined />} className="stable-action-button table-action-button">{t('files.delete')}</Button>
                 </Popconfirm>
               ) : null}
             </Space>

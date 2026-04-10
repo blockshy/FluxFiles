@@ -76,9 +76,9 @@ export function NotificationsPage() {
     return (
       <List.Item
         actions={[
-          !item.isRead ? <Button key="read" type="link" icon={<CheckOutlined />} onClick={() => markReadMutation.mutate(item.id)}>{locale === 'zh-CN' ? '标记已读' : 'Mark read'}</Button> : null,
-          item.relatedCommentFileId && item.relatedCommentId ? <Button key="link" type="link"><Link to={`/files/${item.relatedCommentFileId}`}>{locale === 'zh-CN' ? '查看详情' : 'Open'}</Link></Button> : null,
-          item.relatedCommentFileId && item.relatedCommentId ? <Button key="reply" type="link" icon={<MessageOutlined />} onClick={() => setReplyingNotification(item.id)}>{locale === 'zh-CN' ? '快捷回复' : 'Quick reply'}</Button> : null,
+          !item.isRead ? <Button key="read" className="table-action-button" icon={<CheckOutlined />} onClick={() => markReadMutation.mutate(item.id)}>{locale === 'zh-CN' ? '标记已读' : 'Mark read'}</Button> : null,
+          item.relatedCommentFileId && item.relatedCommentId ? <Link key="link" to={`/files/${item.relatedCommentFileId}`} className="table-action-link file-action-button">{locale === 'zh-CN' ? '查看详情' : 'Open'}</Link> : null,
+          item.relatedCommentFileId && item.relatedCommentId ? <Button key="reply" className="table-action-button" icon={<MessageOutlined />} onClick={() => setReplyingNotification(item.id)}>{locale === 'zh-CN' ? '快捷回复' : 'Quick reply'}</Button> : null,
         ].filter(Boolean)}
       >
         <List.Item.Meta
@@ -120,8 +120,8 @@ export function NotificationsPage() {
     return (
       <List.Item
         actions={[
-          <Button key="open" type="link"><Link to={`/files/${item.fileId}`}>{locale === 'zh-CN' ? '查看文件详情' : 'Open file'}</Link></Button>,
-          item.canDelete ? <Button key="delete" type="link" danger icon={<DeleteOutlined />} onClick={() => deleteCommentMutation.mutate(item.id)}>{locale === 'zh-CN' ? '删除' : 'Delete'}</Button> : null,
+          <Link key="open" to={`/files/${item.fileId}`} className="table-action-link file-action-button">{locale === 'zh-CN' ? '查看文件详情' : 'Open file'}</Link>,
+          item.canDelete ? <Button key="delete" className="table-action-button" danger icon={<DeleteOutlined />} onClick={() => deleteCommentMutation.mutate(item.id)}>{locale === 'zh-CN' ? '删除' : 'Delete'}</Button> : null,
         ].filter(Boolean)}
       >
         <List.Item.Meta

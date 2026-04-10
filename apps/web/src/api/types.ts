@@ -211,6 +211,8 @@ export interface FileQuery {
   page: number;
   pageSize: number;
   search?: string;
+  categories?: string[];
+  tags?: string[];
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }

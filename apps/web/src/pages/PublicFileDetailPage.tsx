@@ -431,10 +431,6 @@ export function PublicFileDetailPage() {
               <div className="detail-hero">
                 <div>
                   <Typography.Title level={2} style={{ marginTop: 0, marginBottom: 8 }}>{file.name}</Typography.Title>
-                  <Typography.Text type="secondary">{file.originalName}</Typography.Text>
-                  <Typography.Paragraph style={{ marginTop: 16, whiteSpace: 'pre-wrap' }}>
-                    {file.description || (locale === 'zh-CN' ? '暂无描述。' : 'No description.')}
-                  </Typography.Paragraph>
                 </div>
                 <Space wrap>
                   <Button type="primary" icon={<DownloadOutlined />} loading={downloadMutation.isPending} onClick={() => downloadMutation.mutate(file.id)}>
@@ -465,20 +461,40 @@ export function PublicFileDetailPage() {
                   <span className="detail-label">{locale === 'zh-CN' ? '上传时间' : 'Uploaded'}</span>
                   <span className="detail-value">{formatDate(file.createdAt)}</span>
                 </div>
+                <div className="detail-item">
+                  <span className="detail-label">{locale === 'zh-CN' ? '类型' : 'Type'}</span>
+                  <span className="detail-value">{file.mimeType || '-'}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">{locale === 'zh-CN' ? '上传者' : 'Uploader'}</span>
+                  {file.createdByUsername ? (
+                    <Link to={`/users/${file.createdByUsername}`} className="uploader-link inline">
+                      <Avatar src={file.createdByAvatarUrl} size={32}>{(file.createdByDisplayName || file.createdByUsername).slice(0, 1).toUpperCase()}</Avatar>
+                      <span>{file.createdByDisplayName || file.createdByUsername}</span>
+                    </Link>
+                  ) : (
+                    <span className="detail-value">-</span>
+                  )}
+                </div>
+                <div className="detail-item detail-item-full">
+                  <span className="detail-label">{locale === 'zh-CN' ? '标签' : 'Tags'}</span>
+                  <div className="detail-tag-list">
+                    {(file.tagPaths?.length ? file.tagPaths : file.tags || []).length > 0 ? (file.tagPaths?.length ? file.tagPaths : file.tags).map((tag) => <Tag key={tag}>{tag}</Tag>) : <Tag>{locale === 'zh-CN' ? '无标签' : 'No tags'}</Tag>}
+                  </div>
+                </div>
+                <div className="detail-item detail-item-full">
+                  <span className="detail-label">{locale === 'zh-CN' ? '原文件名' : 'Original filename'}</span>
+                  <span className="detail-value detail-value-rich">{file.originalName || '-'}</span>
+                </div>
+                <div className="detail-item detail-item-full">
+                  <span className="detail-label">{locale === 'zh-CN' ? '描述' : 'Description'}</span>
+                  <span className="detail-value detail-value-rich">{file.description || (locale === 'zh-CN' ? '暂无描述。' : 'No description.')}</span>
+                </div>
               </div>
-
-              {file.createdByUsername ? (
-                <Link to={`/users/${file.createdByUsername}`} className="uploader-link inline">
-                  <Avatar src={file.createdByAvatarUrl} size={32}>{(file.createdByDisplayName || file.createdByUsername).slice(0, 1).toUpperCase()}</Avatar>
-                  <span>{locale === 'zh-CN' ? '上传者' : 'Uploader'}: {file.createdByDisplayName || file.createdByUsername}</span>
-                </Link>
-              ) : null}
-
-              <Space wrap size={[8, 8]}>
-                {(file.tagPaths?.length ? file.tagPaths : file.tags || []).length > 0 ? (file.tagPaths?.length ? file.tagPaths : file.tags).map((tag) => <Tag key={tag}>{tag}</Tag>) : <Tag>{locale === 'zh-CN' ? '无标签' : 'No tags'}</Tag>}
-              </Space>
             </Space>
-          ) : fileQuery.isLoading ? null : <Empty description={locale === 'zh-CN' ? '文件不存在或已下线' : 'File not found'} />}
+          ) : fileQuery.isLoading ? (
+            <Skeleton active paragraph={{ rows: 8 }} />
+          ) : <Empty description={locale === 'zh-CN' ? '文件不存在或已下线' : 'File not found'} />}
         </Card>
 
         <Card className="surface-card" title={locale === 'zh-CN' ? `评论区 (${overallCommentTotal})` : `Comments (${overallCommentTotal})`}>

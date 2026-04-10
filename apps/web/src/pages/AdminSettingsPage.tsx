@@ -115,16 +115,18 @@ export function AdminSettingsPage() {
       width: 100,
       fixed: 'right',
       render: (_, __, index) => (
-        <Button
-          type="link"
-          onClick={() => {
-            setEditingIndex(index);
-            templateForm.setFieldsValue(templates[index]);
-            setModalOpen(true);
-          }}
-        >
-          {t('common.edit')}
-        </Button>
+        <div className="table-action-cell align-right">
+          <Button
+            className="table-action-button"
+            onClick={() => {
+              setEditingIndex(index);
+              templateForm.setFieldsValue(templates[index]);
+              setModalOpen(true);
+            }}
+          >
+            {t('common.edit')}
+          </Button>
+        </div>
       ),
     },
   ];

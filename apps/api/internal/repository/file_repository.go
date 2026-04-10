@@ -14,6 +14,8 @@ type FileListParams struct {
 	Page           int
 	PageSize       int
 	Search         string
+	Categories     []string
+	Tags           []string
 	SortBy         string
 	SortOrder      string
 	PublicOnly     bool
@@ -128,9 +130,34 @@ func (r *FileRepository) List(ctx context.Context, params FileListParams) ([]mod
 	if keyword := strings.TrimSpace(strings.ToLower(params.Search)); keyword != "" {
 		like := "%" + keyword + "%"
 		query = query.Where(
-			"LOWER(name) LIKE ? OR LOWER(original_name) LIKE ? OR LOWER(description) LIKE ? OR LOWER(category) LIKE ?",
-			like, like, like, like,
+			"LOWER(name) LIKE ? OR LOWER(original_name) LIKE ? OR LOWER(description) LIKE ? OR LOWER(category) LIKE ? OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(files.tags) AS tag(value) WHERE LOWER(tag.value) LIKE ?)",
+			like, like, like, like, like,
 		)
+	}
+	if len(params.Categories) > 0 {
+		categories := make([]string, 0, len(params.Categories))
+		for _, item := range params.Categories {
+			if value := strings.TrimSpace(item); value != "" {
+				categories = append(categories, value)
+			}
+		}
+		if len(categories) > 0 {
+			query = query.Where("files.category IN ?", categories)
+		}
+	}
+	if len(params.Tags) > 0 {
+		tags := make([]string, 0, len(params.Tags))
+		for _, item := range params.Tags {
+			if value := strings.TrimSpace(item); value != "" {
+				tags = append(tags, value)
+			}
+		}
+		if len(tags) > 0 {
+			query = query.Where(
+				"EXISTS (SELECT 1 FROM jsonb_array_elements_text(files.tags) AS tag(value) WHERE tag.value IN ?)",
+				tags,
+			)
+		}
 	}
 
 	sortColumn := "created_at"

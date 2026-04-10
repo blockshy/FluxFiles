@@ -101,22 +101,24 @@ export function AdminUsersPage() {
         width: 100,
         fixed: 'right',
         render: (_, record) => (
-          <Button
-            type="link"
-            onClick={() => {
-              setModalState({ open: true, mode: 'edit', user: record });
-              form.setFieldsValue({
-                displayName: record.displayName,
-                email: record.email,
-                role: record.role,
-                permissions: record.permissions,
-                permissionTemplate: undefined,
-                isEnabled: record.isEnabled,
-              });
-            }}
-          >
-            {t('common.edit')}
-          </Button>
+          <div className="table-action-cell align-right">
+            <Button
+              className="table-action-button"
+              onClick={() => {
+                setModalState({ open: true, mode: 'edit', user: record });
+                form.setFieldsValue({
+                  displayName: record.displayName,
+                  email: record.email,
+                  role: record.role,
+                  permissions: record.permissions,
+                  permissionTemplate: undefined,
+                  isEnabled: record.isEnabled,
+                });
+              }}
+            >
+              {t('common.edit')}
+            </Button>
+          </div>
         ),
       });
     }

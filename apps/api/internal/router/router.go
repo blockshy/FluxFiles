@@ -57,6 +57,9 @@ func New(deps Dependencies) *gin.Engine {
 		middleware.RateLimitFromSettings(deps.RateLimiter, deps.Settings, "public-list"),
 		deps.PublicFiles.List,
 	)
+	api.GET("/files/categories/options", deps.PublicFiles.CategoryOptions)
+	api.GET("/files/tag-categories/options", deps.PublicFiles.TagCategoryOptions)
+	api.GET("/files/tags/options", deps.PublicFiles.TagOptions)
 	api.GET("/files/:id", deps.PublicFiles.Get)
 	api.GET("/files/:id/comments",
 		middleware.OptionalAuth(deps.AuthService),

@@ -3,6 +3,7 @@ package controller
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"strconv"
 
 	"fluxfiles/api/internal/repository"
@@ -13,12 +14,13 @@ import (
 )
 
 type PublicFileController struct {
-	files *service.FileService
-	users *service.UserService
+	files      *service.FileService
+	users      *service.UserService
+	taxonomies *service.TaxonomyService
 }
 
-func NewPublicFileController(files *service.FileService, users *service.UserService) *PublicFileController {
-	return &PublicFileController{files: files, users: users}
+func NewPublicFileController(files *service.FileService, users *service.UserService, taxonomies *service.TaxonomyService) *PublicFileController {
+	return &PublicFileController{files: files, users: users, taxonomies: taxonomies}
 }
 
 func (ctl *PublicFileController) List(c *gin.Context) {
@@ -26,6 +28,8 @@ func (ctl *PublicFileController) List(c *gin.Context) {
 		Page:       parseInt(c.DefaultQuery("page", "1"), 1),
 		PageSize:   parseInt(c.DefaultQuery("pageSize", "10"), 10),
 		Search:     c.Query("search"),
+		Categories: splitCSVQuery(c.Query("categories")),
+		Tags:       splitCSVQuery(c.Query("tags")),
 		SortBy:     c.DefaultQuery("sortBy", "createdAt"),
 		SortOrder:  c.DefaultQuery("sortOrder", "desc"),
 		PublicOnly: true,
@@ -38,6 +42,45 @@ func (ctl *PublicFileController) List(c *gin.Context) {
 	}
 
 	response.Paginated(c, "ok", items, params.Page, params.PageSize, total)
+}
+
+func (ctl *PublicFileController) CategoryOptions(c *gin.Context) {
+	if ctl.taxonomies == nil {
+		response.Error(c, http.StatusServiceUnavailable, "taxonomy service is temporarily unavailable")
+		return
+	}
+	items, err := ctl.taxonomies.ListOptions(c.Request.Context(), repository.TaxonomyKindCategory)
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "taxonomy service is temporarily unavailable")
+		return
+	}
+	response.Success(c, http.StatusOK, "ok", gin.H{"items": items})
+}
+
+func (ctl *PublicFileController) TagOptions(c *gin.Context) {
+	if ctl.taxonomies == nil {
+		response.Error(c, http.StatusServiceUnavailable, "taxonomy service is temporarily unavailable")
+		return
+	}
+	items, err := ctl.taxonomies.ListOptions(c.Request.Context(), repository.TaxonomyKindTag)
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "taxonomy service is temporarily unavailable")
+		return
+	}
+	response.Success(c, http.StatusOK, "ok", gin.H{"items": items})
+}
+
+func (ctl *PublicFileController) TagCategoryOptions(c *gin.Context) {
+	if ctl.taxonomies == nil {
+		response.Error(c, http.StatusServiceUnavailable, "taxonomy service is temporarily unavailable")
+		return
+	}
+	items, err := ctl.taxonomies.ListOptions(c.Request.Context(), repository.TaxonomyKindTagCategory)
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "taxonomy service is temporarily unavailable")
+		return
+	}
+	response.Success(c, http.StatusOK, "ok", gin.H{"items": items})
 }
 
 func (ctl *PublicFileController) Get(c *gin.Context) {
@@ -87,4 +130,21 @@ func parseInt(value string, fallback int) int {
 func parseUintParam(c *gin.Context, key string) uint {
 	value, _ := strconv.ParseUint(c.Param(key), 10, 64)
 	return uint(value)
+}
+
+func splitCSVQuery(value string) []string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, item := range parts {
+		if trimmed := strings.TrimSpace(item); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }

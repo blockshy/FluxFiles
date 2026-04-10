@@ -1,4 +1,4 @@
-import { Button, Card, Empty, Space, Tag, Typography } from 'antd';
+import { Button, Card, Space, Tag, Typography } from 'antd';
 import type { FileRecord } from '../../api/types';
 import { formatBytes, formatDate } from '../../lib/format';
 
@@ -10,11 +10,7 @@ interface FileDetailCardProps {
 
 export function FileDetailCard({ file, downloading, onDownload }: FileDetailCardProps) {
   if (!file) {
-    return (
-      <Card className="surface-card">
-        <Empty description="请选择一个文件查看详情" />
-      </Card>
-    );
+    return null;
   }
 
   return (
@@ -32,10 +28,6 @@ export function FileDetailCard({ file, downloading, onDownload }: FileDetailCard
         </Button>
       }
     >
-      <Typography.Paragraph style={{ color: '#4b5563', minHeight: 66 }}>
-        {file.description || '暂无描述。'}
-      </Typography.Paragraph>
-
       <div className="detail-metadata">
         <div className="detail-item">
           <span className="detail-label">文件大小</span>
@@ -53,11 +45,25 @@ export function FileDetailCard({ file, downloading, onDownload }: FileDetailCard
           <span className="detail-label">上传时间</span>
           <span className="detail-value">{formatDate(file.createdAt)}</span>
         </div>
+        <div className="detail-item">
+          <span className="detail-label">类型</span>
+          <span className="detail-value">{file.mimeType || '-'}</span>
+        </div>
+        <div className="detail-item detail-item-full">
+          <span className="detail-label">标签</span>
+          <div className="detail-tag-list">
+            {(file.tagPaths || file.tags || []).length > 0 ? (file.tagPaths?.length ? file.tagPaths : file.tags).map((tag) => <Tag key={tag}>{tag}</Tag>) : <Tag>无标签</Tag>}
+          </div>
+        </div>
+        <div className="detail-item detail-item-full">
+          <span className="detail-label">原文件名</span>
+          <span className="detail-value detail-value-rich">{file.originalName || '-'}</span>
+        </div>
+        <div className="detail-item detail-item-full">
+          <span className="detail-label">描述</span>
+          <span className="detail-value detail-value-rich">{file.description || '暂无描述。'}</span>
+        </div>
       </div>
-
-      <Space wrap size={[8, 8]}>
-        {(file.tagPaths || file.tags || []).length > 0 ? (file.tagPaths?.length ? file.tagPaths : file.tags).map((tag) => <Tag key={tag}>{tag}</Tag>) : <Tag>无标签</Tag>}
-      </Space>
     </Card>
   );
 }

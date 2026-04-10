@@ -95,7 +95,7 @@ func New() (*App, error) {
 		Logger:          log,
 		AuthService:     authService,
 		UserService:     userService,
-		PublicFiles:     controller.NewPublicFileController(fileService, userService),
+		PublicFiles:     controller.NewPublicFileController(fileService, userService, taxonomyService),
 		PublicAuth:      controller.NewPublicAuthController(authService, userService, settingsService, captchaService),
 		AdminAuth:       controller.NewAdminAuthController(authService),
 		AdminFiles:      controller.NewAdminFileController(fileService),
