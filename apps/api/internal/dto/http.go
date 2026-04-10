@@ -119,3 +119,16 @@ type CompleteUploadRequest struct {
 	Tags         []string `json:"tags"`
 	IsPublic     bool     `json:"isPublic"`
 }
+
+type CreateCommentRequest struct {
+	Content  string `json:"content" binding:"required,min=1,max=2000"`
+	ParentID *uint  `json:"parentId"`
+}
+
+type VoteCommentRequest struct {
+	Value int `json:"value" binding:"required,oneof=-1 1"`
+}
+
+type UpdateUserEnabledRequest struct {
+	IsEnabled bool `json:"isEnabled"`
+}

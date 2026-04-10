@@ -37,6 +37,54 @@ export interface FileRecord {
   updatedAt: string;
 }
 
+export interface CommentAuthor {
+  id: number;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+}
+
+export interface CommentRecord {
+  id: number;
+  fileId: number;
+  parentId?: number;
+  rootId?: number;
+  content: string;
+  likeCount: number;
+  dislikeCount: number;
+  currentUserVote: number;
+  createdAt: string;
+  updatedAt: string;
+  canDelete: boolean;
+  replyCount: number;
+  author: CommentAuthor;
+  replyTo?: CommentAuthor;
+}
+
+export interface CommentListPayload {
+  items: CommentRecord[];
+  pagination: Pagination;
+  overallTotal: number;
+}
+
+export interface NotificationRecord {
+  id: number;
+  userId: number;
+  actorUserId?: number;
+  type: string;
+  title: string;
+  content: string;
+  data: Record<string, unknown>;
+  isRead: boolean;
+  actorUsername?: string;
+  actorDisplayName?: string;
+  actorAvatarUrl?: string;
+  relatedCommentId?: number;
+  relatedCommentBody?: string;
+  relatedCommentFileId?: number;
+  createdAt: string;
+}
+
 export interface DashboardStats {
   totalFiles: number;
   publicFiles: number;
@@ -285,9 +333,20 @@ export interface OperationLogRecord {
   id: number;
   adminUserId: number;
   adminUsername: string;
+  adminDisplayName: string;
+  adminAvatarUrl: string;
+  adminIsEnabled: boolean;
   action: string;
   targetType: string;
   targetId: string;
+  targetUserId?: number;
+  targetUsername?: string;
+  targetDisplayName?: string;
+  targetEmail?: string;
+  targetRole?: string;
+  targetAvatarUrl?: string;
+  targetPermissions?: string[];
+  targetUserIsEnabled: boolean;
   detail: string;
   detailParsed?: AuditDetail | null;
   ip: string;
@@ -320,4 +379,10 @@ export interface TaxonomyLogRecord {
   adminUserId: number;
   adminUsername?: string;
   createdAt: string;
+}
+
+export interface NotificationListPayload {
+  items: NotificationRecord[];
+  pagination: Pagination;
+  unread: number;
 }

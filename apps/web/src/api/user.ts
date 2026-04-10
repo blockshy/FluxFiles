@@ -3,7 +3,9 @@ import type {
   ApiEnvelope,
   CaptchaChallenge,
   ChangePasswordPayload,
+  CommentRecord,
   FileRecord,
+  NotificationListPayload,
   RegisterPayload,
   UpdateProfilePayload,
   UserAccount,
@@ -77,5 +79,46 @@ export async function fetchDownloadHistory(limit = 50) {
 
 export async function fetchPublicUserProfile(username: string) {
   const response = await apiClient.get<ApiEnvelope<PublicUserProfile>>(`/users/${encodeURIComponent(username)}/profile`);
+  return response.data.data;
+}
+
+export async function createComment(fileId: number, payload: { content: string; parentId?: number }) {
+  const response = await apiClient.post<ApiEnvelope<CommentRecord>>(`/user/files/${fileId}/comments`, payload);
+  return response.data.data;
+}
+
+export async function deleteComment(commentId: number) {
+  const response = await apiClient.delete<ApiEnvelope<null>>(`/user/comments/${commentId}`);
+  return response.data;
+}
+
+export async function voteComment(commentId: number, value: 1 | -1) {
+  const response = await apiClient.post<ApiEnvelope<{ currentVote: number }>>(`/user/comments/${commentId}/vote`, { value });
+  return response.data.data;
+}
+
+export async function fetchNotifications(page = 1, pageSize = 20, type?: string) {
+  const response = await apiClient.get<ApiEnvelope<NotificationListPayload>>('/user/notifications', {
+    params: { page, pageSize, type },
+  });
+  return response.data.data;
+}
+
+export async function markNotificationRead(id: number) {
+  const response = await apiClient.post<ApiEnvelope<null>>(`/user/notifications/${id}/read`);
+  return response.data;
+}
+
+export async function markNotificationsRead(type?: string) {
+  const response = await apiClient.post<ApiEnvelope<null>>('/user/notifications/read-all', undefined, {
+    params: { type },
+  });
+  return response.data;
+}
+
+export async function fetchMyComments(page = 1, pageSize = 20) {
+  const response = await apiClient.get<ApiEnvelope<{ items: CommentRecord[]; pagination: NotificationListPayload['pagination'] }>>('/user/comments/mine', {
+    params: { page, pageSize },
+  });
   return response.data.data;
 }

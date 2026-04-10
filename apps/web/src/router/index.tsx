@@ -33,7 +33,9 @@ import { AdminLogsPage } from '../pages/AdminLogsPage';
 import { AdminSettingsPage } from '../pages/AdminSettingsPage';
 import { AdminUsersPage } from '../pages/AdminUsersPage';
 import { PublicFilesPage } from '../pages/PublicFilesPage';
+import { PublicFileDetailPage } from '../pages/PublicFileDetailPage';
 import { PublicUserProfilePage } from '../pages/PublicUserProfilePage';
+import { NotificationsPage } from '../pages/NotificationsPage';
 import { UserCenterPage } from '../pages/UserCenterPage';
 import { UserLoginPage } from '../pages/UserLoginPage';
 import { UserRegisterPage } from '../pages/UserRegisterPage';
@@ -46,6 +48,14 @@ export function AppRouter() {
         element={
           <PublicLayout>
             <PublicFilesPage />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/files/:id"
+        element={
+          <PublicLayout>
+            <PublicFileDetailPage />
           </PublicLayout>
         }
       />
@@ -66,6 +76,16 @@ export function AppRouter() {
           <PublicLayout>
             <UserProtectedRoute>
               <UserCenterPage />
+            </UserProtectedRoute>
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/notifications"
+        element={
+          <PublicLayout>
+            <UserProtectedRoute>
+              <NotificationsPage />
             </UserProtectedRoute>
           </PublicLayout>
         }

@@ -74,6 +74,7 @@ func New() (*App, error) {
 	taxonomyLogRepo := repository.NewTaxonomyLogRepository(db)
 	userLibraryRepo := repository.NewUserLibraryRepository(db)
 	settingsRepo := repository.NewSystemSettingRepository(db)
+	interactionRepo := repository.NewInteractionRepository(db)
 
 	logService := service.NewOperationLogService(logRepo)
 	authService := service.NewAuthService(cfg.Security, userRepo, redisClient, jwtManager)
@@ -83,6 +84,7 @@ func New() (*App, error) {
 	adminService := service.NewAdminService(userRepo, settingsService, logService)
 	taxonomyService := service.NewTaxonomyService(db, taxonomyRepo, taxonomyLogRepo, fileRepo, logService)
 	fileService := service.NewFileService(cfg, fileRepo, storage, breakers, logService, settingsService, taxonomyService)
+	interactionService := service.NewInteractionService(fileRepo, interactionRepo, userRepo, userLibraryRepo)
 
 	if err := authService.EnsureBootstrapAdmin(context.Background()); err != nil {
 		return nil, fmt.Errorf("bootstrap admin: %w", err)
@@ -101,6 +103,8 @@ func New() (*App, error) {
 		AdminUsers:      controller.NewAdminUserController(adminService),
 		AdminLogs:       controller.NewAdminLogController(logService),
 		UserFiles:       controller.NewUserFileController(userService),
+		PublicComments:  controller.NewPublicInteractionController(interactionService),
+		UserActions:     controller.NewUserInteractionController(interactionService),
 		Settings:        settingsService,
 		RateLimiter:     rateLimiter,
 	})

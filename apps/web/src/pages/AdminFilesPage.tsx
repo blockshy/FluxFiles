@@ -149,14 +149,16 @@ export function AdminFilesPage() {
         width: canEdit && canDelete ? 180 : 110,
         fixed: 'right',
         render: (_, record) => (
-          <Space size={8} wrap={false}>
-            {canEdit ? <Button type="link" icon={<EditOutlined />} onClick={() => setModalState({ open: true, mode: 'edit', file: record })}>{t('files.edit')}</Button> : null}
-            {canDelete ? (
-              <Popconfirm title={t('files.deleteConfirm')} description={t('files.deleteDesc')} okText={t('files.delete')} cancelText={t('common.cancel')} onConfirm={() => deleteMutation.mutate(record.id)}>
-                <Button danger type="link" icon={<DeleteOutlined />}>{t('files.delete')}</Button>
-              </Popconfirm>
-            ) : null}
-          </Space>
+          <div className="table-action-cell align-right">
+            <Space size={8} wrap={false}>
+              {canEdit ? <Button type="link" icon={<EditOutlined />} className="stable-action-button" onClick={() => setModalState({ open: true, mode: 'edit', file: record })}>{t('files.edit')}</Button> : null}
+              {canDelete ? (
+                <Popconfirm title={t('files.deleteConfirm')} description={t('files.deleteDesc')} okText={t('files.delete')} cancelText={t('common.cancel')} onConfirm={() => deleteMutation.mutate(record.id)}>
+                  <Button danger type="link" icon={<DeleteOutlined />} className="stable-action-button">{t('files.delete')}</Button>
+                </Popconfirm>
+              ) : null}
+            </Space>
+          </div>
         ),
       });
     }

@@ -112,3 +112,33 @@ func applyResolvedFileUploaderAvatars(files []model.File) {
 		applyResolvedFileUploaderAvatar(&files[index])
 	}
 }
+
+func resolveUserAvatarFields(username, displayName, avatarURL string) string {
+	return resolveAvatarURL(username, displayName, avatarURL)
+}
+
+func applyResolvedCommentAvatar(comment *model.FileComment) {
+	if comment == nil || strings.TrimSpace(comment.UserUsername) == "" {
+		return
+	}
+	comment.UserAvatarURL = resolveAvatarURL(comment.UserUsername, comment.UserDisplayName, comment.UserAvatarURL)
+}
+
+func applyResolvedCommentAvatars(items []model.FileComment) {
+	for index := range items {
+		applyResolvedCommentAvatar(&items[index])
+	}
+}
+
+func applyResolvedNotificationAvatar(notification *model.UserNotification) {
+	if notification == nil || strings.TrimSpace(notification.ActorUsername) == "" {
+		return
+	}
+	notification.ActorAvatarURL = resolveAvatarURL(notification.ActorUsername, notification.ActorDisplayName, notification.ActorAvatarURL)
+}
+
+func applyResolvedNotificationAvatars(items []model.UserNotification) {
+	for index := range items {
+		applyResolvedNotificationAvatar(&items[index])
+	}
+}

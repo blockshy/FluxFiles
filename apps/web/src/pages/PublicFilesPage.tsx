@@ -1,4 +1,4 @@
-import { DownloadOutlined, ReloadOutlined, SearchOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
+import { CommentOutlined, DownloadOutlined, ReloadOutlined, SearchOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Avatar, Button, Card, Input, Select, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -48,7 +48,20 @@ export function PublicFilesPage() {
   });
 
   const columns: ColumnsType<FileRecord> = [
-    { title: locale === 'zh-CN' ? '展示名称' : 'Name', dataIndex: 'name', key: 'name', width: 220, render: (value) => <Typography.Text strong>{value}</Typography.Text> },
+    {
+      title: locale === 'zh-CN' ? '展示名称' : 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      width: 280,
+      render: (value, record) => (
+        <Link to={`/files/${record.id}`} className="file-entry-link">
+          <Typography.Text strong>{value}</Typography.Text>
+          <Typography.Text type="secondary" className="file-entry-hint">
+            {locale === 'zh-CN' ? '点击查看文件详情、评论与互动' : 'Open details, comments, and interactions'}
+          </Typography.Text>
+        </Link>
+      ),
+    },
     { title: locale === 'zh-CN' ? '原文件名' : 'Original name', dataIndex: 'originalName', key: 'originalName', width: 260, render: (value) => <Typography.Text type="secondary">{value}</Typography.Text> },
     { title: locale === 'zh-CN' ? '描述' : 'Description', dataIndex: 'description', key: 'description', width: 260, render: (value) => <div className="table-text-ellipsis" title={value || '-'}>{value || '-'}</div> },
     { title: locale === 'zh-CN' ? '标签' : 'Tags', dataIndex: 'tags', key: 'tags', width: 180, render: (value: string[]) => <Space size={[6, 6]} wrap>{value?.length ? value.map((tag) => <Tag key={tag}>{tag}</Tag>) : '-'}</Space> },
@@ -74,7 +87,23 @@ export function PublicFilesPage() {
     { title: locale === 'zh-CN' ? '类型' : 'MIME', dataIndex: 'mimeType', key: 'mimeType', width: 180, render: (value) => <Typography.Text type="secondary">{value || '-'}</Typography.Text> },
     { title: locale === 'zh-CN' ? '上传时间' : 'Created at', dataIndex: 'createdAt', key: 'createdAt', width: 180, render: (value) => formatDate(value) },
     { title: locale === 'zh-CN' ? '收藏' : 'Favorite', key: 'favorite', width: 90, render: (_, record) => token ? <Button type="text" icon={favoriteIds.has(record.id) ? <StarFilled /> : <StarOutlined />} onClick={() => favoriteMutation.mutate({ fileId: record.id, active: favoriteIds.has(record.id) })} /> : '-' },
-    { title: locale === 'zh-CN' ? '操作' : 'Action', key: 'action', width: 120, fixed: 'right', render: (_, record) => <Button type="link" icon={<DownloadOutlined />} onClick={() => downloadMutation.mutate(record.id)}>{t('publicFiles.download')}</Button> },
+    {
+      title: locale === 'zh-CN' ? '操作' : 'Action',
+      key: 'action',
+      width: 220,
+      fixed: 'right',
+      render: (_, record) => (
+        <div className="table-action-cell align-right">
+          <Space size={4} className="file-action-group" wrap={false}>
+            <Link to={`/files/${record.id}`} className="table-link-action file-action-button">
+              <CommentOutlined />
+              <span>{locale === 'zh-CN' ? '详情与评论' : 'Details & comments'}</span>
+            </Link>
+            <Button type="link" icon={<DownloadOutlined />} className="file-action-button stable-action-button" onClick={() => downloadMutation.mutate(record.id)}>{t('publicFiles.download')}</Button>
+          </Space>
+        </div>
+      ),
+    },
   ];
 
   return (

@@ -115,6 +115,54 @@ type UserDownloadRecord struct {
 	DownloadedAt time.Time `gorm:"not null;index" json:"downloadedAt"`
 }
 
+type FileComment struct {
+	ID                uint           `gorm:"primaryKey" json:"id"`
+	FileID            uint           `gorm:"not null;index" json:"fileId"`
+	UserID            uint           `gorm:"not null;index" json:"userId"`
+	ParentID          *uint          `gorm:"index" json:"parentId,omitempty"`
+	RootID            *uint          `gorm:"index" json:"rootId,omitempty"`
+	Content           string         `gorm:"type:text;not null" json:"content"`
+	LikeCount         int64          `gorm:"not null;default:0" json:"likeCount"`
+	DislikeCount      int64          `gorm:"not null;default:0" json:"dislikeCount"`
+	UserUsername      string         `gorm:"->;column:user_username;-:migration" json:"userUsername,omitempty"`
+	UserDisplayName   string         `gorm:"->;column:user_display_name;-:migration" json:"userDisplayName,omitempty"`
+	UserAvatarURL     string         `gorm:"->;column:user_avatar_url;-:migration" json:"userAvatarUrl,omitempty"`
+	ParentUsername    string         `gorm:"->;column:parent_username;-:migration" json:"parentUsername,omitempty"`
+	ParentDisplayName string         `gorm:"->;column:parent_display_name;-:migration" json:"parentDisplayName,omitempty"`
+	CurrentUserVote   int            `gorm:"->;column:current_user_vote;-:migration" json:"currentUserVote,omitempty"`
+	ReplyCount        int64          `gorm:"->;column:reply_count;-:migration" json:"replyCount,omitempty"`
+	CreatedAt         time.Time      `json:"createdAt"`
+	UpdatedAt         time.Time      `json:"updatedAt"`
+	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type CommentVote struct {
+	ID        uint      `gorm:"primaryKey"`
+	CommentID uint      `gorm:"not null;index:idx_comment_votes_comment_user,unique"`
+	UserID    uint      `gorm:"not null;index:idx_comment_votes_comment_user,unique"`
+	Value     int       `gorm:"not null" json:"value"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type UserNotification struct {
+	ID                   uint           `gorm:"primaryKey" json:"id"`
+	UserID               uint           `gorm:"not null;index" json:"userId"`
+	ActorUserID          *uint          `gorm:"index" json:"actorUserId,omitempty"`
+	Type                 string         `gorm:"size:64;not null;index" json:"type"`
+	Title                string         `gorm:"size:255;not null" json:"title"`
+	Content              string         `gorm:"type:text;not null;default:''" json:"content"`
+	Data                 map[string]any `gorm:"type:jsonb;serializer:json;not null;default:'{}'" json:"data"`
+	IsRead               bool           `gorm:"not null;default:false;index" json:"isRead"`
+	ActorUsername        string         `gorm:"->;column:actor_username;-:migration" json:"actorUsername,omitempty"`
+	ActorDisplayName     string         `gorm:"->;column:actor_display_name;-:migration" json:"actorDisplayName,omitempty"`
+	ActorAvatarURL       string         `gorm:"->;column:actor_avatar_url;-:migration" json:"actorAvatarUrl,omitempty"`
+	RelatedCommentID     uint           `gorm:"->;column:related_comment_id;-:migration" json:"relatedCommentId,omitempty"`
+	RelatedCommentBody   string         `gorm:"->;column:related_comment_body;-:migration" json:"relatedCommentBody,omitempty"`
+	RelatedCommentFileID uint           `gorm:"->;column:related_comment_file_id;-:migration" json:"relatedCommentFileId,omitempty"`
+	CreatedAt            time.Time      `json:"createdAt"`
+}
+
 type SystemSetting struct {
 	Key       string    `gorm:"primaryKey;size:128" json:"key"`
 	Value     string    `gorm:"type:text;not null" json:"value"`

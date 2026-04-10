@@ -109,6 +109,34 @@ func (ctl *AdminUserController) Update(c *gin.Context) {
 	response.Success(c, http.StatusOK, "user updated", user)
 }
 
+func (ctl *AdminUserController) UpdateEnabled(c *gin.Context) {
+	if !service.HasPermission(currentPermissions(c), service.PermissionAdminUsersEdit) {
+		response.Error(c, http.StatusForbidden, "insufficient permissions")
+		return
+	}
+
+	var req dto.UpdateUserEnabledRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid user payload")
+		return
+	}
+
+	user, err := ctl.admins.SetUserEnabled(c.Request.Context(), c.GetUint("adminUserID"), parseUintParam(c, "id"), c.ClientIP(), req.IsEnabled)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrNotFound):
+			response.Error(c, http.StatusNotFound, "user not found")
+		case errors.Is(err, service.ErrValidation):
+			response.Error(c, http.StatusBadRequest, err.Error())
+		default:
+			response.Error(c, http.StatusServiceUnavailable, "user service is temporarily unavailable")
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, "user updated", user)
+}
+
 func (ctl *AdminUserController) GetSettings(c *gin.Context) {
 	enabled, err := ctl.admins.GetRegistrationSettings(c.Request.Context())
 	if err != nil {

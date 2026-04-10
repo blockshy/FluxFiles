@@ -26,6 +26,8 @@ type Dependencies struct {
 	AdminUsers      *controller.AdminUserController
 	AdminLogs       *controller.AdminLogController
 	UserFiles       *controller.UserFileController
+	PublicComments  *controller.PublicInteractionController
+	UserActions     *controller.UserInteractionController
 	Settings        *service.SettingsService
 	RateLimiter     *resilience.RateLimiter
 }
@@ -56,6 +58,10 @@ func New(deps Dependencies) *gin.Engine {
 		deps.PublicFiles.List,
 	)
 	api.GET("/files/:id", deps.PublicFiles.Get)
+	api.GET("/files/:id/comments",
+		middleware.OptionalAuth(deps.AuthService),
+		deps.PublicComments.ListComments,
+	)
 	api.GET("/files/:id/download",
 		middleware.OptionalAuth(deps.AuthService),
 		middleware.RateLimitFromSettings(deps.RateLimiter, deps.Settings, "public-download"),
@@ -114,6 +120,7 @@ func New(deps Dependencies) *gin.Engine {
 	adminUsers.GET("/users", deps.AdminUsers.List)
 	adminUsers.POST("/users", deps.AdminUsers.Create)
 	adminUsers.PUT("/users/:id", deps.AdminUsers.Update)
+	adminUsers.PUT("/users/:id/enabled", deps.AdminUsers.UpdateEnabled)
 
 	adminCategories := adminAuthorized.Group("/categories")
 	adminCategories.Use(middleware.RequireAnyPermission(
@@ -178,6 +185,13 @@ func New(deps Dependencies) *gin.Engine {
 	userAuthorized.POST("/favorites/:id", deps.UserFiles.AddFavorite)
 	userAuthorized.DELETE("/favorites/:id", deps.UserFiles.RemoveFavorite)
 	userAuthorized.GET("/downloads", deps.UserFiles.ListDownloads)
+	userAuthorized.POST("/files/:id/comments", deps.UserActions.CreateComment)
+	userAuthorized.DELETE("/comments/:id", deps.UserActions.DeleteComment)
+	userAuthorized.POST("/comments/:id/vote", deps.UserActions.VoteComment)
+	userAuthorized.GET("/comments/mine", deps.UserActions.ListMyComments)
+	userAuthorized.GET("/notifications", deps.UserActions.ListNotifications)
+	userAuthorized.POST("/notifications/read-all", deps.UserActions.MarkNotificationsRead)
+	userAuthorized.POST("/notifications/:id/read", deps.UserActions.MarkNotificationRead)
 
 	return engine
 }

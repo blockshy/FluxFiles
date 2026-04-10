@@ -161,6 +161,66 @@ CREATE INDEX IF NOT EXISTS idx_user_download_records_user_id ON public.user_down
 CREATE INDEX IF NOT EXISTS idx_user_download_records_file_id ON public.user_download_records(file_id);
 CREATE INDEX IF NOT EXISTS idx_user_download_records_downloaded_at ON public.user_download_records(downloaded_at);
 
+CREATE TABLE IF NOT EXISTS public.file_comments (
+    id BIGSERIAL PRIMARY KEY,
+    file_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    parent_id BIGINT NULL,
+    root_id BIGINT NULL,
+    content TEXT NOT NULL,
+    like_count BIGINT NOT NULL DEFAULT 0,
+    dislike_count BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ NULL,
+    CONSTRAINT file_comments_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.files(id) ON DELETE CASCADE,
+    CONSTRAINT file_comments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+    CONSTRAINT file_comments_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.file_comments(id) ON DELETE CASCADE,
+    CONSTRAINT file_comments_root_id_fkey FOREIGN KEY (root_id) REFERENCES public.file_comments(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_file_comments_file_id ON public.file_comments(file_id);
+CREATE INDEX IF NOT EXISTS idx_file_comments_user_id ON public.file_comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_file_comments_parent_id ON public.file_comments(parent_id);
+CREATE INDEX IF NOT EXISTS idx_file_comments_root_id ON public.file_comments(root_id);
+CREATE INDEX IF NOT EXISTS idx_file_comments_deleted_at ON public.file_comments(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_file_comments_created_at ON public.file_comments(created_at);
+
+CREATE TABLE IF NOT EXISTS public.comment_votes (
+    id BIGSERIAL PRIMARY KEY,
+    comment_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    value SMALLINT NOT NULL CHECK (value IN (-1, 1)),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT comment_votes_comment_id_fkey FOREIGN KEY (comment_id) REFERENCES public.file_comments(id) ON DELETE CASCADE,
+    CONSTRAINT comment_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+    CONSTRAINT uq_comment_votes_comment_user UNIQUE (comment_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_comment_votes_comment_id ON public.comment_votes(comment_id);
+CREATE INDEX IF NOT EXISTS idx_comment_votes_user_id ON public.comment_votes(user_id);
+
+CREATE TABLE IF NOT EXISTS public.user_notifications (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    actor_user_id BIGINT NULL,
+    type VARCHAR(64) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT user_notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+    CONSTRAINT user_notifications_actor_user_id_fkey FOREIGN KEY (actor_user_id) REFERENCES public.users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_notifications_user_id ON public.user_notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_notifications_actor_user_id ON public.user_notifications(actor_user_id);
+CREATE INDEX IF NOT EXISTS idx_user_notifications_type ON public.user_notifications(type);
+CREATE INDEX IF NOT EXISTS idx_user_notifications_is_read ON public.user_notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_user_notifications_created_at ON public.user_notifications(created_at);
+
 CREATE TABLE IF NOT EXISTS public.system_settings (
     key VARCHAR(128) PRIMARY KEY,
     value TEXT NOT NULL,

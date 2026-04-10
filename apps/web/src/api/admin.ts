@@ -71,6 +71,11 @@ export async function updateAdminUser(id: number, payload: UpdateManagedUserPayl
   return response.data.data;
 }
 
+export async function updateAdminUserEnabled(id: number, isEnabled: boolean) {
+  const response = await apiClient.put<ApiEnvelope<AdminUser>>(`/admin/users/${id}/enabled`, { isEnabled });
+  return response.data.data;
+}
+
 export async function fetchAdminSettings() {
   const response = await apiClient.get<ApiEnvelope<AdminSettings>>('/admin/settings');
   return response.data.data;

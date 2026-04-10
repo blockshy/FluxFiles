@@ -1,6 +1,6 @@
 import { UploadOutlined, UserOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Avatar, Button, Card, Form, Input, List, Space, Switch, Tabs, Tag, Typography, message } from 'antd';
+import { Avatar, Button, Card, Form, Input, List, Skeleton, Space, Switch, Tabs, Tag, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -65,6 +65,17 @@ export function UserCenterPage() {
       window.location.href = '/fluxfiles/login';
     },
   });
+
+  if (meQuery.isLoading && !meQuery.data) {
+    return (
+      <>
+        {contextHolder}
+        <Card className="surface-card">
+          <Skeleton active avatar paragraph={{ rows: 8 }} />
+        </Card>
+      </>
+    );
+  }
 
   async function handleAvatarSelect(file?: File | null) {
     if (!file) {

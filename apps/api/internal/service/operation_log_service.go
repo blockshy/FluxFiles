@@ -53,6 +53,12 @@ func (s *OperationLogService) List(ctx context.Context, input ListOperationLogsI
 	if err != nil {
 		return nil, ErrDependencyUnavailable
 	}
+	for index := range items {
+		items[index].AdminAvatarURL = resolveAvatarURL(items[index].AdminUsername, items[index].AdminDisplayName, items[index].AdminAvatarURL)
+		if items[index].TargetUserID > 0 {
+			items[index].TargetAvatarURL = resolveAvatarURL(items[index].TargetUsername, items[index].TargetDisplayName, items[index].TargetAvatarURL)
+		}
+	}
 
 	page := input.Page
 	if page < 1 {

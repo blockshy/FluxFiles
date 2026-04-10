@@ -262,6 +262,50 @@ func (s *AdminService) UpdateUser(ctx context.Context, adminID, userID uint, ip 
 	return updated, nil
 }
 
+func (s *AdminService) SetUserEnabled(ctx context.Context, adminID, userID uint, ip string, enabled bool) (*model.User, error) {
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, ErrDependencyUnavailable
+	}
+
+	if user.IsEnabled == enabled {
+		applyResolvedAvatar(user)
+		return user, nil
+	}
+	beforeEnabled := user.IsEnabled
+
+	if user.Role == "admin" && HasPermission(user.Permissions, PermissionAdminUsersEdit) && !enabled {
+		remaining, countErr := s.users.CountEnabledAdminsWithPermissionExcluding(ctx, user.ID, PermissionAdminUsersEdit)
+		if countErr != nil {
+			return nil, ErrDependencyUnavailable
+		}
+		if remaining == 0 {
+			return nil, fmt.Errorf("%w: at least one enabled admin with user edit permission must remain", ErrValidation)
+		}
+	}
+
+	if err := s.users.Update(ctx, user, map[string]any{"is_enabled": enabled}); err != nil {
+		return nil, ErrDependencyUnavailable
+	}
+
+	s.logs.Record(ctx, adminID, "user.enabled.update", "user", fmt.Sprintf("%d", user.ID), MarshalAuditDetail(AuditDetail{
+		Summary: "Updated user enabled state",
+		Changes: []AuditFieldChange{
+			{Field: "isEnabled", Label: "Enabled", Before: beforeEnabled, After: enabled},
+		},
+	}), ip)
+
+	updated, getErr := s.users.GetByID(ctx, user.ID)
+	if getErr != nil {
+		return nil, ErrDependencyUnavailable
+	}
+	applyResolvedAvatar(updated)
+	return updated, nil
+}
+
 func (s *AdminService) GetRegistrationSettings(ctx context.Context) (bool, error) {
 	return s.settings.IsRegistrationOpen(ctx)
 }
