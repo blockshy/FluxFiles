@@ -192,9 +192,15 @@ func (ctl *AdminUserController) UpdateRateLimitSettings(c *gin.Context) {
 	}
 
 	settings, err := ctl.admins.UpdateRateLimitSettings(c.Request.Context(), c.GetUint("adminUserID"), c.ClientIP(), service.RateLimitSettings{
-		Login: service.RateLimitRuleSettings{
-			Limit:         req.Login.Limit,
-			WindowSeconds: req.Login.WindowSeconds,
+		Login: service.SplitRateLimitRuleSettings{
+			Guest: service.RateLimitRuleSettings{
+				Limit:         req.Login.Guest.Limit,
+				WindowSeconds: req.Login.Guest.WindowSeconds,
+			},
+			Authenticated: service.RateLimitRuleSettings{
+				Limit:         req.Login.Authenticated.Limit,
+				WindowSeconds: req.Login.Authenticated.WindowSeconds,
+			},
 		},
 		Download: service.RateLimitRuleSettings{
 			Limit:         req.Download.Limit,
@@ -204,9 +210,15 @@ func (ctl *AdminUserController) UpdateRateLimitSettings(c *gin.Context) {
 			Limit:         req.Upload.Limit,
 			WindowSeconds: req.Upload.WindowSeconds,
 		},
-		List: service.RateLimitRuleSettings{
-			Limit:         req.List.Limit,
-			WindowSeconds: req.List.WindowSeconds,
+		List: service.SplitRateLimitRuleSettings{
+			Guest: service.RateLimitRuleSettings{
+				Limit:         req.List.Guest.Limit,
+				WindowSeconds: req.List.Guest.WindowSeconds,
+			},
+			Authenticated: service.RateLimitRuleSettings{
+				Limit:         req.List.Authenticated.Limit,
+				WindowSeconds: req.List.Authenticated.WindowSeconds,
+			},
 		},
 	})
 	if err != nil {

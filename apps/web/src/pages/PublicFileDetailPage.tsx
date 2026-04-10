@@ -468,10 +468,17 @@ export function PublicFileDetailPage() {
                 <div className="detail-item">
                   <span className="detail-label">{locale === 'zh-CN' ? '上传者' : 'Uploader'}</span>
                   {file.createdByUsername ? (
-                    <Link to={`/users/${file.createdByUsername}`} className="uploader-link inline">
-                      <Avatar src={file.createdByAvatarUrl} size={32}>{(file.createdByDisplayName || file.createdByUsername).slice(0, 1).toUpperCase()}</Avatar>
-                      <span>{file.createdByDisplayName || file.createdByUsername}</span>
-                    </Link>
+                    token ? (
+                      <Link to={`/users/${file.createdByUsername}`} className="uploader-link inline">
+                        <Avatar src={file.createdByAvatarUrl} size={32}>{(file.createdByDisplayName || file.createdByUsername).slice(0, 1).toUpperCase()}</Avatar>
+                        <span>{file.createdByDisplayName || file.createdByUsername}</span>
+                      </Link>
+                    ) : (
+                      <span className="uploader-link inline disabled">
+                        <Avatar src={file.createdByAvatarUrl} size={32}>{(file.createdByDisplayName || file.createdByUsername).slice(0, 1).toUpperCase()}</Avatar>
+                        <span>{file.createdByDisplayName || file.createdByUsername}</span>
+                      </span>
+                    )
                   ) : (
                     <span className="detail-value">-</span>
                   )}

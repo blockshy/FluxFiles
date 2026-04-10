@@ -192,7 +192,7 @@ export function AdminSettingsPage() {
           <div>
             <h2 className="section-title">{locale === 'zh-CN' ? '限流配置' : 'Rate Limits'}</h2>
             <p className="section-subtitle">
-              {locale === 'zh-CN' ? '分别配置登录、列表、下载和上传的限流阈值。将 limit 设为 0 可关闭该项限流。' : 'Configure thresholds for login, list, download, and upload. Set limit to 0 to disable a rule.'}
+              {locale === 'zh-CN' ? '登录和列表限流按游客/已登录用户分开配置；下载和上传保持统一。将 limit 设为 0 可关闭该项限流。' : 'Configure guest/authenticated limits separately for login and list. Download and upload remain shared. Set limit to 0 to disable a rule.'}
             </p>
           </div>
           <Button type="primary" loading={rateLimitMutation.isPending} onClick={() => rateLimitForm.submit()}>
@@ -202,10 +202,14 @@ export function AdminSettingsPage() {
 
         <Form form={rateLimitForm} layout="vertical" onFinish={(values) => rateLimitMutation.mutate(values)}>
           <div className="detail-metadata">
-            <Form.Item label={locale === 'zh-CN' ? '登录次数' : 'Login limit'} name={['login', 'limit']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
-            <Form.Item label={locale === 'zh-CN' ? '登录窗口（秒）' : 'Login window (s)'} name={['login', 'windowSeconds']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
-            <Form.Item label={locale === 'zh-CN' ? '列表次数' : 'List limit'} name={['list', 'limit']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
-            <Form.Item label={locale === 'zh-CN' ? '列表窗口（秒）' : 'List window (s)'} name={['list', 'windowSeconds']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item label={locale === 'zh-CN' ? '游客登录次数' : 'Guest login limit'} name={['login', 'guest', 'limit']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item label={locale === 'zh-CN' ? '游客登录窗口（秒）' : 'Guest login window (s)'} name={['login', 'guest', 'windowSeconds']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item label={locale === 'zh-CN' ? '已登录用户登录次数' : 'Authenticated login limit'} name={['login', 'authenticated', 'limit']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item label={locale === 'zh-CN' ? '已登录用户登录窗口（秒）' : 'Authenticated login window (s)'} name={['login', 'authenticated', 'windowSeconds']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item label={locale === 'zh-CN' ? '游客列表次数' : 'Guest list limit'} name={['list', 'guest', 'limit']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item label={locale === 'zh-CN' ? '游客列表窗口（秒）' : 'Guest list window (s)'} name={['list', 'guest', 'windowSeconds']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item label={locale === 'zh-CN' ? '已登录用户列表次数' : 'Authenticated list limit'} name={['list', 'authenticated', 'limit']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item label={locale === 'zh-CN' ? '已登录用户列表窗口（秒）' : 'Authenticated list window (s)'} name={['list', 'authenticated', 'windowSeconds']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
             <Form.Item label={locale === 'zh-CN' ? '下载次数' : 'Download limit'} name={['download', 'limit']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
             <Form.Item label={locale === 'zh-CN' ? '下载窗口（秒）' : 'Download window (s)'} name={['download', 'windowSeconds']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
             <Form.Item label={locale === 'zh-CN' ? '上传次数' : 'Upload limit'} name={['upload', 'limit']}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>

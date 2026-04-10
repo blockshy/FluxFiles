@@ -200,10 +200,7 @@ func (r *TaxonomyRepository) Delete(ctx context.Context, kind TaxonomyKind, id u
 	if err != nil {
 		return err
 	}
-	return r.db.WithContext(ctx).Table(table).Where("id = ? AND deleted_at IS NULL", id).Updates(map[string]any{
-		"deleted_at": gorm.Expr("NOW()"),
-		"updated_at": gorm.Expr("NOW()"),
-	}).Error
+	return r.db.WithContext(ctx).Table(table).Where("id = ? AND deleted_at IS NULL", id).Delete(nil).Error
 }
 
 func (r *TaxonomyRepository) NextSortOrder(ctx context.Context, kind TaxonomyKind, parentID *uint) (int, error) {

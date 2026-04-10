@@ -262,8 +262,28 @@ a {
   text-decoration: none;
 }
 
+.uploader-link.disabled {
+  cursor: default;
+  opacity: 0.88;
+}
+
 .uploader-link.inline {
   color: var(--muted-text);
+}
+
+.public-tag-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 8px;
+}
+
+.public-tag-grid-item {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .file-entry-link {

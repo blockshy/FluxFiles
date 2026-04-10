@@ -31,14 +31,19 @@ func RateLimit(limiter *resilience.RateLimiter, rule resilience.RateRule) gin.Ha
 
 func RateLimitFromSettings(limiter *resilience.RateLimiter, settings *service.SettingsService, ruleName string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		rule := settings.DefaultRateLimitRule(ruleName)
+		authenticated := c.GetUint("userID") > 0 || c.GetUint("adminUserID") > 0
+		rule := settings.DefaultRateLimitRule(ruleName, authenticated)
 		if settings != nil {
-			if resolved, err := settings.GetRateLimitRule(c.Request.Context(), ruleName); err == nil {
+			if resolved, err := settings.GetRateLimitRule(c.Request.Context(), ruleName, authenticated); err == nil {
 				rule = resolved
 			}
 		}
 
-		key := fmt.Sprintf("%s:%s", c.ClientIP(), c.FullPath())
+		audience := "guest"
+		if authenticated {
+			audience = "authenticated"
+		}
+		key := fmt.Sprintf("%s:%s:%s", c.ClientIP(), c.FullPath(), audience)
 		decision := limiter.Allow(c.Request.Context(), key, rule)
 		if !decision.Allowed {
 			c.Header("Retry-After", strconv.Itoa(int(decision.RetryAfter/time.Second)+1))

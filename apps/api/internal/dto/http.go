@@ -67,10 +67,16 @@ type RateLimitRuleRequest struct {
 }
 
 type UpdateRateLimitSettingsRequest struct {
-	Login    RateLimitRuleRequest `json:"login"`
+	Login    struct {
+		Guest         RateLimitRuleRequest `json:"guest"`
+		Authenticated RateLimitRuleRequest `json:"authenticated"`
+	} `json:"login"`
 	Download RateLimitRuleRequest `json:"download"`
 	Upload   RateLimitRuleRequest `json:"upload"`
-	List     RateLimitRuleRequest `json:"list"`
+	List     struct {
+		Guest         RateLimitRuleRequest `json:"guest"`
+		Authenticated RateLimitRuleRequest `json:"authenticated"`
+	} `json:"list"`
 }
 
 type UpdateUploadSettingsRequest struct {

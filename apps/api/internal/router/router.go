@@ -54,6 +54,7 @@ func New(deps Dependencies) *gin.Engine {
 	api := engine.Group("/api")
 
 	api.GET("/files",
+		middleware.OptionalAuth(deps.AuthService),
 		middleware.RateLimitFromSettings(deps.RateLimiter, deps.Settings, "public-list"),
 		deps.PublicFiles.List,
 	)
@@ -70,19 +71,24 @@ func New(deps Dependencies) *gin.Engine {
 		middleware.RateLimitFromSettings(deps.RateLimiter, deps.Settings, "public-download"),
 		deps.PublicFiles.Download,
 	)
-	api.GET("/users/:username/profile", deps.PublicAuth.PublicProfile)
+	api.GET("/users/:username/profile",
+		middleware.RequireAuth(deps.AuthService),
+		deps.PublicAuth.PublicProfile,
+	)
 
 	authGroup := api.Group("/auth")
 	authGroup.GET("/register-config", deps.PublicAuth.RegisterConfig)
 	authGroup.GET("/captcha", deps.PublicAuth.Captcha)
 	authGroup.POST("/register", deps.PublicAuth.Register)
 	authGroup.POST("/login",
+		middleware.OptionalAuth(deps.AuthService),
 		middleware.RateLimitFromSettings(deps.RateLimiter, deps.Settings, "user-login"),
 		deps.PublicAuth.Login,
 	)
 
 	admin := api.Group("/admin")
 	admin.POST("/login",
+		middleware.OptionalAuth(deps.AuthService),
 		middleware.RateLimitFromSettings(deps.RateLimiter, deps.Settings, "admin-login"),
 		deps.AdminAuth.Login,
 	)

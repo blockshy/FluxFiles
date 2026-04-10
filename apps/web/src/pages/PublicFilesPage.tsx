@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { fetchPublicCategoryOptions, fetchPublicFiles, fetchPublicTagCategoryOptions, fetchPublicTagOptions } from '../api/files';
 import type { FileRecord, TaxonomyRecord } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
+import { useUserAuth } from '../features/user/AuthProvider';
 import { formatBytes, formatDate } from '../lib/format';
 
 function sortTaxonomyItems<T extends { sortOrder: number; name: string }>(items: T[]) {
@@ -83,6 +84,7 @@ export function PublicFilesPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const deferredSearch = useDeferredValue(search.trim());
   const { t, locale } = useI18n();
+  const { token } = useUserAuth();
 
   const categoryOptionsQuery = useQuery({ queryKey: ['public-category-options'], queryFn: fetchPublicCategoryOptions });
   const tagCategoryOptionsQuery = useQuery({ queryKey: ['public-tag-category-options'], queryFn: fetchPublicTagCategoryOptions });
@@ -143,7 +145,25 @@ export function PublicFilesPage() {
         </Link>
       ),
     },
-    { title: locale === 'zh-CN' ? '标签' : 'Tags', dataIndex: 'tagPaths', key: 'tagPaths', width: 260, render: (value: string[] | undefined, record) => <Space size={[6, 6]} wrap>{(value?.length ? value : record.tags)?.length ? (value?.length ? value : record.tags).map((tag) => <Tag key={tag}>{tag}</Tag>) : '-'}</Space> },
+    {
+      title: locale === 'zh-CN' ? '标签' : 'Tags',
+      dataIndex: 'tagPaths',
+      key: 'tagPaths',
+      width: 260,
+      render: (value: string[] | undefined, record) => {
+        const items = value?.length ? value : record.tags;
+        if (!items?.length) {
+          return '-';
+        }
+        return (
+          <div className="public-tag-grid">
+            {items.map((tag) => (
+              <Tag key={tag} className="public-tag-grid-item" title={tag}>{tag}</Tag>
+            ))}
+          </div>
+        );
+      },
+    },
     { title: locale === 'zh-CN' ? '分类' : 'Category', dataIndex: 'categoryPath', key: 'categoryPath', width: 180, render: (value, record) => ((value || record.category) ? <Tag>{value || record.category}</Tag> : '-') },
     {
       title: locale === 'zh-CN' ? '上传者' : 'Uploader',
@@ -154,17 +174,21 @@ export function PublicFilesPage() {
           return '-';
         }
         const label = record.createdByDisplayName || record.createdByUsername;
-        return (
-          <Link to={`/users/${record.createdByUsername}`} className="uploader-link">
+        const content = (
+          <>
             <Avatar src={record.createdByAvatarUrl} size={28}>{label.slice(0, 1).toUpperCase()}</Avatar>
             <span>{label}</span>
-          </Link>
+          </>
         );
+        if (!token) {
+          return <span className="uploader-link disabled">{content}</span>;
+        }
+        return <Link to={`/users/${record.createdByUsername}`} className="uploader-link">{content}</Link>;
       },
     },
     { title: locale === 'zh-CN' ? '大小' : 'Size', dataIndex: 'size', key: 'size', width: 120, render: (value) => formatBytes(value) },
-    { title: locale === 'zh-CN' ? '类型' : 'MIME', dataIndex: 'mimeType', key: 'mimeType', width: 180, render: (value) => <Typography.Text type="secondary">{value || '-'}</Typography.Text> },
     { title: locale === 'zh-CN' ? '上传时间' : 'Created at', dataIndex: 'createdAt', key: 'createdAt', width: 180, render: (value) => formatDate(value) },
+    { title: locale === 'zh-CN' ? '类型' : 'MIME', dataIndex: 'mimeType', key: 'mimeType', width: 180, render: (value) => <Typography.Text type="secondary">{value || '-'}</Typography.Text> },
     {
       title: locale === 'zh-CN' ? '操作' : 'Action',
       key: 'action',

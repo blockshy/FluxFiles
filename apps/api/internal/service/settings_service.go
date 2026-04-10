@@ -27,11 +27,16 @@ type RateLimitRuleSettings struct {
 	WindowSeconds int `json:"windowSeconds"`
 }
 
+type SplitRateLimitRuleSettings struct {
+	Guest         RateLimitRuleSettings `json:"guest"`
+	Authenticated RateLimitRuleSettings `json:"authenticated"`
+}
+
 type RateLimitSettings struct {
-	Login    RateLimitRuleSettings `json:"login"`
-	Download RateLimitRuleSettings `json:"download"`
-	Upload   RateLimitRuleSettings `json:"upload"`
-	List     RateLimitRuleSettings `json:"list"`
+	Login    SplitRateLimitRuleSettings `json:"login"`
+	Download RateLimitRuleSettings      `json:"download"`
+	Upload   RateLimitRuleSettings      `json:"upload"`
+	List     SplitRateLimitRuleSettings `json:"list"`
 }
 
 type CaptchaSettings struct {
@@ -153,10 +158,18 @@ func (s *SettingsService) SetPermissionTemplates(ctx context.Context, templates 
 }
 
 func (s *SettingsService) DefaultRateLimitSettings() RateLimitSettings {
+	defaultRule := RateLimitRuleSettings{
+		Limit:         s.defaultRates.LoginLimit,
+		WindowSeconds: s.defaultRates.LoginWindowSeconds,
+	}
+	defaultListRule := RateLimitRuleSettings{
+		Limit:         s.defaultRates.ListLimit,
+		WindowSeconds: s.defaultRates.ListWindowSeconds,
+	}
 	return RateLimitSettings{
-		Login: RateLimitRuleSettings{
-			Limit:         s.defaultRates.LoginLimit,
-			WindowSeconds: s.defaultRates.LoginWindowSeconds,
+		Login: SplitRateLimitRuleSettings{
+			Guest:         defaultRule,
+			Authenticated: defaultRule,
 		},
 		Download: RateLimitRuleSettings{
 			Limit:         s.defaultRates.DownloadLimit,
@@ -166,9 +179,9 @@ func (s *SettingsService) DefaultRateLimitSettings() RateLimitSettings {
 			Limit:         s.defaultRates.UploadLimit,
 			WindowSeconds: s.defaultRates.UploadWindowSeconds,
 		},
-		List: RateLimitRuleSettings{
-			Limit:         s.defaultRates.ListLimit,
-			WindowSeconds: s.defaultRates.ListWindowSeconds,
+		List: SplitRateLimitRuleSettings{
+			Guest:         defaultListRule,
+			Authenticated: defaultListRule,
 		},
 	}
 }
@@ -184,7 +197,27 @@ func (s *SettingsService) GetRateLimitSettings(ctx context.Context) (RateLimitSe
 
 	var settings RateLimitSettings
 	if err := json.Unmarshal([]byte(item.Value), &settings); err != nil {
-		return RateLimitSettings{}, ErrDependencyUnavailable
+		var legacy struct {
+			Login    RateLimitRuleSettings `json:"login"`
+			Download RateLimitRuleSettings `json:"download"`
+			Upload   RateLimitRuleSettings `json:"upload"`
+			List     RateLimitRuleSettings `json:"list"`
+		}
+		if legacyErr := json.Unmarshal([]byte(item.Value), &legacy); legacyErr != nil {
+			return RateLimitSettings{}, ErrDependencyUnavailable
+		}
+		settings = RateLimitSettings{
+			Login: SplitRateLimitRuleSettings{
+				Guest:         legacy.Login,
+				Authenticated: legacy.Login,
+			},
+			Download: legacy.Download,
+			Upload:   legacy.Upload,
+			List: SplitRateLimitRuleSettings{
+				Guest:         legacy.List,
+				Authenticated: legacy.List,
+			},
+		}
 	}
 
 	return normalizeRateLimitSettings(settings, s.DefaultRateLimitSettings())
@@ -267,22 +300,22 @@ func (s *SettingsService) BuildUploadPolicy(ctx context.Context) (*validator.Upl
 	return validator.NewUploadPolicy(maxSize, extensions, mimeTypes), nil
 }
 
-func (s *SettingsService) DefaultRateLimitRule(name string) resilience.RateRule {
+func (s *SettingsService) DefaultRateLimitRule(name string, authenticated bool) resilience.RateRule {
 	settings := s.DefaultRateLimitSettings()
-	return buildRateRule(name, settings)
+	return buildRateRule(name, settings, authenticated)
 }
 
-func (s *SettingsService) GetRateLimitRule(ctx context.Context, name string) (resilience.RateRule, error) {
+func (s *SettingsService) GetRateLimitRule(ctx context.Context, name string, authenticated bool) (resilience.RateRule, error) {
 	settings, err := s.GetRateLimitSettings(ctx)
 	if err != nil {
-		return s.DefaultRateLimitRule(name), err
+		return s.DefaultRateLimitRule(name, authenticated), err
 	}
-	return buildRateRule(name, settings), nil
+	return buildRateRule(name, settings, authenticated), nil
 }
 
 func normalizeRateLimitSettings(value RateLimitSettings, defaults RateLimitSettings) (RateLimitSettings, error) {
 	var err error
-	value.Login, err = normalizeRateLimitRule(value.Login, defaults.Login)
+	value.Login, err = normalizeSplitRateLimitRule(value.Login, defaults.Login)
 	if err != nil {
 		return RateLimitSettings{}, err
 	}
@@ -294,9 +327,22 @@ func normalizeRateLimitSettings(value RateLimitSettings, defaults RateLimitSetti
 	if err != nil {
 		return RateLimitSettings{}, err
 	}
-	value.List, err = normalizeRateLimitRule(value.List, defaults.List)
+	value.List, err = normalizeSplitRateLimitRule(value.List, defaults.List)
 	if err != nil {
 		return RateLimitSettings{}, err
+	}
+	return value, nil
+}
+
+func normalizeSplitRateLimitRule(value SplitRateLimitRuleSettings, defaults SplitRateLimitRuleSettings) (SplitRateLimitRuleSettings, error) {
+	var err error
+	value.Guest, err = normalizeRateLimitRule(value.Guest, defaults.Guest)
+	if err != nil {
+		return SplitRateLimitRuleSettings{}, err
+	}
+	value.Authenticated, err = normalizeRateLimitRule(value.Authenticated, defaults.Authenticated)
+	if err != nil {
+		return SplitRateLimitRuleSettings{}, err
 	}
 	return value, nil
 }
@@ -390,17 +436,28 @@ func normalizeMimeTypeList(values []string) []string {
 	return items
 }
 
-func buildRateRule(name string, settings RateLimitSettings) resilience.RateRule {
-	target := settings.List
+func buildRateRule(name string, settings RateLimitSettings, authenticated bool) resilience.RateRule {
+	target := settings.List.Guest
+	if authenticated {
+		target = settings.List.Authenticated
+	}
 	switch name {
 	case "user-login", "admin-login":
-		target = settings.Login
+		if authenticated {
+			target = settings.Login.Authenticated
+		} else {
+			target = settings.Login.Guest
+		}
 	case "public-download":
 		target = settings.Download
 	case "admin-upload":
 		target = settings.Upload
 	case "public-list", "admin-list":
-		target = settings.List
+		if authenticated {
+			target = settings.List.Authenticated
+		} else {
+			target = settings.List.Guest
+		}
 	}
 
 	return resilience.RateRule{

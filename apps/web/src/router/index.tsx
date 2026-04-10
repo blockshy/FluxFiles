@@ -65,7 +65,9 @@ export function AppRouter() {
         path="/users/:username"
         element={
           <PublicLayout>
-            <PublicUserProfilePage />
+            <UserProtectedRoute>
+              <PublicUserProfilePage />
+            </UserProtectedRoute>
           </PublicLayout>
         }
       />

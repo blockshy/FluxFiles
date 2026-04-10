@@ -294,11 +294,16 @@ export interface RateLimitRuleSettings {
   windowSeconds: number;
 }
 
+export interface SplitRateLimitRuleSettings {
+  guest: RateLimitRuleSettings;
+  authenticated: RateLimitRuleSettings;
+}
+
 export interface RateLimitSettings {
-  login: RateLimitRuleSettings;
+  login: SplitRateLimitRuleSettings;
   download: RateLimitRuleSettings;
   upload: RateLimitRuleSettings;
-  list: RateLimitRuleSettings;
+  list: SplitRateLimitRuleSettings;
 }
 
 export interface UploadSettings {
