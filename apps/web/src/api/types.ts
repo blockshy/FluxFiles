@@ -26,7 +26,9 @@ export interface FileRecord {
   mimeType: string;
   description: string;
   category: string;
+  categoryPath?: string;
   tags: string[];
+  tagPaths?: string[];
   isPublic: boolean;
   downloadCount: number;
   createdBy?: number;
@@ -356,6 +358,16 @@ export interface OperationLogRecord {
 export interface TaxonomyRecord {
   id: number;
   name: string;
+  parentId?: number;
+  parentName?: string;
+  categoryId?: number;
+  categoryName?: string;
+  categoryPath?: string;
+  fullPath?: string;
+  depth?: number;
+  sortOrder: number;
+  childCount?: number;
+  tagCount?: number;
   createdBy: number;
   updatedBy: number;
   createdByUsername?: string;
@@ -367,6 +379,12 @@ export interface TaxonomyRecord {
 
 export interface SaveTaxonomyPayload {
   name: string;
+  parentId?: number;
+  categoryId?: number;
+}
+
+export interface MoveTaxonomyPayload {
+  direction: 'up' | 'down';
 }
 
 export interface TaxonomyLogRecord {

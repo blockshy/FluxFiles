@@ -47,7 +47,7 @@ export function FileDetailCard({ file, downloading, onDownload }: FileDetailCard
         </div>
         <div className="detail-item">
           <span className="detail-label">分类</span>
-          <span className="detail-value">{file.category || '未分类'}</span>
+          <span className="detail-value">{file.categoryPath || file.category || '未分类'}</span>
         </div>
         <div className="detail-item">
           <span className="detail-label">上传时间</span>
@@ -56,9 +56,8 @@ export function FileDetailCard({ file, downloading, onDownload }: FileDetailCard
       </div>
 
       <Space wrap size={[8, 8]}>
-        {(file.tags || []).length > 0 ? file.tags.map((tag) => <Tag key={tag}>{tag}</Tag>) : <Tag>无标签</Tag>}
+        {(file.tagPaths || file.tags || []).length > 0 ? (file.tagPaths?.length ? file.tagPaths : file.tags).map((tag) => <Tag key={tag}>{tag}</Tag>) : <Tag>无标签</Tag>}
       </Space>
     </Card>
   );
 }
-

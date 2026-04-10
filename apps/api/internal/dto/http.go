@@ -93,7 +93,13 @@ type UpdatePermissionTemplatesRequest struct {
 }
 
 type SaveTaxonomyRequest struct {
-	Name string `json:"name" binding:"required,min=1,max=128"`
+	Name       string `json:"name" binding:"required,min=1,max=128"`
+	ParentID   *uint  `json:"parentId"`
+	CategoryID *uint  `json:"categoryId"`
+}
+
+type MoveTaxonomyRequest struct {
+	Direction string `json:"direction" binding:"required,oneof=up down"`
 }
 
 type UpdateFileRequest struct {

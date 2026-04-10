@@ -64,8 +64,8 @@ export function PublicFilesPage() {
     },
     { title: locale === 'zh-CN' ? '原文件名' : 'Original name', dataIndex: 'originalName', key: 'originalName', width: 260, render: (value) => <Typography.Text type="secondary">{value}</Typography.Text> },
     { title: locale === 'zh-CN' ? '描述' : 'Description', dataIndex: 'description', key: 'description', width: 260, render: (value) => <div className="table-text-ellipsis" title={value || '-'}>{value || '-'}</div> },
-    { title: locale === 'zh-CN' ? '标签' : 'Tags', dataIndex: 'tags', key: 'tags', width: 180, render: (value: string[]) => <Space size={[6, 6]} wrap>{value?.length ? value.map((tag) => <Tag key={tag}>{tag}</Tag>) : '-'}</Space> },
-    { title: locale === 'zh-CN' ? '分类' : 'Category', dataIndex: 'category', key: 'category', width: 120, render: (value) => (value ? <Tag>{value}</Tag> : '-') },
+    { title: locale === 'zh-CN' ? '标签' : 'Tags', dataIndex: 'tagPaths', key: 'tagPaths', width: 260, render: (value: string[] | undefined, record) => <Space size={[6, 6]} wrap>{(value?.length ? value : record.tags)?.length ? (value?.length ? value : record.tags).map((tag) => <Tag key={tag}>{tag}</Tag>) : '-'}</Space> },
+    { title: locale === 'zh-CN' ? '分类' : 'Category', dataIndex: 'categoryPath', key: 'categoryPath', width: 180, render: (value, record) => ((value || record.category) ? <Tag>{value || record.category}</Tag> : '-') },
     {
       title: locale === 'zh-CN' ? '上传者' : 'Uploader',
       key: 'uploader',
@@ -126,7 +126,7 @@ export function PublicFilesPage() {
 
         <Table<FileRecord>
           rowKey="id"
-          scroll={{ x: 1800 }}
+          scroll={{ x: 1980 }}
           columns={columns}
           dataSource={filesQuery.data?.items ?? []}
           loading={filesQuery.isLoading}

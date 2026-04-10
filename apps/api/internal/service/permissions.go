@@ -73,7 +73,7 @@ var DefaultPermissionTemplates = []PermissionTemplate{
 	{
 		Key:         "taxonomy_admin",
 		Name:        "Taxonomy Admin",
-		Description: "Manage categories, tags, and their change logs",
+		Description: "Manage hierarchical file categories, hierarchical tag categories, tags, and their change logs",
 		Permissions: []string{
 			PermissionAdminCategoriesView,
 			PermissionAdminCategoriesCreate,

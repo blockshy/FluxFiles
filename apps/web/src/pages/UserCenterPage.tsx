@@ -251,7 +251,7 @@ export function UserCenterPage() {
                         ) : null}
                         <Space wrap>
                           {item.category ? <Tag>{item.category}</Tag> : null}
-                          {(item.tags || []).map((tag) => (
+                          {(item.tagPaths?.length ? item.tagPaths : item.tags || []).map((tag) => (
                             <Tag key={tag}>{tag}</Tag>
                           ))}
                         </Space>

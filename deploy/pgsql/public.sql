@@ -79,6 +79,8 @@ CREATE INDEX IF NOT EXISTS idx_operation_logs_created_at ON public.operation_log
 CREATE TABLE IF NOT EXISTS public.categories (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
+    parent_id BIGINT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
     created_by BIGINT NOT NULL,
     updated_by BIGINT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -89,13 +91,73 @@ CREATE TABLE IF NOT EXISTS public.categories (
     CONSTRAINT categories_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id)
 );
 
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS parent_id BIGINT NULL;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'categories_parent_id_fkey'
+    ) THEN
+        ALTER TABLE public.categories
+            ADD CONSTRAINT categories_parent_id_fkey
+            FOREIGN KEY (parent_id) REFERENCES public.categories(id)
+            ON DELETE SET NULL;
+    END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_categories_deleted_at ON public.categories(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_categories_created_by ON public.categories(created_by);
 CREATE INDEX IF NOT EXISTS idx_categories_updated_by ON public.categories(updated_by);
+CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON public.categories(parent_id);
+CREATE INDEX IF NOT EXISTS idx_categories_sort_order ON public.categories(parent_id, sort_order);
+
+CREATE TABLE IF NOT EXISTS public.tag_categories (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(128) NOT NULL,
+    parent_id BIGINT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_by BIGINT NOT NULL,
+    updated_by BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ NULL,
+    CONSTRAINT tag_categories_name_key UNIQUE (name),
+    CONSTRAINT tag_categories_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+    CONSTRAINT tag_categories_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id)
+);
+
+ALTER TABLE public.tag_categories ADD COLUMN IF NOT EXISTS parent_id BIGINT NULL;
+ALTER TABLE public.tag_categories ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'tag_categories_parent_id_fkey'
+    ) THEN
+        ALTER TABLE public.tag_categories
+            ADD CONSTRAINT tag_categories_parent_id_fkey
+            FOREIGN KEY (parent_id) REFERENCES public.tag_categories(id)
+            ON DELETE SET NULL;
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_tag_categories_deleted_at ON public.tag_categories(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_tag_categories_created_by ON public.tag_categories(created_by);
+CREATE INDEX IF NOT EXISTS idx_tag_categories_updated_by ON public.tag_categories(updated_by);
+CREATE INDEX IF NOT EXISTS idx_tag_categories_parent_id ON public.tag_categories(parent_id);
+CREATE INDEX IF NOT EXISTS idx_tag_categories_sort_order ON public.tag_categories(parent_id, sort_order);
 
 CREATE TABLE IF NOT EXISTS public.tags (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
+    category_id BIGINT NULL,
+    tag_category_id BIGINT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
     created_by BIGINT NOT NULL,
     updated_by BIGINT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -106,9 +168,185 @@ CREATE TABLE IF NOT EXISTS public.tags (
     CONSTRAINT tags_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id)
 );
 
+ALTER TABLE public.tags ADD COLUMN IF NOT EXISTS category_id BIGINT NULL;
+ALTER TABLE public.tags ADD COLUMN IF NOT EXISTS tag_category_id BIGINT NULL;
+ALTER TABLE public.tags ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'tags_category_id_fkey'
+    ) THEN
+        ALTER TABLE public.tags
+            ADD CONSTRAINT tags_category_id_fkey
+            FOREIGN KEY (category_id) REFERENCES public.categories(id)
+            ON DELETE SET NULL;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'tags_tag_category_id_fkey'
+    ) THEN
+        ALTER TABLE public.tags
+            ADD CONSTRAINT tags_tag_category_id_fkey
+            FOREIGN KEY (tag_category_id) REFERENCES public.tag_categories(id)
+            ON DELETE SET NULL;
+    END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_tags_deleted_at ON public.tags(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_tags_created_by ON public.tags(created_by);
 CREATE INDEX IF NOT EXISTS idx_tags_updated_by ON public.tags(updated_by);
+CREATE INDEX IF NOT EXISTS idx_tags_category_id ON public.tags(category_id);
+CREATE INDEX IF NOT EXISTS idx_tags_tag_category_id ON public.tags(tag_category_id);
+CREATE INDEX IF NOT EXISTS idx_tags_sort_order ON public.tags(category_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_tags_tag_category_sort_order ON public.tags(tag_category_id, sort_order);
+
+DO $$
+DECLARE
+    fallback_user_id BIGINT;
+    default_category_id BIGINT;
+    default_tag_category_id BIGINT;
+    category_row RECORD;
+    mapped_parent_id BIGINT;
+BEGIN
+    SELECT id
+    INTO fallback_user_id
+    FROM public.users
+    WHERE deleted_at IS NULL
+    ORDER BY id
+    LIMIT 1;
+
+    IF fallback_user_id IS NULL THEN
+        RETURN;
+    END IF;
+
+    INSERT INTO public.categories (name, parent_id, created_by, updated_by, created_at, updated_at)
+    VALUES ('默认分类', NULL, fallback_user_id, fallback_user_id, NOW(), NOW())
+    ON CONFLICT (name) DO NOTHING;
+
+    SELECT id
+    INTO default_category_id
+    FROM public.categories
+    WHERE name = '默认分类' AND deleted_at IS NULL
+    ORDER BY id
+    LIMIT 1;
+
+    INSERT INTO public.tag_categories (name, parent_id, created_by, updated_by, created_at, updated_at)
+    VALUES ('默认标签分类', NULL, fallback_user_id, fallback_user_id, NOW(), NOW())
+    ON CONFLICT (name) DO NOTHING;
+
+    SELECT id
+    INTO default_tag_category_id
+    FROM public.tag_categories
+    WHERE name = '默认标签分类' AND deleted_at IS NULL
+    ORDER BY id
+    LIMIT 1;
+
+    FOR category_row IN
+        WITH RECURSIVE category_tree AS (
+            SELECT c.id, c.name, c.parent_id, c.sort_order, c.created_by, c.updated_by, c.created_at, c.updated_at, 0 AS depth
+            FROM public.categories c
+            WHERE c.parent_id IS NULL AND c.deleted_at IS NULL
+            UNION ALL
+            SELECT c.id, c.name, c.parent_id, c.sort_order, c.created_by, c.updated_by, c.created_at, c.updated_at, category_tree.depth + 1
+            FROM public.categories c
+            INNER JOIN category_tree ON category_tree.id = c.parent_id
+            WHERE c.deleted_at IS NULL
+        )
+        SELECT category_tree.*, parent.name AS parent_name
+        FROM category_tree
+        LEFT JOIN public.categories parent ON parent.id = category_tree.parent_id
+        ORDER BY category_tree.depth, category_tree.created_at, category_tree.id
+    LOOP
+        mapped_parent_id := NULL;
+        IF category_row.parent_name IS NOT NULL THEN
+            SELECT id
+            INTO mapped_parent_id
+            FROM public.tag_categories
+            WHERE name = category_row.parent_name AND deleted_at IS NULL
+            ORDER BY id
+            LIMIT 1;
+        END IF;
+
+        INSERT INTO public.tag_categories (name, parent_id, sort_order, created_by, updated_by, created_at, updated_at)
+        VALUES (
+            category_row.name,
+            mapped_parent_id,
+            COALESCE(category_row.sort_order, 0),
+            COALESCE(category_row.created_by, fallback_user_id),
+            COALESCE(category_row.updated_by, fallback_user_id),
+            COALESCE(category_row.created_at, NOW()),
+            COALESCE(category_row.updated_at, NOW())
+        )
+        ON CONFLICT (name) DO NOTHING;
+    END LOOP;
+
+    IF default_category_id IS NOT NULL THEN
+        UPDATE public.tags
+        SET category_id = default_category_id,
+            updated_by = COALESCE(updated_by, fallback_user_id),
+            updated_at = NOW()
+        WHERE category_id IS NULL;
+    END IF;
+
+    UPDATE public.tags AS tags
+    SET tag_category_id = tag_categories.id,
+        updated_by = COALESCE(tags.updated_by, fallback_user_id),
+        updated_at = NOW()
+    FROM public.categories
+    INNER JOIN public.tag_categories ON tag_categories.name = categories.name AND tag_categories.deleted_at IS NULL
+    WHERE tags.category_id = categories.id
+      AND tags.deleted_at IS NULL
+      AND tags.tag_category_id IS NULL;
+
+    UPDATE public.tags
+    SET tag_category_id = default_tag_category_id,
+        updated_by = COALESCE(updated_by, fallback_user_id),
+        updated_at = NOW()
+    WHERE deleted_at IS NULL
+      AND tag_category_id IS NULL
+      AND default_tag_category_id IS NOT NULL;
+END $$;
+
+WITH ordered_categories AS (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY parent_id ORDER BY created_at, id) AS seq
+    FROM public.categories
+    WHERE deleted_at IS NULL
+)
+UPDATE public.categories AS categories
+SET sort_order = ordered_categories.seq
+FROM ordered_categories
+WHERE categories.id = ordered_categories.id
+  AND (categories.sort_order IS NULL OR categories.sort_order = 0);
+
+WITH ordered_tags AS (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY tag_category_id ORDER BY created_at, id) AS seq
+    FROM public.tags
+    WHERE deleted_at IS NULL
+)
+UPDATE public.tags AS tags
+SET sort_order = ordered_tags.seq
+FROM ordered_tags
+WHERE tags.id = ordered_tags.id
+  AND (tags.sort_order IS NULL OR tags.sort_order = 0);
+
+WITH ordered_tag_categories AS (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY parent_id ORDER BY created_at, id) AS seq
+    FROM public.tag_categories
+    WHERE deleted_at IS NULL
+)
+UPDATE public.tag_categories AS tag_categories
+SET sort_order = ordered_tag_categories.seq
+FROM ordered_tag_categories
+WHERE tag_categories.id = ordered_tag_categories.id
+  AND (tag_categories.sort_order IS NULL OR tag_categories.sort_order = 0);
 
 CREATE TABLE IF NOT EXISTS public.taxonomy_change_logs (
     id BIGSERIAL PRIMARY KEY,

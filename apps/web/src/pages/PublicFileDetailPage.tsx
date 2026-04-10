@@ -459,7 +459,7 @@ export function PublicFileDetailPage() {
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">{locale === 'zh-CN' ? '分类' : 'Category'}</span>
-                  <span className="detail-value">{file.category || (locale === 'zh-CN' ? '未分类' : 'Uncategorized')}</span>
+                  <span className="detail-value">{file.categoryPath || file.category || (locale === 'zh-CN' ? '未分类' : 'Uncategorized')}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">{locale === 'zh-CN' ? '上传时间' : 'Uploaded'}</span>
@@ -475,7 +475,7 @@ export function PublicFileDetailPage() {
               ) : null}
 
               <Space wrap size={[8, 8]}>
-                {(file.tags || []).length > 0 ? file.tags.map((tag) => <Tag key={tag}>{tag}</Tag>) : <Tag>{locale === 'zh-CN' ? '无标签' : 'No tags'}</Tag>}
+                {(file.tagPaths?.length ? file.tagPaths : file.tags || []).length > 0 ? (file.tagPaths?.length ? file.tagPaths : file.tags).map((tag) => <Tag key={tag}>{tag}</Tag>) : <Tag>{locale === 'zh-CN' ? '无标签' : 'No tags'}</Tag>}
               </Space>
             </Space>
           ) : fileQuery.isLoading ? null : <Empty description={locale === 'zh-CN' ? '文件不存在或已下线' : 'File not found'} />}

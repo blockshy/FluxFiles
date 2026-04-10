@@ -120,6 +120,11 @@ func (s *FileService) list(ctx context.Context, params repository.FileListParams
 		Total int64
 	})
 	applyResolvedFileUploaderAvatars(payload.Items)
+	if s.taxonomy != nil {
+		if err := s.taxonomy.EnrichFiles(ctx, payload.Items); err != nil {
+			return nil, 0, err
+		}
+	}
 	return payload.Items, payload.Total, nil
 }
 
@@ -135,6 +140,13 @@ func (s *FileService) GetPublic(ctx context.Context, id uint) (*model.File, erro
 	}
 	file := result.(*model.File)
 	applyResolvedFileUploaderAvatar(file)
+	if s.taxonomy != nil {
+		items := []model.File{*file}
+		if err := s.taxonomy.EnrichFiles(ctx, items); err != nil {
+			return nil, err
+		}
+		*file = items[0]
+	}
 	return file, nil
 }
 
@@ -150,6 +162,13 @@ func (s *FileService) GetAdmin(ctx context.Context, id uint, actorID uint, permi
 	}
 	file := result.(*model.File)
 	applyResolvedFileUploaderAvatar(file)
+	if s.taxonomy != nil {
+		items := []model.File{*file}
+		if err := s.taxonomy.EnrichFiles(ctx, items); err != nil {
+			return nil, err
+		}
+		*file = items[0]
+	}
 	if err := ensureFileAccess(file, actorID, permissions); err != nil {
 		return nil, err
 	}

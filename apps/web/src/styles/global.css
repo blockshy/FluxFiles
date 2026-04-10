@@ -322,6 +322,56 @@ a {
   align-items: center;
 }
 
+.inline-loading-block {
+  padding: 4px 0 12px;
+}
+
+.taxonomy-tree .ant-tree-treenode {
+  width: 100%;
+}
+
+.taxonomy-tree .ant-tree-node-content-wrapper {
+  flex: 1 1 auto;
+  width: calc(100% - 32px);
+}
+
+.taxonomy-tree-row {
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 0;
+}
+
+.taxonomy-tree-main {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.taxonomy-tree-main .ant-typography {
+  margin: 0;
+}
+
+.taxonomy-tree-leaf .taxonomy-tree-main {
+  padding-left: 4px;
+}
+
+.taxonomy-log-list {
+  display: grid;
+  gap: 12px;
+}
+
+.taxonomy-log-card {
+  border-radius: 12px;
+}
+
+.taxonomy-log-payload {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
 .detail-metadata {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

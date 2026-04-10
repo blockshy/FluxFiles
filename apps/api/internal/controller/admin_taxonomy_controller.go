@@ -28,8 +28,16 @@ func (ctl *AdminTaxonomyController) ListTags(c *gin.Context) {
 	ctl.list(c, repository.TaxonomyKindTag)
 }
 
+func (ctl *AdminTaxonomyController) ListTagCategories(c *gin.Context) {
+	ctl.list(c, repository.TaxonomyKindTagCategory)
+}
+
 func (ctl *AdminTaxonomyController) CategoryOptions(c *gin.Context) {
 	ctl.options(c, repository.TaxonomyKindCategory)
+}
+
+func (ctl *AdminTaxonomyController) TagCategoryOptions(c *gin.Context) {
+	ctl.options(c, repository.TaxonomyKindTagCategory)
 }
 
 func (ctl *AdminTaxonomyController) TagOptions(c *gin.Context) {
@@ -44,6 +52,10 @@ func (ctl *AdminTaxonomyController) CreateTag(c *gin.Context) {
 	ctl.create(c, repository.TaxonomyKindTag)
 }
 
+func (ctl *AdminTaxonomyController) CreateTagCategory(c *gin.Context) {
+	ctl.create(c, repository.TaxonomyKindTagCategory)
+}
+
 func (ctl *AdminTaxonomyController) UpdateCategory(c *gin.Context) {
 	ctl.update(c, repository.TaxonomyKindCategory)
 }
@@ -52,12 +64,32 @@ func (ctl *AdminTaxonomyController) UpdateTag(c *gin.Context) {
 	ctl.update(c, repository.TaxonomyKindTag)
 }
 
+func (ctl *AdminTaxonomyController) UpdateTagCategory(c *gin.Context) {
+	ctl.update(c, repository.TaxonomyKindTagCategory)
+}
+
 func (ctl *AdminTaxonomyController) DeleteCategory(c *gin.Context) {
 	ctl.remove(c, repository.TaxonomyKindCategory)
 }
 
+func (ctl *AdminTaxonomyController) MoveCategory(c *gin.Context) {
+	ctl.move(c, repository.TaxonomyKindCategory)
+}
+
+func (ctl *AdminTaxonomyController) DeleteTagCategory(c *gin.Context) {
+	ctl.remove(c, repository.TaxonomyKindTagCategory)
+}
+
+func (ctl *AdminTaxonomyController) MoveTagCategory(c *gin.Context) {
+	ctl.move(c, repository.TaxonomyKindTagCategory)
+}
+
 func (ctl *AdminTaxonomyController) DeleteTag(c *gin.Context) {
 	ctl.remove(c, repository.TaxonomyKindTag)
+}
+
+func (ctl *AdminTaxonomyController) MoveTag(c *gin.Context) {
+	ctl.move(c, repository.TaxonomyKindTag)
 }
 
 func (ctl *AdminTaxonomyController) CategoryLogs(c *gin.Context) {
@@ -66,6 +98,10 @@ func (ctl *AdminTaxonomyController) CategoryLogs(c *gin.Context) {
 
 func (ctl *AdminTaxonomyController) TagLogs(c *gin.Context) {
 	ctl.logs(c, repository.TaxonomyKindTag)
+}
+
+func (ctl *AdminTaxonomyController) TagCategoryLogs(c *gin.Context) {
+	ctl.logs(c, repository.TaxonomyKindTagCategory)
 }
 
 func (ctl *AdminTaxonomyController) list(c *gin.Context, kind repository.TaxonomyKind) {
@@ -95,8 +131,19 @@ func (ctl *AdminTaxonomyController) list(c *gin.Context, kind repository.Taxonom
 
 func (ctl *AdminTaxonomyController) options(c *gin.Context, kind repository.TaxonomyKind) {
 	permissions := currentPermissions(c)
-	if !service.HasPermission(permissions, taxonomyPermission(kind, "view")) &&
-		!service.HasAnyPermission(permissions, service.PermissionAdminFilesUpload, service.PermissionAdminFilesEdit, service.PermissionAdminFilesOwn, service.PermissionAdminFilesAll) {
+	allowed := service.HasPermission(permissions, taxonomyPermission(kind, "view")) ||
+		service.HasAnyPermission(permissions, service.PermissionAdminFilesUpload, service.PermissionAdminFilesEdit, service.PermissionAdminFilesOwn, service.PermissionAdminFilesAll)
+	if kind == repository.TaxonomyKindCategory {
+		allowed = allowed || service.HasAnyPermission(
+			permissions,
+			service.PermissionAdminTagsView,
+			service.PermissionAdminTagsCreate,
+			service.PermissionAdminTagsEdit,
+			service.PermissionAdminTagsDelete,
+			service.PermissionAdminTagsLogs,
+		)
+	}
+	if !allowed {
 		response.Error(c, http.StatusForbidden, "insufficient permissions")
 		return
 	}
@@ -118,7 +165,11 @@ func (ctl *AdminTaxonomyController) create(c *gin.Context, kind repository.Taxon
 		response.Error(c, http.StatusBadRequest, "invalid taxonomy payload")
 		return
 	}
-	item, err := ctl.taxonomies.Create(c.Request.Context(), kind, c.GetUint("adminUserID"), c.ClientIP(), service.SaveTaxonomyInput{Name: req.Name})
+	item, err := ctl.taxonomies.Create(c.Request.Context(), kind, c.GetUint("adminUserID"), c.ClientIP(), service.SaveTaxonomyInput{
+		Name:       req.Name,
+		ParentID:   req.ParentID,
+		CategoryID: req.CategoryID,
+	})
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrValidation):
@@ -141,7 +192,11 @@ func (ctl *AdminTaxonomyController) update(c *gin.Context, kind repository.Taxon
 		response.Error(c, http.StatusBadRequest, "invalid taxonomy payload")
 		return
 	}
-	item, err := ctl.taxonomies.Update(c.Request.Context(), kind, parseUintParam(c, "id"), c.GetUint("adminUserID"), c.ClientIP(), service.SaveTaxonomyInput{Name: req.Name})
+	item, err := ctl.taxonomies.Update(c.Request.Context(), kind, parseUintParam(c, "id"), c.GetUint("adminUserID"), c.ClientIP(), service.SaveTaxonomyInput{
+		Name:       req.Name,
+		ParentID:   req.ParentID,
+		CategoryID: req.CategoryID,
+	})
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNotFound):
@@ -197,6 +252,31 @@ func (ctl *AdminTaxonomyController) logs(c *gin.Context, kind repository.Taxonom
 	})
 }
 
+func (ctl *AdminTaxonomyController) move(c *gin.Context, kind repository.TaxonomyKind) {
+	if !service.HasPermission(currentPermissions(c), taxonomyPermission(kind, "edit")) {
+		response.Error(c, http.StatusForbidden, "insufficient permissions")
+		return
+	}
+	var req dto.MoveTaxonomyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid taxonomy payload")
+		return
+	}
+	item, err := ctl.taxonomies.Move(c.Request.Context(), kind, parseUintParam(c, "id"), c.GetUint("adminUserID"), c.ClientIP(), service.MoveTaxonomyInput{Direction: req.Direction})
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrNotFound):
+			response.Error(c, http.StatusNotFound, "taxonomy not found")
+		case errors.Is(err, service.ErrValidation):
+			response.Error(c, http.StatusBadRequest, err.Error())
+		default:
+			response.Error(c, http.StatusServiceUnavailable, "taxonomy service is temporarily unavailable")
+		}
+		return
+	}
+	response.Success(c, http.StatusOK, "moved", item)
+}
+
 func taxonomyPermission(kind repository.TaxonomyKind, action string) string {
 	switch kind {
 	case repository.TaxonomyKindCategory:
@@ -213,6 +293,19 @@ func taxonomyPermission(kind repository.TaxonomyKind, action string) string {
 			return service.PermissionAdminCategoriesLogs
 		}
 	case repository.TaxonomyKindTag:
+		switch action {
+		case "view":
+			return service.PermissionAdminTagsView
+		case "create":
+			return service.PermissionAdminTagsCreate
+		case "edit":
+			return service.PermissionAdminTagsEdit
+		case "delete":
+			return service.PermissionAdminTagsDelete
+		case "logs":
+			return service.PermissionAdminTagsLogs
+		}
+	case repository.TaxonomyKindTagCategory:
 		switch action {
 		case "view":
 			return service.PermissionAdminTagsView

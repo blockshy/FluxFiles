@@ -1,5 +1,5 @@
 import { InboxOutlined } from '@ant-design/icons';
-import { Alert, Form, Input, Modal, Select, Switch, Upload } from 'antd';
+import { Alert, Form, Input, Modal, Skeleton, Switch, TreeSelect, Upload } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useEffect, useMemo, useState } from 'react';
 import type { FileRecord, UpdateFilePayload, UploadSettings } from '../../api/types';
@@ -14,14 +14,23 @@ interface SubmitPayload {
   isPublic: boolean;
 }
 
+interface TreeOptionNode {
+  title: string;
+  value: string;
+  selectable?: boolean;
+  disabled?: boolean;
+  children?: TreeOptionNode[];
+}
+
 interface FileFormModalProps {
   open: boolean;
   mode: 'create' | 'edit';
   initialValue?: FileRecord | null;
   loading: boolean;
   uploadSettings?: UploadSettings;
-  categoryOptions: { label: string; value: string }[];
-  tagOptions: { label: string; value: string }[];
+  taxonomyLoading: boolean;
+  categoryTreeData: TreeOptionNode[];
+  tagTreeData: TreeOptionNode[];
   onCancel: () => void;
   onSubmit: (payload: SubmitPayload) => Promise<void>;
 }
@@ -34,7 +43,7 @@ function normalizeFileNameExtension(name: string) {
   return name.slice(index).toLowerCase();
 }
 
-export function FileFormModal({ open, mode, initialValue, loading, uploadSettings, categoryOptions, tagOptions, onCancel, onSubmit }: FileFormModalProps) {
+export function FileFormModal({ open, mode, initialValue, loading, uploadSettings, taxonomyLoading, categoryTreeData, tagTreeData, onCancel, onSubmit }: FileFormModalProps) {
   const [form] = Form.useForm<UpdateFilePayload>();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -146,12 +155,36 @@ export function FileFormModal({ open, mode, initialValue, loading, uploadSetting
         <Form.Item name="description" label={locale === 'zh-CN' ? '文件描述' : 'Description'}>
           <Input.TextArea rows={4} />
         </Form.Item>
-        <Form.Item name="category" label={locale === 'zh-CN' ? '分类' : 'Category'}>
-          <Select allowClear options={categoryOptions} placeholder={locale === 'zh-CN' ? '请选择分类' : 'Select a category'} />
-        </Form.Item>
-        <Form.Item name="tags" label={locale === 'zh-CN' ? '标签' : 'Tags'}>
-          <Select mode="multiple" options={tagOptions} placeholder={locale === 'zh-CN' ? '请选择标签' : 'Select tags'} />
-        </Form.Item>
+        {taxonomyLoading ? (
+          <div className="inline-loading-block">
+            <Skeleton active paragraph={{ rows: 3 }} />
+          </div>
+        ) : (
+          <>
+            <Form.Item name="category" label={locale === 'zh-CN' ? '分类' : 'Category'}>
+              <TreeSelect
+                allowClear
+                showSearch
+                treeDefaultExpandAll
+                treeNodeFilterProp="title"
+                treeData={categoryTreeData}
+                placeholder={locale === 'zh-CN' ? '请选择分类' : 'Select a category'}
+              />
+            </Form.Item>
+            <Form.Item name="tags" label={locale === 'zh-CN' ? '标签' : 'Tags'}>
+              <TreeSelect
+                multiple
+                treeCheckable
+                showSearch
+                treeDefaultExpandAll
+                showCheckedStrategy={TreeSelect.SHOW_CHILD}
+                treeNodeFilterProp="title"
+                treeData={tagTreeData}
+                placeholder={locale === 'zh-CN' ? '请选择标签' : 'Select tags'}
+              />
+            </Form.Item>
+          </>
+        )}
         <Form.Item name="isPublic" label={locale === 'zh-CN' ? '公开展示' : 'Public'} valuePropName="checked">
           <Switch checkedChildren={t('common.on')} unCheckedChildren={t('common.off')} />
         </Form.Item>

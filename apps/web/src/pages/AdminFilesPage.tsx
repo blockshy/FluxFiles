@@ -4,8 +4,8 @@ import axios from 'axios';
 import { Button, Card, Input, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useDeferredValue, useMemo, useState } from 'react';
-import { createAdminFile, deleteAdminFile, fetchAdminCategoryOptions, fetchAdminFiles, fetchAdminStats, fetchAdminTagOptions, fetchAdminUploadSettings, prepareAdminUpload, updateAdminFile, uploadFileToOSS } from '../api/admin';
-import type { FileRecord, UpdateFilePayload } from '../api/types';
+import { createAdminFile, deleteAdminFile, fetchAdminCategoryOptions, fetchAdminFiles, fetchAdminStats, fetchAdminTagCategoryOptions, fetchAdminTagOptions, fetchAdminUploadSettings, prepareAdminUpload, updateAdminFile, uploadFileToOSS } from '../api/admin';
+import type { FileRecord, TaxonomyRecord, UpdateFilePayload } from '../api/types';
 import { FileFormModal } from '../features/admin/FileFormModal';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { useUserAuth } from '../features/user/AuthProvider';
@@ -52,6 +52,74 @@ function extractErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message.trim() ? error.message : fallback;
 }
 
+interface TreeOptionNode {
+  title: string;
+  value: string;
+  selectable?: boolean;
+  disabled?: boolean;
+  children?: TreeOptionNode[];
+}
+
+function sortTaxonomyItems<T extends { sortOrder: number; name: string }>(items: T[]) {
+  return [...items].sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'zh-Hans-CN'));
+}
+
+function buildCategoryTreeOptions(items: TaxonomyRecord[]) {
+  const childrenByParent = new Map<number | null, TaxonomyRecord[]>();
+  for (const item of items) {
+    const key = item.parentId ?? null;
+    const siblings = childrenByParent.get(key) ?? [];
+    siblings.push(item);
+    childrenByParent.set(key, siblings);
+  }
+
+  const build = (parentId: number | null): TreeOptionNode[] =>
+    sortTaxonomyItems(childrenByParent.get(parentId) ?? []).map((item) => ({
+      title: item.fullPath || item.name,
+      value: item.name,
+      children: build(item.id),
+    }));
+
+  return build(null);
+}
+
+function buildTagTreeOptions(categories: TaxonomyRecord[], tags: TaxonomyRecord[]) {
+  const categoryChildrenByParent = new Map<number | null, TaxonomyRecord[]>();
+  for (const item of categories) {
+    const key = item.parentId ?? null;
+    const siblings = categoryChildrenByParent.get(key) ?? [];
+    siblings.push(item);
+    categoryChildrenByParent.set(key, siblings);
+  }
+
+  const tagsByCategory = new Map<number, TaxonomyRecord[]>();
+  for (const item of tags) {
+    if (!item.categoryId) {
+      continue;
+    }
+    const siblings = tagsByCategory.get(item.categoryId) ?? [];
+    siblings.push(item);
+    tagsByCategory.set(item.categoryId, siblings);
+  }
+
+  const build = (parentId: number | null): TreeOptionNode[] =>
+    sortTaxonomyItems(categoryChildrenByParent.get(parentId) ?? []).map((category) => ({
+      title: category.fullPath || category.name,
+      value: `category-${category.id}`,
+      selectable: false,
+      disabled: true,
+      children: [
+        ...build(category.id),
+        ...sortTaxonomyItems(tagsByCategory.get(category.id) ?? []).map((tag) => ({
+          title: tag.fullPath || tag.name,
+          value: tag.name,
+        })),
+      ],
+    }));
+
+  return build(null);
+}
+
 export function AdminFilesPage() {
   const queryClient = useQueryClient();
   const [messageApi, contextHolder] = message.useMessage();
@@ -77,6 +145,7 @@ export function AdminFilesPage() {
   const statsQuery = useQuery({ queryKey: ['admin-stats'], queryFn: fetchAdminStats });
   const uploadSettingsQuery = useQuery({ queryKey: ['admin-upload-settings'], queryFn: fetchAdminUploadSettings, enabled: canUpload });
   const categoryOptionsQuery = useQuery({ queryKey: ['admin-category-options'], queryFn: fetchAdminCategoryOptions });
+  const tagCategoryOptionsQuery = useQuery({ queryKey: ['admin-tag-category-options'], queryFn: fetchAdminTagCategoryOptions });
   const tagOptionsQuery = useQuery({ queryKey: ['admin-tag-options'], queryFn: fetchAdminTagOptions });
 
   const createMutation = useMutation({
@@ -128,13 +197,22 @@ export function AdminFilesPage() {
     },
   });
 
+  const categoryTreeData = useMemo(
+    () => buildCategoryTreeOptions(categoryOptionsQuery.data ?? []),
+    [categoryOptionsQuery.data],
+  );
+  const tagTreeData = useMemo(
+    () => buildTagTreeOptions(tagCategoryOptionsQuery.data ?? [], tagOptionsQuery.data ?? []),
+    [tagCategoryOptionsQuery.data, tagOptionsQuery.data],
+  );
+
   const columns = useMemo<ColumnsType<FileRecord>>(() => {
     const baseColumns: ColumnsType<FileRecord> = [
       { title: locale === 'zh-CN' ? '显示名称' : 'Name', dataIndex: 'name', key: 'name', width: 220, render: (value) => <Typography.Text strong>{value}</Typography.Text> },
       { title: locale === 'zh-CN' ? '原文件名' : 'Original name', dataIndex: 'originalName', key: 'originalName', width: 240, render: (value) => <Typography.Text type="secondary">{value}</Typography.Text> },
       { title: locale === 'zh-CN' ? '描述' : 'Description', dataIndex: 'description', key: 'description', width: 220, render: (value) => <div className="table-text-ellipsis" title={value || '-'}>{value || '-'}</div> },
-      { title: locale === 'zh-CN' ? '分类' : 'Category', dataIndex: 'category', key: 'category', width: 120, render: (value) => value || '-' },
-      { title: locale === 'zh-CN' ? '标签' : 'Tags', dataIndex: 'tags', key: 'tags', width: 180, render: (value: string[]) => <Space size={[4, 4]} wrap>{value?.length ? value.map((tag) => <Tag key={tag}>{tag}</Tag>) : '-'}</Space> },
+      { title: locale === 'zh-CN' ? '分类' : 'Category', dataIndex: 'categoryPath', key: 'categoryPath', width: 220, render: (value, record) => value || record.category || '-' },
+      { title: locale === 'zh-CN' ? '标签' : 'Tags', dataIndex: 'tagPaths', key: 'tagPaths', width: 260, render: (value: string[] | undefined, record) => <Space size={[4, 4]} wrap>{(value?.length ? value : record.tags)?.length ? (value?.length ? value : record.tags).map((tag) => <Tag key={tag}>{tag}</Tag>) : '-'}</Space> },
       { title: locale === 'zh-CN' ? '大小' : 'Size', dataIndex: 'size', key: 'size', width: 110, render: (value) => formatBytes(value) },
       { title: locale === 'zh-CN' ? '公开' : 'Public', dataIndex: 'isPublic', key: 'isPublic', width: 100, render: (value) => (value ? <Tag color="green">{locale === 'zh-CN' ? '公开' : 'Public'}</Tag> : <Tag>{locale === 'zh-CN' ? '隐藏' : 'Hidden'}</Tag>) },
       { title: locale === 'zh-CN' ? '下载量' : 'Downloads', dataIndex: 'downloadCount', key: 'downloadCount', width: 110 },
@@ -166,7 +244,7 @@ export function AdminFilesPage() {
     return baseColumns;
   }, [canDelete, canEdit, deleteMutation, locale, t]);
 
-  const scrollX = canEdit || canDelete ? 1810 : 1630;
+  const scrollX = canEdit || canDelete ? 2060 : 1880;
 
   return (
     <>
@@ -217,8 +295,9 @@ export function AdminFilesPage() {
         initialValue={modalState.file}
         loading={createMutation.isPending || updateMutation.isPending}
         uploadSettings={uploadSettingsQuery.data}
-        categoryOptions={(categoryOptionsQuery.data ?? []).map((item) => ({ label: item.name, value: item.name }))}
-        tagOptions={(tagOptionsQuery.data ?? []).map((item) => ({ label: item.name, value: item.name }))}
+        taxonomyLoading={categoryOptionsQuery.isLoading || tagCategoryOptionsQuery.isLoading || tagOptionsQuery.isLoading}
+        categoryTreeData={categoryTreeData}
+        tagTreeData={tagTreeData}
         onCancel={() => setModalState({ open: false, mode: 'create', file: null })}
         onSubmit={async (payload) => {
           if (modalState.mode === 'create') {
