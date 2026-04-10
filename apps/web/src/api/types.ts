@@ -48,12 +48,21 @@ export interface UserAccount {
   username: string;
   email: string;
   displayName: string;
+  bio: string;
   role: string;
   permissions: string[];
+  profileVisibility: UserProfileVisibility;
   isEnabled: boolean;
   lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface UserProfileVisibility {
+  showBio: boolean;
+  showStats: boolean;
+  showPublishedFiles: boolean;
+  showFavorites: boolean;
 }
 
 export interface AdminUser {
@@ -108,6 +117,8 @@ export interface PublicRegisterConfig {
 export interface UpdateProfilePayload {
   email: string;
   displayName: string;
+  bio: string;
+  profileVisibility: UserProfileVisibility;
 }
 
 export interface ChangePasswordPayload {
@@ -117,6 +128,23 @@ export interface ChangePasswordPayload {
 
 export interface UserDownloadRecord extends FileRecord {
   downloadedAt: string;
+}
+
+export interface PublicUserProfileStats {
+  publishedFiles: number;
+  favorites: number;
+}
+
+export interface PublicUserProfile {
+  id: number;
+  username: string;
+  displayName: string;
+  bio: string;
+  createdAt: string;
+  profileVisibility: UserProfileVisibility;
+  stats?: PublicUserProfileStats;
+  publishedFiles?: FileRecord[];
+  favorites?: FileRecord[];
 }
 
 export interface DownloadPayload {

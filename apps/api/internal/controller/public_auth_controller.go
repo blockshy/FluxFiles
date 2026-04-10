@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"fluxfiles/api/internal/dto"
+	"fluxfiles/api/internal/model"
 	"fluxfiles/api/internal/service"
 	"fluxfiles/api/pkg/response"
 
@@ -160,6 +161,13 @@ func (ctl *PublicAuthController) UpdateProfile(c *gin.Context) {
 	user, err := ctl.users.UpdateProfile(c.Request.Context(), c.GetUint("userID"), service.UpdateProfileInput{
 		Email:       req.Email,
 		DisplayName: req.DisplayName,
+		Bio:         req.Bio,
+		ProfileVisibility: model.UserProfileVisibility{
+			ShowBio:            req.ProfileVisibility.ShowBio,
+			ShowStats:          req.ProfileVisibility.ShowStats,
+			ShowPublishedFiles: req.ProfileVisibility.ShowPublishedFiles,
+			ShowFavorites:      req.ProfileVisibility.ShowFavorites,
+		},
 	})
 	if err != nil {
 		switch {
@@ -172,6 +180,19 @@ func (ctl *PublicAuthController) UpdateProfile(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, "profile updated", user)
+}
+
+func (ctl *PublicAuthController) PublicProfile(c *gin.Context) {
+	profile, err := ctl.users.GetPublicProfile(c.Request.Context(), c.Param("username"))
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			response.Error(c, http.StatusNotFound, "user not found")
+			return
+		}
+		response.Error(c, http.StatusServiceUnavailable, "user service is temporarily unavailable")
+		return
+	}
+	response.Success(c, http.StatusOK, "ok", profile)
 }
 
 func (ctl *PublicAuthController) ChangePassword(c *gin.Context) {

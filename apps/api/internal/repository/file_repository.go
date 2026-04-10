@@ -91,7 +91,12 @@ func (r *FileRepository) GetByID(ctx context.Context, id uint, includeDeleted bo
 
 func (r *FileRepository) GetPublicByID(ctx context.Context, id uint) (*model.File, error) {
 	var file model.File
-	if err := r.db.WithContext(ctx).Where("id = ? AND is_public = ?", id, true).First(&file).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Table("files").
+		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name").
+		Joins("LEFT JOIN users uploader ON uploader.id = files.created_by").
+		Where("files.id = ? AND files.is_public = ?", id, true).
+		First(&file).Error; err != nil {
 		return nil, err
 	}
 	return &file, nil

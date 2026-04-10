@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Input, Select, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useDeferredValue, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { fetchPublicFiles, requestDownloadLink } from '../api/files';
 import { addFavoriteFile, fetchFavoriteFiles, removeFavoriteFile } from '../api/user';
 import type { FileRecord } from '../api/types';
@@ -52,6 +53,18 @@ export function PublicFilesPage() {
     { title: locale === 'zh-CN' ? '描述' : 'Description', dataIndex: 'description', key: 'description', width: 260, render: (value) => <div className="table-text-ellipsis" title={value || '-'}>{value || '-'}</div> },
     { title: locale === 'zh-CN' ? '标签' : 'Tags', dataIndex: 'tags', key: 'tags', width: 180, render: (value: string[]) => <Space size={[6, 6]} wrap>{value?.length ? value.map((tag) => <Tag key={tag}>{tag}</Tag>) : '-'}</Space> },
     { title: locale === 'zh-CN' ? '分类' : 'Category', dataIndex: 'category', key: 'category', width: 120, render: (value) => (value ? <Tag>{value}</Tag> : '-') },
+    {
+      title: locale === 'zh-CN' ? '上传者' : 'Uploader',
+      key: 'uploader',
+      width: 180,
+      render: (_, record) => {
+        if (!record.createdByUsername) {
+          return '-';
+        }
+        const label = record.createdByDisplayName || record.createdByUsername;
+        return <Link to={`/users/${record.createdByUsername}`}>{label}</Link>;
+      },
+    },
     { title: locale === 'zh-CN' ? '大小' : 'Size', dataIndex: 'size', key: 'size', width: 120, render: (value) => formatBytes(value) },
     { title: locale === 'zh-CN' ? '类型' : 'MIME', dataIndex: 'mimeType', key: 'mimeType', width: 180, render: (value) => <Typography.Text type="secondary">{value || '-'}</Typography.Text> },
     { title: locale === 'zh-CN' ? '上传时间' : 'Created at', dataIndex: 'createdAt', key: 'createdAt', width: 180, render: (value) => formatDate(value) },

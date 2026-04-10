@@ -81,16 +81,47 @@ export function UserRegisterPage() {
             captchaAnswer: values.captchaAnswer,
           })}
         >
-          <Form.Item name="username" label={t('register.username')} rules={[{ required: true, message: t('register.username') }]}>
+          <Form.Item
+            name="username"
+            label={t('register.username')}
+            rules={[
+              { required: true, message: t('register.username') },
+              { min: 3, message: locale === 'zh-CN' ? '用户名至少 3 个字符' : 'Username must be at least 3 characters.' },
+              { max: 64, message: locale === 'zh-CN' ? '用户名不能超过 64 个字符' : 'Username must be at most 64 characters.' },
+            ]}
+          >
             <Input prefix={<UserOutlined />} placeholder={t('register.username')} />
           </Form.Item>
-          <Form.Item name="displayName" label={t('register.displayName')} rules={[{ required: true, message: t('register.displayName') }]}>
+          <Form.Item
+            name="displayName"
+            label={t('register.displayName')}
+            rules={[
+              { required: true, message: t('register.displayName') },
+              { max: 128, message: locale === 'zh-CN' ? '显示名称不能超过 128 个字符' : 'Display name must be at most 128 characters.' },
+            ]}
+          >
             <Input prefix={<UserOutlined />} placeholder={t('register.displayName')} />
           </Form.Item>
-          <Form.Item name="email" label={t('register.email')} rules={[{ required: true, message: t('register.email') }]}>
+          <Form.Item
+            name="email"
+            label={t('register.email')}
+            rules={[
+              { required: true, message: t('register.email') },
+              { type: 'email', message: locale === 'zh-CN' ? '请输入有效邮箱地址' : 'Please enter a valid email address.' },
+              { max: 128, message: locale === 'zh-CN' ? '邮箱不能超过 128 个字符' : 'Email must be at most 128 characters.' },
+            ]}
+          >
             <Input prefix={<MailOutlined />} placeholder={t('register.email')} />
           </Form.Item>
-          <Form.Item name="password" label={t('register.password')} rules={[{ required: true, message: t('register.password') }]}>
+          <Form.Item
+            name="password"
+            label={t('register.password')}
+            rules={[
+              { required: true, message: t('register.password') },
+              { min: 8, message: locale === 'zh-CN' ? '密码至少 8 位' : 'Password must be at least 8 characters.' },
+              { max: 128, message: locale === 'zh-CN' ? '密码不能超过 128 位' : 'Password must be at most 128 characters.' },
+            ]}
+          >
             <Input.Password prefix={<LockOutlined />} placeholder={t('register.password')} />
           </Form.Item>
           {captchaEnabled ? (

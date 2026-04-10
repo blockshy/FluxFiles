@@ -17,8 +17,15 @@ type RegisterRequest struct {
 }
 
 type UpdateProfileRequest struct {
-	Email       string `json:"email" binding:"required,email,max=128"`
-	DisplayName string `json:"displayName" binding:"required,min=1,max=128"`
+	Email             string `json:"email" binding:"required,email,max=128"`
+	DisplayName       string `json:"displayName" binding:"required,min=1,max=128"`
+	Bio               string `json:"bio" binding:"max=5000"`
+	ProfileVisibility struct {
+		ShowBio            bool `json:"showBio"`
+		ShowStats          bool `json:"showStats"`
+		ShowPublishedFiles bool `json:"showPublishedFiles"`
+		ShowFavorites      bool `json:"showFavorites"`
+	} `json:"profileVisibility"`
 }
 
 type ChangePasswordRequest struct {

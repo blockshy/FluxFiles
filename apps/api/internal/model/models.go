@@ -7,18 +7,27 @@ import (
 )
 
 type User struct {
-	ID           uint           `gorm:"primaryKey" json:"id"`
-	Username     string         `gorm:"size:64;uniqueIndex;not null" json:"username"`
-	Email        string         `gorm:"size:128;uniqueIndex;not null" json:"email"`
-	DisplayName  string         `gorm:"size:128;not null" json:"displayName"`
-	PasswordHash string         `gorm:"size:255;not null" json:"-"`
-	Role         string         `gorm:"size:32;not null;default:user" json:"role"`
-	Permissions  []string       `gorm:"type:jsonb;serializer:json;not null;default:'[]'" json:"permissions"`
-	IsEnabled    bool           `gorm:"not null;default:true" json:"isEnabled"`
-	LastLoginAt  *time.Time     `json:"lastLoginAt,omitempty"`
-	CreatedAt    time.Time      `json:"createdAt"`
-	UpdatedAt    time.Time      `json:"updatedAt"`
-	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                uint                  `gorm:"primaryKey" json:"id"`
+	Username          string                `gorm:"size:64;uniqueIndex;not null" json:"username"`
+	Email             string                `gorm:"size:128;uniqueIndex;not null" json:"email"`
+	DisplayName       string                `gorm:"size:128;not null" json:"displayName"`
+	Bio               string                `gorm:"type:text;not null;default:''" json:"bio"`
+	PasswordHash      string                `gorm:"size:255;not null" json:"-"`
+	Role              string                `gorm:"size:32;not null;default:user" json:"role"`
+	Permissions       []string              `gorm:"type:jsonb;serializer:json;not null;default:'[]'" json:"permissions"`
+	ProfileVisibility UserProfileVisibility `gorm:"type:jsonb;serializer:json;not null;default:'{}'" json:"profileVisibility"`
+	IsEnabled         bool                  `gorm:"not null;default:true" json:"isEnabled"`
+	LastLoginAt       *time.Time            `json:"lastLoginAt,omitempty"`
+	CreatedAt         time.Time             `json:"createdAt"`
+	UpdatedAt         time.Time             `json:"updatedAt"`
+	DeletedAt         gorm.DeletedAt        `gorm:"index" json:"-"`
+}
+
+type UserProfileVisibility struct {
+	ShowBio            bool `json:"showBio"`
+	ShowStats          bool `json:"showStats"`
+	ShowPublishedFiles bool `json:"showPublishedFiles"`
+	ShowFavorites      bool `json:"showFavorites"`
 }
 
 type File struct {

@@ -77,7 +77,7 @@ func New() (*App, error) {
 	authService := service.NewAuthService(cfg.Security, userRepo, redisClient, jwtManager)
 	settingsService := service.NewSettingsService(settingsRepo, cfg.RateLimit, cfg.Security)
 	captchaService := service.NewCaptchaService(redisClient, cfg.Redis.Prefix)
-	userService := service.NewUserService(userRepo, userLibraryRepo)
+	userService := service.NewUserService(userRepo, userLibraryRepo, fileRepo)
 	adminService := service.NewAdminService(userRepo, settingsService, logService)
 	fileService := service.NewFileService(cfg, fileRepo, storage, breakers, logService, settingsService)
 

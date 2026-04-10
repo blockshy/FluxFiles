@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"fluxfiles/api/internal/model"
 	"fluxfiles/api/internal/repository"
@@ -24,8 +25,10 @@ type RegisterInput struct {
 }
 
 type UpdateProfileInput struct {
-	DisplayName string
-	Email       string
+	DisplayName       string
+	Email             string
+	Bio               string
+	ProfileVisibility model.UserProfileVisibility
 }
 
 type ChangePasswordInput struct {
@@ -36,12 +39,31 @@ type ChangePasswordInput struct {
 type UserService struct {
 	users   *repository.UserRepository
 	library *repository.UserLibraryRepository
+	files   *repository.FileRepository
 }
 
-func NewUserService(users *repository.UserRepository, library *repository.UserLibraryRepository) *UserService {
+type PublicProfileStats struct {
+	PublishedFiles int64 `json:"publishedFiles"`
+	Favorites      int64 `json:"favorites"`
+}
+
+type PublicUserProfile struct {
+	ID                uint                        `json:"id"`
+	Username          string                      `json:"username"`
+	DisplayName       string                      `json:"displayName"`
+	Bio               string                      `json:"bio"`
+	CreatedAt         string                      `json:"createdAt"`
+	ProfileVisibility model.UserProfileVisibility `json:"profileVisibility"`
+	Stats             *PublicProfileStats         `json:"stats,omitempty"`
+	PublishedFiles    []model.File                `json:"publishedFiles,omitempty"`
+	Favorites         []model.File                `json:"favorites,omitempty"`
+}
+
+func NewUserService(users *repository.UserRepository, library *repository.UserLibraryRepository, files *repository.FileRepository) *UserService {
 	return &UserService{
 		users:   users,
 		library: library,
+		files:   files,
 	}
 }
 
@@ -122,6 +144,12 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uint, input Upda
 		}
 		values["email"] = email
 	}
+	if bio := strings.TrimSpace(input.Bio); bio != user.Bio {
+		values["bio"] = bio
+	}
+	if input.ProfileVisibility != user.ProfileVisibility {
+		values["profile_visibility"] = input.ProfileVisibility
+	}
 
 	if len(values) == 0 {
 		return user, nil
@@ -130,6 +158,72 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uint, input Upda
 		return nil, ErrDependencyUnavailable
 	}
 	return s.GetByID(ctx, userID)
+}
+
+func (s *UserService) GetPublicProfile(ctx context.Context, username string) (*PublicUserProfile, error) {
+	user, err := s.users.GetEnabledPublicByUsername(ctx, username)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, ErrDependencyUnavailable
+	}
+
+	profile := &PublicUserProfile{
+		ID:                user.ID,
+		Username:          user.Username,
+		DisplayName:       user.DisplayName,
+		CreatedAt:         user.CreatedAt.Format(time.RFC3339),
+		ProfileVisibility: user.ProfileVisibility,
+	}
+
+	if user.ProfileVisibility.ShowBio {
+		profile.Bio = user.Bio
+	}
+
+	if user.ProfileVisibility.ShowStats {
+		publishedCount := int64(0)
+		favoritesCount := int64(0)
+		if _, total, err := s.files.List(ctx, repository.FileListParams{Page: 1, PageSize: 1, PublicOnly: true, OwnerID: &user.ID}); err == nil {
+			publishedCount = total
+		} else {
+			return nil, ErrDependencyUnavailable
+		}
+		if total, err := s.library.CountPublicFavorites(ctx, user.ID); err == nil {
+			favoritesCount = total
+		} else {
+			return nil, ErrDependencyUnavailable
+		}
+		profile.Stats = &PublicProfileStats{
+			PublishedFiles: publishedCount,
+			Favorites:      favoritesCount,
+		}
+	}
+
+	if user.ProfileVisibility.ShowPublishedFiles {
+		items, _, err := s.files.List(ctx, repository.FileListParams{
+			Page:       1,
+			PageSize:   12,
+			PublicOnly: true,
+			OwnerID:    &user.ID,
+			SortBy:     "createdAt",
+			SortOrder:  "desc",
+		})
+		if err != nil {
+			return nil, ErrDependencyUnavailable
+		}
+		profile.PublishedFiles = items
+	}
+
+	if user.ProfileVisibility.ShowFavorites {
+		items, err := s.library.ListPublicFavorites(ctx, user.ID, 12)
+		if err != nil {
+			return nil, ErrDependencyUnavailable
+		}
+		profile.Favorites = items
+	}
+
+	return profile, nil
 }
 
 func (s *UserService) ChangePassword(ctx context.Context, userID uint, input ChangePasswordInput) error {

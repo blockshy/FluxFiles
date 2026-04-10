@@ -10,6 +10,7 @@ import type {
   UserDownloadRecord,
   UserLoginPayload,
   PublicRegisterConfig,
+  PublicUserProfile,
 } from './types';
 
 export async function registerUser(payload: RegisterPayload) {
@@ -71,5 +72,10 @@ export async function fetchDownloadHistory(limit = 50) {
   const response = await apiClient.get<ApiEnvelope<UserDownloadRecord[]>>('/user/downloads', {
     params: { limit },
   });
+  return response.data.data;
+}
+
+export async function fetchPublicUserProfile(username: string) {
+  const response = await apiClient.get<ApiEnvelope<PublicUserProfile>>(`/users/${encodeURIComponent(username)}/profile`);
   return response.data.data;
 }

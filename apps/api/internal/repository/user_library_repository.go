@@ -38,11 +38,41 @@ func (r *UserLibraryRepository) ListFavorites(ctx context.Context, userID uint) 
 	var files []model.File
 	err := r.db.WithContext(ctx).
 		Model(&model.File{}).
+		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name").
+		Joins("LEFT JOIN users uploader ON uploader.id = files.created_by").
 		Joins("JOIN user_favorites ON user_favorites.file_id = files.id").
 		Where("user_favorites.user_id = ?", userID).
 		Order("user_favorites.created_at DESC").
 		Find(&files).Error
 	return files, err
+}
+
+func (r *UserLibraryRepository) ListPublicFavorites(ctx context.Context, userID uint, limit int) ([]model.File, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 10
+	}
+
+	var files []model.File
+	err := r.db.WithContext(ctx).
+		Model(&model.File{}).
+		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name").
+		Joins("LEFT JOIN users uploader ON uploader.id = files.created_by").
+		Joins("JOIN user_favorites ON user_favorites.file_id = files.id").
+		Where("user_favorites.user_id = ? AND files.is_public = ?", userID, true).
+		Order("user_favorites.created_at DESC").
+		Limit(limit).
+		Find(&files).Error
+	return files, err
+}
+
+func (r *UserLibraryRepository) CountPublicFavorites(ctx context.Context, userID uint) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.UserFavorite{}).
+		Joins("JOIN files ON files.id = user_favorites.file_id").
+		Where("user_favorites.user_id = ? AND files.is_public = ?", userID, true).
+		Count(&count).Error
+	return count, err
 }
 
 func (r *UserLibraryRepository) RecordDownload(ctx context.Context, userID, fileID uint) error {

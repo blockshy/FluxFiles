@@ -21,6 +21,7 @@ import { AdminLogsPage } from '../pages/AdminLogsPage';
 import { AdminSettingsPage } from '../pages/AdminSettingsPage';
 import { AdminUsersPage } from '../pages/AdminUsersPage';
 import { PublicFilesPage } from '../pages/PublicFilesPage';
+import { PublicUserProfilePage } from '../pages/PublicUserProfilePage';
 import { UserCenterPage } from '../pages/UserCenterPage';
 import { UserLoginPage } from '../pages/UserLoginPage';
 import { UserRegisterPage } from '../pages/UserRegisterPage';
@@ -38,6 +39,14 @@ export function AppRouter() {
       />
       <Route path="/login" element={<UserLoginPage />} />
       <Route path="/register" element={<UserRegisterPage />} />
+      <Route
+        path="/users/:username"
+        element={
+          <PublicLayout>
+            <PublicUserProfilePage />
+          </PublicLayout>
+        }
+      />
       <Route path="/admin/login" element={<Navigate to="/login" replace />} />
       <Route
         path="/me"

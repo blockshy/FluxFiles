@@ -60,6 +60,7 @@ func New(deps Dependencies) *gin.Engine {
 		middleware.RateLimitFromSettings(deps.RateLimiter, deps.Settings, "public-download"),
 		deps.PublicFiles.Download,
 	)
+	api.GET("/users/:username/profile", deps.PublicAuth.PublicProfile)
 
 	authGroup := api.Group("/auth")
 	authGroup.GET("/register-config", deps.PublicAuth.RegisterConfig)

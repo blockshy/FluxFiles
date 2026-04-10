@@ -27,6 +27,16 @@ func (r *UserRepository) GetByID(ctx context.Context, id uint) (*model.User, err
 	return &user, nil
 }
 
+func (r *UserRepository) GetEnabledPublicByUsername(ctx context.Context, username string) (*model.User, error) {
+	var user model.User
+	if err := r.db.WithContext(ctx).
+		Where("LOWER(username) = ? AND is_enabled = ?", strings.ToLower(username), true).
+		First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*model.User, error) {
 	var user model.User
 	if err := r.db.WithContext(ctx).Where("LOWER(username) = ?", strings.ToLower(username)).First(&user).Error; err != nil {
@@ -127,14 +137,23 @@ func (r *UserRepository) Update(ctx context.Context, user *model.User, values ma
 	if email, ok := values["email"].(string); ok {
 		user.Email = email
 	}
+	if bio, ok := values["bio"].(string); ok {
+		user.Bio = bio
+	}
 	if role, ok := values["role"].(string); ok {
 		user.Role = role
 	}
 	if permissions, ok := values["permissions"].([]string); ok {
 		user.Permissions = permissions
 	}
+	if profileVisibility, ok := values["profile_visibility"].(model.UserProfileVisibility); ok {
+		user.ProfileVisibility = profileVisibility
+	}
 	if isEnabled, ok := values["is_enabled"].(bool); ok {
 		user.IsEnabled = isEnabled
+	}
+	if passwordHash, ok := values["password_hash"].(string); ok {
+		user.PasswordHash = passwordHash
 	}
 
 	return r.db.WithContext(ctx).Save(user).Error
