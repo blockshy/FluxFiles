@@ -72,6 +72,7 @@ func (s *AdminService) ListUsers(ctx context.Context, input ListManagedUsersInpu
 	if err != nil {
 		return nil, ErrDependencyUnavailable
 	}
+	applyResolvedAvatars(items)
 
 	page := input.Page
 	if page < 1 {
@@ -138,6 +139,7 @@ func (s *AdminService) CreateUser(ctx context.Context, adminID uint, ip string, 
 		Username:     username,
 		Email:        email,
 		DisplayName:  displayName,
+		AvatarURL:    buildDefaultAvatarDataURL(username, displayName),
 		PasswordHash: string(hash),
 		Role:         role,
 		Permissions:  permissions,
@@ -151,7 +153,7 @@ func (s *AdminService) CreateUser(ctx context.Context, adminID uint, ip string, 
 		Summary: "Created user",
 		Changes: []AuditFieldChange{
 			{Field: "username", Label: "Username", After: user.Username},
-			{Field: "displayName", Label: "Display Name", After: user.DisplayName},
+			{Field: "displayName", Label: "Nickname", After: user.DisplayName},
 			{Field: "email", Label: "Email", After: user.Email},
 			{Field: "role", Label: "Role", After: user.Role},
 			{Field: "permissions", Label: "Permissions", After: user.Permissions},
@@ -229,7 +231,7 @@ func (s *AdminService) UpdateUser(ctx context.Context, adminID, userID uint, ip 
 	}
 	changes := make([]AuditFieldChange, 0, 4)
 	if value, ok := values["display_name"]; ok {
-		changes = append(changes, AuditFieldChange{Field: "displayName", Label: "Display Name", Before: user.DisplayName, After: value})
+		changes = append(changes, AuditFieldChange{Field: "displayName", Label: "Nickname", Before: user.DisplayName, After: value})
 	}
 	if value, ok := values["email"]; ok {
 		changes = append(changes, AuditFieldChange{Field: "email", Label: "Email", Before: user.Email, After: value})
@@ -252,7 +254,12 @@ func (s *AdminService) UpdateUser(ctx context.Context, adminID, userID uint, ip 
 		Summary: "Updated user",
 		Changes: changes,
 	}), ip)
-	return s.users.GetByID(ctx, user.ID)
+	updated, getErr := s.users.GetByID(ctx, user.ID)
+	if getErr != nil {
+		return nil, getErr
+	}
+	applyResolvedAvatar(updated)
+	return updated, nil
 }
 
 func (s *AdminService) GetRegistrationSettings(ctx context.Context) (bool, error) {

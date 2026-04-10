@@ -80,10 +80,41 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 18px;
   padding: 20px 28px;
   border-bottom: 1px solid var(--surface-border);
   background: var(--header-bg);
   backdrop-filter: blur(14px);
+}
+
+.shell-header-left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
+}
+
+.shell-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shell-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  color: var(--muted-text);
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.shell-nav-link:hover,
+.shell-nav-link.active {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--app-text);
 }
 
 .brand-title {
@@ -97,6 +128,23 @@ a {
   margin: 6px 0 0;
   color: var(--muted-text);
   font-size: 13px;
+}
+
+.user-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  padding: 6px 10px 6px 6px;
+  background: var(--surface-bg);
+  color: var(--app-text);
+  cursor: pointer;
+}
+
+.user-menu-name {
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .shell-body {
@@ -125,6 +173,42 @@ a {
   margin: 0;
   color: var(--subtle-text);
   font-size: 13px;
+}
+
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.avatar-editor {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 0 10px;
+}
+
+.avatar-upload-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: var(--surface-bg);
+  cursor: pointer;
+}
+
+.uploader-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.uploader-link.inline {
+  color: var(--muted-text);
 }
 
 .toolbar-row {
@@ -332,6 +416,19 @@ body[data-theme='dark'] .ant-table-container {
   .shell-header,
   .shell-body {
     padding: 18px;
+  }
+
+  .shell-header,
+  .shell-header-left,
+  .avatar-editor,
+  .profile-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .shell-nav {
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   .admin-header {

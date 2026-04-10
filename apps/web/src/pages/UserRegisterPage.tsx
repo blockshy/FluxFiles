@@ -97,7 +97,7 @@ export function UserRegisterPage() {
             label={t('register.displayName')}
             rules={[
               { required: true, message: t('register.displayName') },
-              { max: 128, message: locale === 'zh-CN' ? '显示名称不能超过 128 个字符' : 'Display name must be at most 128 characters.' },
+              { max: 128, message: locale === 'zh-CN' ? '昵称不能超过 128 个字符' : 'Nickname must be at most 128 characters.' },
             ]}
           >
             <Input prefix={<UserOutlined />} placeholder={t('register.displayName')} />

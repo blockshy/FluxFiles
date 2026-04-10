@@ -161,6 +161,7 @@ func (ctl *PublicAuthController) UpdateProfile(c *gin.Context) {
 	user, err := ctl.users.UpdateProfile(c.Request.Context(), c.GetUint("userID"), service.UpdateProfileInput{
 		Email:       req.Email,
 		DisplayName: req.DisplayName,
+		AvatarURL:   req.AvatarURL,
 		Bio:         req.Bio,
 		ProfileVisibility: model.UserProfileVisibility{
 			ShowBio:            req.ProfileVisibility.ShowBio,

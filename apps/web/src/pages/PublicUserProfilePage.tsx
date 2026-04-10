@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { Card, Col, Empty, List, Row, Space, Tag, Typography } from 'antd';
+import { Avatar, Card, Col, Empty, List, Row, Space, Tag, Typography } from 'antd';
+import { UserOutlined } from '@ant-design/icons';
 import { useParams } from 'react-router-dom';
 import { fetchPublicUserProfile } from '../api/user';
 import type { FileRecord } from '../api/types';
@@ -49,15 +50,18 @@ export function PublicUserProfilePage() {
         <Empty description={t('profile.notFound')} />
       ) : (
         <Space direction="vertical" size={24} style={{ width: '100%' }}>
-          <div>
-            <Typography.Title level={2} style={{ marginBottom: 4 }}>
-              {profile.displayName || profile.username}
-            </Typography.Title>
-            <Typography.Text type="secondary">@{profile.username}</Typography.Text>
-            <div style={{ marginTop: 8 }}>
-              <Typography.Text type="secondary">
-                {locale === 'zh-CN' ? '加入时间' : 'Joined'}: {formatDate(profile.createdAt)}
-              </Typography.Text>
+          <div className="profile-hero">
+            <Avatar src={profile.avatarUrl} size={88} icon={<UserOutlined />} />
+            <div>
+              <Typography.Title level={2} style={{ marginBottom: 4 }}>
+                {profile.displayName || profile.username}
+              </Typography.Title>
+              <Typography.Text type="secondary">@{profile.username}</Typography.Text>
+              <div style={{ marginTop: 8 }}>
+                <Typography.Text type="secondary">
+                  {locale === 'zh-CN' ? '加入时间' : 'Joined'}: {formatDate(profile.createdAt)}
+                </Typography.Text>
+              </div>
             </div>
           </div>
 

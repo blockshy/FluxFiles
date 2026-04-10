@@ -38,7 +38,7 @@ func (r *UserLibraryRepository) ListFavorites(ctx context.Context, userID uint) 
 	var files []model.File
 	err := r.db.WithContext(ctx).
 		Model(&model.File{}).
-		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name").
+		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name, uploader.avatar_url AS created_by_avatar_url").
 		Joins("LEFT JOIN users uploader ON uploader.id = files.created_by").
 		Joins("JOIN user_favorites ON user_favorites.file_id = files.id").
 		Where("user_favorites.user_id = ?", userID).
@@ -55,7 +55,7 @@ func (r *UserLibraryRepository) ListPublicFavorites(ctx context.Context, userID 
 	var files []model.File
 	err := r.db.WithContext(ctx).
 		Model(&model.File{}).
-		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name").
+		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name, uploader.avatar_url AS created_by_avatar_url").
 		Joins("LEFT JOIN users uploader ON uploader.id = files.created_by").
 		Joins("JOIN user_favorites ON user_favorites.file_id = files.id").
 		Where("user_favorites.user_id = ? AND files.is_public = ?", userID, true).
@@ -92,8 +92,9 @@ func (r *UserLibraryRepository) ListDownloads(ctx context.Context, userID uint, 
 	var items []UserDownloadItem
 	err := r.db.WithContext(ctx).
 		Table("user_download_records").
-		Select("files.*, user_download_records.downloaded_at").
+		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name, uploader.avatar_url AS created_by_avatar_url, user_download_records.downloaded_at").
 		Joins("JOIN files ON files.id = user_download_records.file_id").
+		Joins("LEFT JOIN users uploader ON uploader.id = files.created_by").
 		Where("user_download_records.user_id = ?", userID).
 		Order("user_download_records.downloaded_at DESC").
 		Limit(limit).

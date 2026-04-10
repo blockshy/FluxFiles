@@ -80,7 +80,7 @@ func (r *FileRepository) GetByID(ctx context.Context, id uint, includeDeleted bo
 	var file model.File
 	if err := lookup.
 		Table("files").
-		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name").
+		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name, uploader.avatar_url AS created_by_avatar_url").
 		Joins("LEFT JOIN users uploader ON uploader.id = files.created_by").
 		Where("files.id = ?", id).
 		First(&file).Error; err != nil {
@@ -93,7 +93,7 @@ func (r *FileRepository) GetPublicByID(ctx context.Context, id uint) (*model.Fil
 	var file model.File
 	if err := r.db.WithContext(ctx).
 		Table("files").
-		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name").
+		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name, uploader.avatar_url AS created_by_avatar_url").
 		Joins("LEFT JOIN users uploader ON uploader.id = files.created_by").
 		Where("files.id = ? AND files.is_public = ?", id, true).
 		First(&file).Error; err != nil {
@@ -157,7 +157,7 @@ func (r *FileRepository) List(ctx context.Context, params FileListParams) ([]mod
 
 	var files []model.File
 	if err := query.
-		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name").
+		Select("files.*, uploader.username AS created_by_username, uploader.display_name AS created_by_display_name, uploader.avatar_url AS created_by_avatar_url").
 		Joins("LEFT JOIN users uploader ON uploader.id = files.created_by").
 		Order(fmt.Sprintf("%s %s", sortColumn, order)).
 		Offset((page - 1) * pageSize).

@@ -1,6 +1,6 @@
 import { DownloadOutlined, ReloadOutlined, SearchOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Input, Select, Space, Table, Tag, Typography, message } from 'antd';
+import { Avatar, Button, Card, Input, Select, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useDeferredValue, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -62,7 +62,12 @@ export function PublicFilesPage() {
           return '-';
         }
         const label = record.createdByDisplayName || record.createdByUsername;
-        return <Link to={`/users/${record.createdByUsername}`}>{label}</Link>;
+        return (
+          <Link to={`/users/${record.createdByUsername}`} className="uploader-link">
+            <Avatar src={record.createdByAvatarUrl} size={28}>{label.slice(0, 1).toUpperCase()}</Avatar>
+            <span>{label}</span>
+          </Link>
+        );
       },
     },
     { title: locale === 'zh-CN' ? '大小' : 'Size', dataIndex: 'size', key: 'size', width: 120, render: (value) => formatBytes(value) },

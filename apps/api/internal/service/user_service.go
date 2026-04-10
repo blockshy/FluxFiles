@@ -27,6 +27,7 @@ type RegisterInput struct {
 type UpdateProfileInput struct {
 	DisplayName       string
 	Email             string
+	AvatarURL         string
 	Bio               string
 	ProfileVisibility model.UserProfileVisibility
 }
@@ -51,6 +52,7 @@ type PublicUserProfile struct {
 	ID                uint                        `json:"id"`
 	Username          string                      `json:"username"`
 	DisplayName       string                      `json:"displayName"`
+	AvatarURL         string                      `json:"avatarUrl"`
 	Bio               string                      `json:"bio"`
 	CreatedAt         string                      `json:"createdAt"`
 	ProfileVisibility model.UserProfileVisibility `json:"profileVisibility"`
@@ -101,6 +103,7 @@ func (s *UserService) Register(ctx context.Context, input RegisterInput) (*model
 		Username:     username,
 		Email:        email,
 		DisplayName:  displayName,
+		AvatarURL:    buildDefaultAvatarDataURL(username, displayName),
 		PasswordHash: string(hash),
 		Role:         "user",
 		IsEnabled:    true,
@@ -108,6 +111,7 @@ func (s *UserService) Register(ctx context.Context, input RegisterInput) (*model
 	if err := s.users.Create(ctx, user); err != nil {
 		return nil, ErrDependencyUnavailable
 	}
+	applyResolvedAvatar(user)
 	return user, nil
 }
 
@@ -119,6 +123,7 @@ func (s *UserService) GetByID(ctx context.Context, id uint) (*model.User, error)
 		}
 		return nil, ErrDependencyUnavailable
 	}
+	applyResolvedAvatar(user)
 	return user, nil
 }
 
@@ -129,8 +134,13 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uint, input Upda
 	}
 
 	values := map[string]any{}
-	if displayName := strings.TrimSpace(input.DisplayName); displayName != "" && displayName != user.DisplayName {
+	displayName := strings.TrimSpace(input.DisplayName)
+	if displayName != "" && displayName != user.DisplayName {
 		values["display_name"] = displayName
+	}
+	nextDisplayName := user.DisplayName
+	if displayName != "" {
+		nextDisplayName = displayName
 	}
 
 	if email := strings.ToLower(strings.TrimSpace(input.Email)); email != "" && email != user.Email {
@@ -146,6 +156,9 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uint, input Upda
 	}
 	if bio := strings.TrimSpace(input.Bio); bio != user.Bio {
 		values["bio"] = bio
+	}
+	if avatarURL := resolveAvatarURL(user.Username, nextDisplayName, input.AvatarURL); avatarURL != user.AvatarURL {
+		values["avatar_url"] = avatarURL
 	}
 	if input.ProfileVisibility != user.ProfileVisibility {
 		values["profile_visibility"] = input.ProfileVisibility
@@ -173,6 +186,7 @@ func (s *UserService) GetPublicProfile(ctx context.Context, username string) (*P
 		ID:                user.ID,
 		Username:          user.Username,
 		DisplayName:       user.DisplayName,
+		AvatarURL:         resolveAvatarURL(user.Username, user.DisplayName, user.AvatarURL),
 		CreatedAt:         user.CreatedAt.Format(time.RFC3339),
 		ProfileVisibility: user.ProfileVisibility,
 	}
@@ -212,6 +226,7 @@ func (s *UserService) GetPublicProfile(ctx context.Context, username string) (*P
 		if err != nil {
 			return nil, ErrDependencyUnavailable
 		}
+		applyResolvedFileUploaderAvatars(items)
 		profile.PublishedFiles = items
 	}
 
@@ -220,6 +235,7 @@ func (s *UserService) GetPublicProfile(ctx context.Context, username string) (*P
 		if err != nil {
 			return nil, ErrDependencyUnavailable
 		}
+		applyResolvedFileUploaderAvatars(items)
 		profile.Favorites = items
 	}
 
@@ -268,6 +284,7 @@ func (s *UserService) ListFavorites(ctx context.Context, userID uint) ([]model.F
 	if err != nil {
 		return nil, ErrDependencyUnavailable
 	}
+	applyResolvedFileUploaderAvatars(items)
 	return items, nil
 }
 
@@ -282,6 +299,9 @@ func (s *UserService) ListDownloads(ctx context.Context, userID uint, limit int)
 	items, err := s.library.ListDownloads(ctx, userID, limit)
 	if err != nil {
 		return nil, ErrDependencyUnavailable
+	}
+	for index := range items {
+		applyResolvedFileUploaderAvatar(&items[index].File)
 	}
 	return items, nil
 }

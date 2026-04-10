@@ -67,6 +67,7 @@ func (s *AuthService) EnsureBootstrapAdmin(ctx context.Context) error {
 		Username:     s.cfg.AdminBootstrapUser,
 		Email:        fmt.Sprintf("%s@local.fluxfiles", strings.ToLower(s.cfg.AdminBootstrapUser)),
 		DisplayName:  s.cfg.AdminBootstrapUser,
+		AvatarURL:    buildDefaultAvatarDataURL(s.cfg.AdminBootstrapUser, s.cfg.AdminBootstrapUser),
 		PasswordHash: string(passwordHash),
 		Role:         "admin",
 		Permissions:  append([]string(nil), AllAdminPermissions...),
@@ -114,6 +115,7 @@ func (s *AuthService) Login(ctx context.Context, username, password, ip string) 
 		return nil, err
 	}
 	_ = s.users.TouchLastLogin(ctx, user.ID)
+	applyResolvedAvatar(user)
 
 	return &LoginResult{
 		Token:     token,
@@ -137,6 +139,7 @@ func (s *AuthService) GetUserByID(ctx context.Context, userID uint) (*model.User
 	if !user.IsEnabled {
 		return nil, ErrForbidden
 	}
+	applyResolvedAvatar(user)
 	return user, nil
 }
 

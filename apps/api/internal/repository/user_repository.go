@@ -140,6 +140,9 @@ func (r *UserRepository) Update(ctx context.Context, user *model.User, values ma
 	if bio, ok := values["bio"].(string); ok {
 		user.Bio = bio
 	}
+	if avatarURL, ok := values["avatar_url"].(string); ok {
+		user.AvatarURL = avatarURL
+	}
 	if role, ok := values["role"].(string); ok {
 		user.Role = role
 	}

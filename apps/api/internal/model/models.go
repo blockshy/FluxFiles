@@ -11,6 +11,7 @@ type User struct {
 	Username          string                `gorm:"size:64;uniqueIndex;not null" json:"username"`
 	Email             string                `gorm:"size:128;uniqueIndex;not null" json:"email"`
 	DisplayName       string                `gorm:"size:128;not null" json:"displayName"`
+	AvatarURL         string                `gorm:"type:text;not null;default:''" json:"avatarUrl"`
 	Bio               string                `gorm:"type:text;not null;default:''" json:"bio"`
 	PasswordHash      string                `gorm:"size:255;not null" json:"-"`
 	Role              string                `gorm:"size:32;not null;default:user" json:"role"`
@@ -43,8 +44,9 @@ type File struct {
 	IsPublic             bool           `gorm:"not null;default:true;index" json:"isPublic"`
 	DownloadCount        int64          `gorm:"not null;default:0" json:"downloadCount"`
 	CreatedBy            *uint          `json:"createdBy,omitempty"`
-	CreatedByUsername    string         `gorm:"-" json:"createdByUsername,omitempty"`
-	CreatedByDisplayName string         `gorm:"-" json:"createdByDisplayName,omitempty"`
+	CreatedByUsername    string         `gorm:"->;column:created_by_username;-:migration" json:"createdByUsername,omitempty"`
+	CreatedByDisplayName string         `gorm:"->;column:created_by_display_name;-:migration" json:"createdByDisplayName,omitempty"`
+	CreatedByAvatarURL   string         `gorm:"->;column:created_by_avatar_url;-:migration" json:"createdByAvatarUrl,omitempty"`
 	CreatedAt            time.Time      `json:"createdAt"`
 	UpdatedAt            time.Time      `json:"updatedAt"`
 	DeletedAt            gorm.DeletedAt `gorm:"index" json:"-"`

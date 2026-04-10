@@ -1,7 +1,8 @@
+import { UploadOutlined, UserOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Form, Input, List, Space, Switch, Tabs, Tag, Typography, message } from 'antd';
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Avatar, Button, Card, Form, Input, List, Space, Switch, Tabs, Tag, Typography, message } from 'antd';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   changeCurrentUserPassword,
   fetchCurrentUser,
@@ -11,13 +12,14 @@ import {
 } from '../api/user';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { useUserAuth } from '../features/user/AuthProvider';
+import { buildDefaultAvatarDataUrl } from '../lib/avatar';
 import { formatBytes, formatDate } from '../lib/format';
 
 export function UserCenterPage() {
   const [profileForm] = Form.useForm();
   const [passwordForm] = Form.useForm();
+  const [selectedAvatarName, setSelectedAvatarName] = useState('');
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
   const { logout, updateUser } = useUserAuth();
   const { t, locale } = useI18n();
@@ -25,6 +27,11 @@ export function UserCenterPage() {
   const meQuery = useQuery({ queryKey: ['user-me'], queryFn: fetchCurrentUser });
   const favoritesQuery = useQuery({ queryKey: ['user-favorites'], queryFn: fetchFavoriteFiles });
   const downloadsQuery = useQuery({ queryKey: ['user-downloads'], queryFn: () => fetchDownloadHistory(50) });
+  const avatarValue = Form.useWatch('avatarUrl', profileForm) as string | undefined;
+  const nicknameValue = Form.useWatch('displayName', profileForm) as string | undefined;
+  const avatarPreview = meQuery.data
+    ? (avatarValue || buildDefaultAvatarDataUrl(meQuery.data.username, nicknameValue || meQuery.data.displayName))
+    : avatarValue;
 
   useEffect(() => {
     if (!meQuery.data) {
@@ -33,9 +40,11 @@ export function UserCenterPage() {
     profileForm.setFieldsValue({
       email: meQuery.data.email,
       displayName: meQuery.data.displayName,
+      avatarUrl: meQuery.data.avatarUrl,
       bio: meQuery.data.bio,
       profileVisibility: meQuery.data.profileVisibility,
     });
+    setSelectedAvatarName('');
   }, [meQuery.data, profileForm]);
 
   const profileMutation = useMutation({
@@ -57,12 +66,32 @@ export function UserCenterPage() {
     },
   });
 
-  function handleClose() {
-    if (window.history.length > 1) {
-      navigate(-1);
+  async function handleAvatarSelect(file?: File | null) {
+    if (!file) {
       return;
     }
-    navigate('/');
+    const acceptedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+    if (!acceptedTypes.includes(file.type) || file.size > 2 * 1024 * 1024) {
+      messageApi.error(t('account.avatarInvalid'));
+      return;
+    }
+
+    const result = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+          return;
+        }
+        reject(new Error('invalid avatar'));
+      };
+      reader.onerror = () => reject(reader.error ?? new Error('avatar read failed'));
+      reader.readAsDataURL(file);
+    });
+
+    profileForm.setFieldValue('avatarUrl', result);
+    setSelectedAvatarName(file.name);
+    messageApi.success(locale === 'zh-CN' ? '头像已选中，点击“保存资料”后生效。' : 'Avatar selected. Click "Save profile" to apply it.');
   }
 
   return (
@@ -74,7 +103,6 @@ export function UserCenterPage() {
             <h2 className="section-title">{t('account.title')}</h2>
             <p className="section-subtitle">{t('account.subtitle')}</p>
           </div>
-          <Button onClick={handleClose}>{locale === 'zh-CN' ? '返回' : 'Back'}</Button>
         </div>
 
         <Tabs
@@ -88,7 +116,49 @@ export function UserCenterPage() {
                   layout="vertical"
                   onFinish={(values) => profileMutation.mutate(values)}
                 >
-                  <Form.Item name="displayName" label={t('register.displayName')}>
+                  <Form.Item name="avatarUrl" hidden>
+                    <Input />
+                  </Form.Item>
+                  <Form.Item noStyle shouldUpdate>
+                    {({ getFieldValue }) => (
+                      <div className="avatar-editor">
+                        <Avatar src={avatarPreview || getFieldValue('avatarUrl')} size={88} icon={<UserOutlined />} />
+                        <Space direction="vertical" size={4}>
+                          <Typography.Text strong>{t('account.avatar')}</Typography.Text>
+                          <Typography.Text type="secondary">{t('account.avatarHint')}</Typography.Text>
+                          {selectedAvatarName ? (
+                            <Typography.Text type="secondary">
+                              {locale === 'zh-CN' ? `已选择文件：${selectedAvatarName}` : `Selected file: ${selectedAvatarName}`}
+                            </Typography.Text>
+                          ) : null}
+                          <Space wrap>
+                            <label className="avatar-upload-button">
+                              <UploadOutlined />
+                              <span>{t('account.avatarUpload')}</span>
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/gif"
+                                hidden
+                                onChange={(event) => {
+                                  const [file] = Array.from(event.target.files ?? []);
+                                  void handleAvatarSelect(file ?? null);
+                                  event.target.value = '';
+                                }}
+                              />
+                            </label>
+                            <Button onClick={() => {
+                              profileForm.setFieldValue('avatarUrl', '');
+                              setSelectedAvatarName('');
+                              messageApi.success(locale === 'zh-CN' ? '已切换为默认头像，点击“保存资料”后生效。' : 'Switched to the default avatar. Click "Save profile" to apply it.');
+                            }}>
+                              {t('account.avatarRemove')}
+                            </Button>
+                          </Space>
+                        </Space>
+                      </div>
+                    )}
+                  </Form.Item>
+                  <Form.Item name="displayName" label={t('account.nickname')}>
                     <Input />
                   </Form.Item>
                   <Form.Item name="email" label={t('register.email')}>
@@ -160,7 +230,14 @@ export function UserCenterPage() {
                       <Space direction="vertical" size={4} style={{ width: '100%' }}>
                         <Typography.Text strong>{item.name}</Typography.Text>
                         <Typography.Text type="secondary">{item.originalName}</Typography.Text>
-                        {item.createdByUsername ? <Typography.Text type="secondary">{t('publicFiles.uploader')}: {item.createdByDisplayName || item.createdByUsername}</Typography.Text> : null}
+                        {item.createdByUsername ? (
+                          <Link to={`/users/${item.createdByUsername}`} className="uploader-link inline">
+                            <Avatar src={item.createdByAvatarUrl} size={24}>
+                              {(item.createdByDisplayName || item.createdByUsername).slice(0, 1).toUpperCase()}
+                            </Avatar>
+                            <span>{t('publicFiles.uploader')}: {item.createdByDisplayName || item.createdByUsername}</span>
+                          </Link>
+                        ) : null}
                         <Space wrap>
                           {item.category ? <Tag>{item.category}</Tag> : null}
                           {(item.tags || []).map((tag) => (
@@ -185,7 +262,14 @@ export function UserCenterPage() {
                       <Space direction="vertical" size={4} style={{ width: '100%' }}>
                         <Typography.Text strong>{item.name}</Typography.Text>
                         <Typography.Text type="secondary">{item.originalName}</Typography.Text>
-                        {item.createdByUsername ? <Typography.Text type="secondary">{t('publicFiles.uploader')}: {item.createdByDisplayName || item.createdByUsername}</Typography.Text> : null}
+                        {item.createdByUsername ? (
+                          <Link to={`/users/${item.createdByUsername}`} className="uploader-link inline">
+                            <Avatar src={item.createdByAvatarUrl} size={24}>
+                              {(item.createdByDisplayName || item.createdByUsername).slice(0, 1).toUpperCase()}
+                            </Avatar>
+                            <span>{t('publicFiles.uploader')}: {item.createdByDisplayName || item.createdByUsername}</span>
+                          </Link>
+                        ) : null}
                         <Typography.Text type="secondary">
                           {formatBytes(item.size)} / {formatDate(item.downloadedAt)}
                         </Typography.Text>

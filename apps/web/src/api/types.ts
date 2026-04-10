@@ -32,6 +32,7 @@ export interface FileRecord {
   createdBy?: number;
   createdByUsername?: string;
   createdByDisplayName?: string;
+  createdByAvatarUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +49,7 @@ export interface UserAccount {
   username: string;
   email: string;
   displayName: string;
+  avatarUrl: string;
   bio: string;
   role: string;
   permissions: string[];
@@ -70,6 +72,7 @@ export interface AdminUser {
   username: string;
   email: string;
   displayName: string;
+  avatarUrl: string;
   role: string;
   permissions: string[];
   isEnabled: boolean;
@@ -117,6 +120,7 @@ export interface PublicRegisterConfig {
 export interface UpdateProfilePayload {
   email: string;
   displayName: string;
+  avatarUrl: string;
   bio: string;
   profileVisibility: UserProfileVisibility;
 }
@@ -139,6 +143,7 @@ export interface PublicUserProfile {
   id: number;
   username: string;
   displayName: string;
+  avatarUrl: string;
   bio: string;
   createdAt: string;
   profileVisibility: UserProfileVisibility;

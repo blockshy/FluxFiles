@@ -19,6 +19,7 @@ type RegisterRequest struct {
 type UpdateProfileRequest struct {
 	Email             string `json:"email" binding:"required,email,max=128"`
 	DisplayName       string `json:"displayName" binding:"required,min=1,max=128"`
+	AvatarURL         string `json:"avatarUrl" binding:"max=3000000"`
 	Bio               string `json:"bio" binding:"max=5000"`
 	ProfileVisibility struct {
 		ShowBio            bool `json:"showBio"`

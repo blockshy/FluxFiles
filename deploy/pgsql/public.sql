@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.users (
     username VARCHAR(64) NOT NULL,
     email VARCHAR(128) NOT NULL,
     display_name VARCHAR(128) NOT NULL,
+    avatar_url TEXT NOT NULL DEFAULT '',
     bio TEXT NOT NULL DEFAULT '',
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(32) NOT NULL DEFAULT 'user',
@@ -23,6 +24,8 @@ CREATE TABLE IF NOT EXISTS public.users (
     CONSTRAINT users_username_key UNIQUE (username),
     CONSTRAINT users_email_key UNIQUE (email)
 );
+
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON public.users(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_users_role ON public.users(role);

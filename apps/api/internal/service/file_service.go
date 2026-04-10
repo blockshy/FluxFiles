@@ -116,6 +116,7 @@ func (s *FileService) list(ctx context.Context, params repository.FileListParams
 		Items []model.File
 		Total int64
 	})
+	applyResolvedFileUploaderAvatars(payload.Items)
 	return payload.Items, payload.Total, nil
 }
 
@@ -129,7 +130,9 @@ func (s *FileService) GetPublic(ctx context.Context, id uint) (*model.File, erro
 		}
 		return nil, ErrDependencyUnavailable
 	}
-	return result.(*model.File), nil
+	file := result.(*model.File)
+	applyResolvedFileUploaderAvatar(file)
+	return file, nil
 }
 
 func (s *FileService) GetAdmin(ctx context.Context, id uint, actorID uint, permissions []string) (*model.File, error) {
@@ -143,6 +146,7 @@ func (s *FileService) GetAdmin(ctx context.Context, id uint, actorID uint, permi
 		return nil, ErrDependencyUnavailable
 	}
 	file := result.(*model.File)
+	applyResolvedFileUploaderAvatar(file)
 	if err := ensureFileAccess(file, actorID, permissions); err != nil {
 		return nil, err
 	}
