@@ -2,6 +2,8 @@
 
 FluxFiles is a production-oriented file distribution system built around OSS object storage, PostgreSQL metadata, and a React admin/public frontend.
 
+Production website: <https://rsec.top/fluxfiles/>
+
 ## Current Capabilities
 
 - Public file browsing, searching, sorting, and signed downloads
