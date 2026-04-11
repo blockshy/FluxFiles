@@ -7,6 +7,13 @@ import { createCommunityReply } from '../api/community';
 import { createComment, deleteComment, fetchMyComments, fetchNotifications, markNotificationRead, markNotificationsRead } from '../api/user';
 import type { CommentRecord, NotificationRecord } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
+import { useUserAuth } from '../features/user/AuthProvider';
+import {
+  hasPermission,
+  PERMISSION_PUBLIC_COMMENTS_DELETE_OWN,
+  PERMISSION_PUBLIC_COMMENTS_REPLY,
+  PERMISSION_PUBLIC_COMMUNITY_REPLY_CREATE,
+} from '../features/user/permissions';
 import { getApiErrorMessage } from '../lib/apiError';
 import { formatDate } from '../lib/format';
 
@@ -27,6 +34,10 @@ export function NotificationsPage() {
   const [replyingNotification, setReplyingNotification] = useState<number | null>(null);
   const [form] = Form.useForm();
   const { locale } = useI18n();
+  const { user } = useUserAuth();
+  const canReplyFileComments = hasPermission(user, PERMISSION_PUBLIC_COMMENTS_REPLY);
+  const canReplyCommunity = hasPermission(user, PERMISSION_PUBLIC_COMMUNITY_REPLY_CREATE);
+  const canDeleteOwnComments = hasPermission(user, PERMISSION_PUBLIC_COMMENTS_DELETE_OWN);
 
   const notificationsQuery = useQuery({
     queryKey: ['user-notifications', activeTab],
@@ -100,8 +111,8 @@ export function NotificationsPage() {
           !item.isRead ? <Button key="read" className="table-action-button" icon={<CheckOutlined />} onClick={() => markReadMutation.mutate(item.id)}>{locale === 'zh-CN' ? '标记已读' : 'Mark read'}</Button> : null,
           item.relatedCommentFileId && item.relatedCommentId ? <Link key="link" to={`/files/${item.relatedCommentFileId}`} className="table-action-link file-action-button">{locale === 'zh-CN' ? '查看详情' : 'Open'}</Link> : null,
           item.relatedPostId ? <Link key="post" to={`/community/${item.relatedPostId}`} className="table-action-link file-action-button">{locale === 'zh-CN' ? '查看帖子' : 'Open post'}</Link> : null,
-          item.relatedCommentFileId && item.relatedCommentId ? <Button key="reply" className="table-action-button" icon={<MessageOutlined />} onClick={() => setReplyingNotification(item.id)}>{locale === 'zh-CN' ? '快捷回复' : 'Quick reply'}</Button> : null,
-          item.relatedPostId ? <Button key="community-reply" className="table-action-button" icon={<MessageOutlined />} onClick={() => setReplyingNotification(item.id)}>{locale === 'zh-CN' ? '社区回复' : 'Reply'}</Button> : null,
+          item.relatedCommentFileId && item.relatedCommentId && canReplyFileComments ? <Button key="reply" className="table-action-button" icon={<MessageOutlined />} onClick={() => setReplyingNotification(item.id)}>{locale === 'zh-CN' ? '快捷回复' : 'Quick reply'}</Button> : null,
+          item.relatedPostId && canReplyCommunity ? <Button key="community-reply" className="table-action-button" icon={<MessageOutlined />} onClick={() => setReplyingNotification(item.id)}>{locale === 'zh-CN' ? '社区回复' : 'Reply'}</Button> : null,
         ].filter(Boolean)}
       >
         <List.Item.Meta
@@ -159,7 +170,7 @@ export function NotificationsPage() {
       <List.Item
         actions={[
           <Link key="open" to={`/files/${item.fileId}`} className="table-action-link file-action-button">{locale === 'zh-CN' ? '查看文件详情' : 'Open file'}</Link>,
-          item.canDelete ? <Button key="delete" className="table-action-button" danger icon={<DeleteOutlined />} onClick={() => deleteCommentMutation.mutate(item.id)}>{locale === 'zh-CN' ? '删除' : 'Delete'}</Button> : null,
+          item.canDelete && canDeleteOwnComments ? <Button key="delete" className="table-action-button" danger icon={<DeleteOutlined />} onClick={() => deleteCommentMutation.mutate(item.id)}>{locale === 'zh-CN' ? '删除' : 'Delete'}</Button> : null,
         ].filter(Boolean)}
       >
         <List.Item.Meta

@@ -59,6 +59,7 @@ func New(deps Dependencies) *gin.Engine {
 
 	api.GET("/files",
 		middleware.OptionalAuth(deps.AuthService),
+		middleware.RequirePermissionWhenAuthenticated(service.PermissionPublicFilesView),
 		middleware.RateLimitFromSettings(deps.RateLimiter, deps.Settings, "public-list"),
 		deps.PublicFiles.List,
 	)
@@ -66,30 +67,37 @@ func New(deps Dependencies) *gin.Engine {
 	api.GET("/files/tags/options", deps.PublicFiles.TagOptions)
 	api.GET("/files/download-config", deps.PublicFiles.DownloadConfig)
 	api.GET("/files/list-display-config", deps.PublicFiles.ListDisplayConfig)
-	api.GET("/files/:id", deps.PublicFiles.Get)
+	api.GET("/files/:id",
+		middleware.OptionalAuth(deps.AuthService),
+		middleware.RequirePermissionWhenAuthenticated(service.PermissionPublicFilesDetail),
+		deps.PublicFiles.Get,
+	)
 	api.GET("/files/:id/comments",
 		middleware.OptionalAuth(deps.AuthService),
+		middleware.RequirePermissionWhenAuthenticated(service.PermissionPublicFilesDetail),
 		deps.PublicComments.ListComments,
 	)
 	api.GET("/community/posts",
-		middleware.OptionalAuth(deps.AuthService),
+		middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicCommunityView),
 		deps.PublicCommunity.ListPosts,
 	)
 	api.GET("/community/posts/:id",
-		middleware.OptionalAuth(deps.AuthService),
+		middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicCommunityView),
 		deps.PublicCommunity.GetPost,
 	)
 	api.GET("/community/posts/:id/replies",
-		middleware.OptionalAuth(deps.AuthService),
+		middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicCommunityView),
 		deps.PublicCommunity.ListReplies,
 	)
 	api.GET("/files/:id/download",
 		middleware.OptionalAuth(deps.AuthService),
+		middleware.RequirePermissionWhenAuthenticated(service.PermissionPublicFilesDownload),
 		middleware.RateLimitFromSettings(deps.RateLimiter, deps.Settings, "public-download"),
 		deps.PublicFiles.Download,
 	)
 	api.GET("/users/:username/profile",
 		middleware.RequireAuth(deps.AuthService),
+		middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicProfileViewPublic),
 		deps.PublicAuth.PublicProfile,
 	)
 
@@ -224,24 +232,24 @@ func New(deps Dependencies) *gin.Engine {
 	userAuthorized := api.Group("/user")
 	userAuthorized.Use(middleware.RequireAuth(deps.AuthService))
 	userAuthorized.GET("/me", deps.PublicAuth.Me)
-	userAuthorized.PUT("/me", deps.PublicAuth.UpdateProfile)
-	userAuthorized.PUT("/password", deps.PublicAuth.ChangePassword)
-	userAuthorized.GET("/favorites", deps.UserFiles.ListFavorites)
-	userAuthorized.POST("/favorites/:id", deps.UserFiles.AddFavorite)
-	userAuthorized.DELETE("/favorites/:id", deps.UserFiles.RemoveFavorite)
-	userAuthorized.GET("/downloads", deps.UserFiles.ListDownloads)
-	userAuthorized.POST("/files/:id/comments", deps.UserActions.CreateComment)
-	userAuthorized.DELETE("/comments/:id", deps.UserActions.DeleteComment)
-	userAuthorized.POST("/comments/:id/vote", deps.UserActions.VoteComment)
-	userAuthorized.GET("/comments/mine", deps.UserActions.ListMyComments)
-	userAuthorized.GET("/notifications", deps.UserActions.ListNotifications)
-	userAuthorized.POST("/notifications/read-all", deps.UserActions.MarkNotificationsRead)
-	userAuthorized.POST("/notifications/:id/read", deps.UserActions.MarkNotificationRead)
-	userAuthorized.POST("/community/posts", deps.UserCommunity.CreatePost)
-	userAuthorized.PUT("/community/posts/:id", deps.UserCommunity.UpdatePost)
-	userAuthorized.DELETE("/community/posts/:id", deps.UserCommunity.DeletePost)
-	userAuthorized.POST("/community/posts/:id/replies", deps.UserCommunity.CreateReply)
-	userAuthorized.DELETE("/community/replies/:id", deps.UserCommunity.DeleteReply)
+	userAuthorized.PUT("/me", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicProfileEditOwn), deps.PublicAuth.UpdateProfile)
+	userAuthorized.PUT("/password", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicProfileEditOwn), deps.PublicAuth.ChangePassword)
+	userAuthorized.GET("/favorites", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicFilesFavorite), deps.UserFiles.ListFavorites)
+	userAuthorized.POST("/favorites/:id", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicFilesFavorite), deps.UserFiles.AddFavorite)
+	userAuthorized.DELETE("/favorites/:id", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicFilesFavorite), deps.UserFiles.RemoveFavorite)
+	userAuthorized.GET("/downloads", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicProfileViewOwn), deps.UserFiles.ListDownloads)
+	userAuthorized.POST("/files/:id/comments", middleware.RequireAnyUserPermission(deps.AuthService, service.PermissionPublicCommentsCreate, service.PermissionPublicCommentsReply), deps.UserActions.CreateComment)
+	userAuthorized.DELETE("/comments/:id", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicCommentsDeleteOwn), deps.UserActions.DeleteComment)
+	userAuthorized.POST("/comments/:id/vote", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicCommentsVote), deps.UserActions.VoteComment)
+	userAuthorized.GET("/comments/mine", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicNotificationsView), deps.UserActions.ListMyComments)
+	userAuthorized.GET("/notifications", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicNotificationsView), deps.UserActions.ListNotifications)
+	userAuthorized.POST("/notifications/read-all", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicNotificationsView), deps.UserActions.MarkNotificationsRead)
+	userAuthorized.POST("/notifications/:id/read", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicNotificationsView), deps.UserActions.MarkNotificationRead)
+	userAuthorized.POST("/community/posts", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicCommunityPostCreate), deps.UserCommunity.CreatePost)
+	userAuthorized.PUT("/community/posts/:id", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicCommunityPostEditOwn), deps.UserCommunity.UpdatePost)
+	userAuthorized.DELETE("/community/posts/:id", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicCommunityPostDeleteOwn), deps.UserCommunity.DeletePost)
+	userAuthorized.POST("/community/posts/:id/replies", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicCommunityReplyCreate), deps.UserCommunity.CreateReply)
+	userAuthorized.DELETE("/community/replies/:id", middleware.RequireUserPermission(deps.AuthService, service.PermissionPublicCommunityReplyDeleteOwn), deps.UserCommunity.DeleteReply)
 
 	return engine
 }

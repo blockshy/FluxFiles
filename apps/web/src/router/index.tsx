@@ -3,6 +3,7 @@ import { AdminHomeRedirect } from '../components/AdminHomeRedirect';
 import { AdminPermissionRoute } from '../components/AdminPermissionRoute';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { UserProtectedRoute } from '../components/UserProtectedRoute';
+import { UserPermissionRoute } from '../components/UserPermissionRoute';
 import {
   PERMISSION_ADMIN_FILES_ALL,
   PERMISSION_ADMIN_FILES_OWN,
@@ -26,6 +27,12 @@ import {
   PERMISSION_ADMIN_COMMUNITY_MODERATE,
   PERMISSION_ADMIN_USERS_CREATE,
   PERMISSION_ADMIN_USERS_EDIT,
+  PERMISSION_PUBLIC_COMMUNITY_POST_CREATE,
+  PERMISSION_PUBLIC_COMMUNITY_POST_EDIT_OWN,
+  PERMISSION_PUBLIC_COMMUNITY_VIEW,
+  PERMISSION_PUBLIC_NOTIFICATIONS_VIEW,
+  PERMISSION_PUBLIC_PROFILE_VIEW_OWN,
+  PERMISSION_PUBLIC_PROFILE_VIEW_PUBLIC,
 } from '../features/user/permissions';
 import { AdminCommunityPage } from '../pages/AdminCommunityPage';
 import { AdminCategoriesPage } from '../pages/AdminCategoriesPage';
@@ -72,7 +79,9 @@ export function AppRouter() {
         element={
           <PublicLayout>
             <UserProtectedRoute>
-              <CommunityPage />
+              <UserPermissionRoute permission={PERMISSION_PUBLIC_COMMUNITY_VIEW}>
+                <CommunityPage />
+              </UserPermissionRoute>
             </UserProtectedRoute>
           </PublicLayout>
         }
@@ -82,7 +91,9 @@ export function AppRouter() {
         element={
           <PublicLayout>
             <UserProtectedRoute>
-              <CommunityPostEditorPage />
+              <UserPermissionRoute permission={PERMISSION_PUBLIC_COMMUNITY_POST_CREATE}>
+                <CommunityPostEditorPage />
+              </UserPermissionRoute>
             </UserProtectedRoute>
           </PublicLayout>
         }
@@ -92,7 +103,9 @@ export function AppRouter() {
         element={
           <PublicLayout>
             <UserProtectedRoute>
-              <CommunityPostDetailPage />
+              <UserPermissionRoute permission={PERMISSION_PUBLIC_COMMUNITY_VIEW}>
+                <CommunityPostDetailPage />
+              </UserPermissionRoute>
             </UserProtectedRoute>
           </PublicLayout>
         }
@@ -102,7 +115,9 @@ export function AppRouter() {
         element={
           <PublicLayout>
             <UserProtectedRoute>
-              <CommunityPostEditorPage />
+              <UserPermissionRoute permission={PERMISSION_PUBLIC_COMMUNITY_POST_EDIT_OWN}>
+                <CommunityPostEditorPage />
+              </UserPermissionRoute>
             </UserProtectedRoute>
           </PublicLayout>
         }
@@ -114,7 +129,9 @@ export function AppRouter() {
         element={
           <PublicLayout>
             <UserProtectedRoute>
-              <PublicUserProfilePage />
+              <UserPermissionRoute permission={PERMISSION_PUBLIC_PROFILE_VIEW_PUBLIC}>
+                <PublicUserProfilePage />
+              </UserPermissionRoute>
             </UserProtectedRoute>
           </PublicLayout>
         }
@@ -125,7 +142,9 @@ export function AppRouter() {
         element={
           <PublicLayout>
             <UserProtectedRoute>
-              <UserCenterPage />
+              <UserPermissionRoute permission={PERMISSION_PUBLIC_PROFILE_VIEW_OWN}>
+                <UserCenterPage />
+              </UserPermissionRoute>
             </UserProtectedRoute>
           </PublicLayout>
         }
@@ -135,7 +154,9 @@ export function AppRouter() {
         element={
           <PublicLayout>
             <UserProtectedRoute>
-              <NotificationsPage />
+              <UserPermissionRoute permission={PERMISSION_PUBLIC_NOTIFICATIONS_VIEW}>
+                <NotificationsPage />
+              </UserPermissionRoute>
             </UserProtectedRoute>
           </PublicLayout>
         }

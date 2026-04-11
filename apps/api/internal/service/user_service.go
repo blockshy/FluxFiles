@@ -38,9 +38,10 @@ type ChangePasswordInput struct {
 }
 
 type UserService struct {
-	users   *repository.UserRepository
-	library *repository.UserLibraryRepository
-	files   *repository.FileRepository
+	users    *repository.UserRepository
+	library  *repository.UserLibraryRepository
+	files    *repository.FileRepository
+	settings *SettingsService
 }
 
 type PublicProfileStats struct {
@@ -61,11 +62,12 @@ type PublicUserProfile struct {
 	Favorites         []model.File                `json:"favorites,omitempty"`
 }
 
-func NewUserService(users *repository.UserRepository, library *repository.UserLibraryRepository, files *repository.FileRepository) *UserService {
+func NewUserService(users *repository.UserRepository, library *repository.UserLibraryRepository, files *repository.FileRepository, settings *SettingsService) *UserService {
 	return &UserService{
-		users:   users,
-		library: library,
-		files:   files,
+		users:    users,
+		library:  library,
+		files:    files,
+		settings: settings,
 	}
 }
 
@@ -107,12 +109,32 @@ func (s *UserService) Register(ctx context.Context, input RegisterInput) (*model
 		PasswordHash: string(hash),
 		Role:         "user",
 		IsEnabled:    true,
+		Permissions:  s.defaultUserPermissions(ctx),
 	}
 	if err := s.users.Create(ctx, user); err != nil {
 		return nil, ErrDependencyUnavailable
 	}
 	applyResolvedAvatar(user)
 	return user, nil
+}
+
+func (s *UserService) defaultUserPermissions(ctx context.Context) []string {
+	permissions := append([]string(nil), DefaultUserPermissions...)
+	if s.settings != nil {
+		if templates, err := s.settings.GetPermissionTemplates(ctx); err == nil {
+			for _, template := range templates {
+				if template.Key == DefaultUserPermissionTemplateKey {
+					permissions = append([]string(nil), template.Permissions...)
+					break
+				}
+			}
+		}
+	}
+	normalized, err := NormalizePermissions("user", permissions)
+	if err != nil {
+		return append([]string(nil), DefaultUserPermissions...)
+	}
+	return normalized
 }
 
 func (s *UserService) GetByID(ctx context.Context, id uint) (*model.User, error) {

@@ -110,6 +110,63 @@ func RequireAnyPermission(authService *service.AuthService, permissions ...strin
 	}
 }
 
+func RequireUserPermission(authService *service.AuthService, permission string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		claims, err := parseClaims(c, authService)
+		if err != nil {
+			response.Error(c, http.StatusUnauthorized, "invalid or expired token")
+			c.Abort()
+			return
+		}
+
+		if !service.HasPermission(claims.Permissions, permission) {
+			response.Error(c, http.StatusForbidden, "insufficient permissions")
+			c.Abort()
+			return
+		}
+
+		setClaims(c, claims)
+		c.Next()
+	}
+}
+
+func RequireAnyUserPermission(authService *service.AuthService, permissions ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		claims, err := parseClaims(c, authService)
+		if err != nil {
+			response.Error(c, http.StatusUnauthorized, "invalid or expired token")
+			c.Abort()
+			return
+		}
+
+		if !service.HasAnyPermission(claims.Permissions, permissions...) {
+			response.Error(c, http.StatusForbidden, "insufficient permissions")
+			c.Abort()
+			return
+		}
+
+		setClaims(c, claims)
+		c.Next()
+	}
+}
+
+func RequirePermissionWhenAuthenticated(permission string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if _, ok := c.Get("userID"); !ok {
+			c.Next()
+			return
+		}
+		value, _ := c.Get("userPermissions")
+		permissions, _ := value.([]string)
+		if !service.HasPermission(permissions, permission) {
+			response.Error(c, http.StatusForbidden, "insufficient permissions")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
 func parseClaims(c *gin.Context, authService *service.AuthService) (anyClaims *serviceClaims, err error) {
 	header := strings.TrimSpace(c.GetHeader("Authorization"))
 	if !strings.HasPrefix(strings.ToLower(header), "bearer ") {

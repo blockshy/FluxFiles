@@ -8,7 +8,7 @@ import type { AdminUser, CreateManagedUserPayload, PermissionTemplate, UpdateMan
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { getPermissionCombinationFeedback, getPermissionGroups, getPermissionLabels } from '../features/user/permissionConfig';
 import { useUserAuth } from '../features/user/AuthProvider';
-import { hasPermission, PERMISSION_ADMIN_USERS_CREATE, PERMISSION_ADMIN_USERS_EDIT } from '../features/user/permissions';
+import { DEFAULT_USER_PERMISSION_TEMPLATE_KEY, hasPermission, PERMISSION_ADMIN_USERS_CREATE, PERMISSION_ADMIN_USERS_EDIT } from '../features/user/permissions';
 import { getApiErrorMessage } from '../lib/apiError';
 import { formatDate } from '../lib/format';
 
@@ -27,7 +27,6 @@ export function AdminUsersPage() {
   const [modalState, setModalState] = useState<UserModalState>({ open: false, mode: 'create', user: null });
   const [form] = Form.useForm();
   const deferredSearch = useDeferredValue(search.trim());
-  const role = Form.useWatch('role', form);
   const selectedPermissions = Form.useWatch('permissions', form) as string[] | undefined;
   const { t, locale } = useI18n();
   const { user } = useUserAuth();
@@ -152,6 +151,10 @@ export function AdminUsersPage() {
     form.setFieldValue('permissions', template?.permissions ?? []);
   }
 
+  function defaultUserTemplate() {
+    return templates.find((item) => item.key === DEFAULT_USER_PERMISSION_TEMPLATE_KEY);
+  }
+
   return (
     <>
       {contextHolder}
@@ -166,7 +169,22 @@ export function AdminUsersPage() {
             <Input className="toolbar-search-input compact" allowClear placeholder={t('publicFiles.search')} value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
             <Button icon={<ReloadOutlined />} loading={usersQuery.isFetching} onClick={() => usersQuery.refetch()}>{t('users.refresh')}</Button>
             {canCreate ? (
-              <Button className="toolbar-primary-button" type="primary" icon={<PlusOutlined />} onClick={() => { setModalState({ open: true, mode: 'create', user: null }); form.resetFields(); form.setFieldsValue({ role: 'user', permissions: [], permissionTemplate: undefined, isEnabled: true }); }}>
+              <Button
+                className="toolbar-primary-button"
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => {
+                  const template = defaultUserTemplate();
+                  setModalState({ open: true, mode: 'create', user: null });
+                  form.resetFields();
+                  form.setFieldsValue({
+                    role: 'user',
+                    permissions: template?.permissions ?? [],
+                    permissionTemplate: template?.key,
+                    isEnabled: true,
+                  });
+                }}
+              >
                 {t('users.new')}
               </Button>
             ) : null}
@@ -198,7 +216,7 @@ export function AdminUsersPage() {
           layout="vertical"
           initialValues={{ role: 'user', permissions: [], permissionTemplate: undefined, isEnabled: true }}
           onFinish={(values) => {
-            const payload = { ...values, permissions: values.role === 'admin' ? values.permissions ?? [] : [] };
+            const payload = { ...values, permissions: values.permissions ?? [] };
             delete payload.permissionTemplate;
             if (modalState.mode === 'create') {
               createMutation.mutate(payload as CreateManagedUserPayload);
@@ -229,56 +247,53 @@ export function AdminUsersPage() {
           <Form.Item name="role" label="Role" rules={[{ required: true }]}>
             <Select options={[{ label: t('common.user'), value: 'user' }, { label: t('common.admin'), value: 'admin' }]} />
           </Form.Item>
-          {role === 'admin' ? (
-            <>
-              <Form.Item name="permissionTemplate" label={t('users.template')}>
-                <Select
-                  allowClear
-                  placeholder={t('users.template')}
-                  options={templates.map((template: PermissionTemplate) => ({ label: template.name, value: template.key }))}
-                  onChange={(value) => applyTemplate(value)}
-                />
-              </Form.Item>
-              <Form.Item label={t('users.permissions')} required>
-                <Form.Item
-                  name="permissions"
-                  noStyle
-                  rules={[
-                    { required: true, type: 'array', min: 1 },
-                    {
-                      validator: async (_, value: string[] | undefined) => {
-                        const feedback = getPermissionCombinationFeedback(locale, value);
-                        if (feedback.errors.length > 0) {
-                          throw new Error(feedback.errors[0]);
-                        }
-                      },
-                    },
-                  ]}
-                >
-                  <Checkbox.Group>
-                    <div className="permission-groups">
-                      {permissionGroups.map((group) => (
-                        <div key={group.key} className="permission-group-card">
-                          <div className="permission-group-title">{group.title}</div>
-                          <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                            {group.options.map((permission) => (
-                              <Checkbox key={permission} value={permission}>
-                                {permissionLabels[permission] ?? permission}
-                              </Checkbox>
-                            ))}
-                          </Space>
-                        </div>
-                      ))}
+          <Form.Item name="permissionTemplate" label={t('users.template')}>
+            <Select
+              allowClear
+              loading={templatesQuery.isLoading}
+              placeholder={t('users.template')}
+              options={templates.map((template: PermissionTemplate) => ({ label: template.name, value: template.key }))}
+              onChange={(value) => applyTemplate(value)}
+            />
+          </Form.Item>
+          <Form.Item label={t('users.permissions')} required>
+            <Form.Item
+              name="permissions"
+              noStyle
+              rules={[
+                { required: true, type: 'array', min: 1 },
+                {
+                  validator: async (_, value: string[] | undefined) => {
+                    const feedback = getPermissionCombinationFeedback(locale, value);
+                    if (feedback.errors.length > 0) {
+                      throw new Error(feedback.errors[0]);
+                    }
+                  },
+                },
+              ]}
+            >
+              <Checkbox.Group>
+                <div className="permission-groups">
+                  {permissionGroups.map((group) => (
+                    <div key={group.key} className="permission-group-card">
+                      <div className="permission-group-title">{group.title}</div>
+                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                        {group.options.map((permission) => (
+                          <Checkbox key={permission} value={permission}>
+                            {permissionLabels[permission] ?? permission}
+                          </Checkbox>
+                        ))}
+                      </Space>
                     </div>
-                  </Checkbox.Group>
-                </Form.Item>
-                {permissionFeedback.errors.length > 0 ? <Alert style={{ marginTop: 12 }} type="error" showIcon message={permissionFeedback.errors[0]} /> : null}
-                {permissionFeedback.warnings.map((warning) => (
-                  <Alert key={warning} style={{ marginTop: 12 }} type="warning" showIcon message={warning} />
-                ))}
-              </Form.Item>
-            </>
-          ) : null}
+                  ))}
+                </div>
+              </Checkbox.Group>
+            </Form.Item>
+            {permissionFeedback.errors.length > 0 ? <Alert style={{ marginTop: 12 }} type="error" showIcon message={permissionFeedback.errors[0]} /> : null}
+            {permissionFeedback.warnings.map((warning) => (
+              <Alert key={warning} style={{ marginTop: 12 }} type="warning" showIcon message={warning} />
+            ))}
+          </Form.Item>
           <Form.Item name="isEnabled" label={t('common.enabled')} valuePropName="checked">
             <Switch checkedChildren={t('common.on')} unCheckedChildren={t('common.off')} />
           </Form.Item>

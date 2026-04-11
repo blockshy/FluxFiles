@@ -70,7 +70,7 @@ func (s *AuthService) EnsureBootstrapAdmin(ctx context.Context) error {
 		AvatarURL:    buildDefaultAvatarDataURL(s.cfg.AdminBootstrapUser, s.cfg.AdminBootstrapUser),
 		PasswordHash: string(passwordHash),
 		Role:         "admin",
-		Permissions:  append([]string(nil), AllAdminPermissions...),
+		Permissions:  append([]string(nil), AllPermissions...),
 		IsEnabled:    true,
 	})
 }

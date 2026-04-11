@@ -12,6 +12,7 @@ import {
 } from '../api/user';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { useUserAuth } from '../features/user/AuthProvider';
+import { hasPermission, PERMISSION_PUBLIC_FILES_FAVORITE, PERMISSION_PUBLIC_PROFILE_EDIT_OWN, PERMISSION_PUBLIC_PROFILE_VIEW_PUBLIC } from '../features/user/permissions';
 import { buildDefaultAvatarDataUrl } from '../lib/avatar';
 import { getApiErrorMessage } from '../lib/apiError';
 import { formatBytes, formatDate } from '../lib/format';
@@ -22,11 +23,14 @@ export function UserCenterPage() {
   const [selectedAvatarName, setSelectedAvatarName] = useState('');
   const queryClient = useQueryClient();
   const [messageApi, contextHolder] = message.useMessage();
-  const { logout, updateUser } = useUserAuth();
+  const { logout, updateUser, user } = useUserAuth();
   const { t, locale } = useI18n();
+  const canEditProfile = hasPermission(user, PERMISSION_PUBLIC_PROFILE_EDIT_OWN);
+  const canViewFavorites = hasPermission(user, PERMISSION_PUBLIC_FILES_FAVORITE);
+  const canViewPublicProfiles = hasPermission(user, PERMISSION_PUBLIC_PROFILE_VIEW_PUBLIC);
 
   const meQuery = useQuery({ queryKey: ['user-me'], queryFn: fetchCurrentUser });
-  const favoritesQuery = useQuery({ queryKey: ['user-favorites'], queryFn: fetchFavoriteFiles });
+  const favoritesQuery = useQuery({ queryKey: ['user-favorites'], queryFn: fetchFavoriteFiles, enabled: canViewFavorites });
   const downloadsQuery = useQuery({ queryKey: ['user-downloads'], queryFn: () => fetchDownloadHistory(50) });
   const avatarValue = Form.useWatch('avatarUrl', profileForm) as string | undefined;
   const nicknameValue = Form.useWatch('displayName', profileForm) as string | undefined;
@@ -150,13 +154,14 @@ export function UserCenterPage() {
                             </Typography.Text>
                           ) : null}
                           <Space wrap>
-                            <label className="avatar-upload-button">
+                            <label className={`avatar-upload-button${canEditProfile ? '' : ' disabled'}`}>
                               <UploadOutlined />
                               <span>{t('account.avatarUpload')}</span>
                               <input
                                 type="file"
                                 accept="image/png,image/jpeg,image/webp,image/gif"
                                 hidden
+                                disabled={!canEditProfile}
                                 onChange={(event) => {
                                   const [file] = Array.from(event.target.files ?? []);
                                   void handleAvatarSelect(file ?? null);
@@ -164,7 +169,7 @@ export function UserCenterPage() {
                                 }}
                               />
                             </label>
-                            <Button onClick={() => {
+                            <Button disabled={!canEditProfile} onClick={() => {
                               profileForm.setFieldValue('avatarUrl', '');
                               setSelectedAvatarName('');
                               messageApi.success(locale === 'zh-CN' ? '已切换为默认头像，点击“保存资料”后生效。' : 'Switched to the default avatar. Click "Save profile" to apply it.');
@@ -177,28 +182,28 @@ export function UserCenterPage() {
                     )}
                   </Form.Item>
                   <Form.Item name="displayName" label={t('account.nickname')}>
-                    <Input />
+                    <Input disabled={!canEditProfile} />
                   </Form.Item>
                   <Form.Item name="email" label={t('register.email')}>
-                    <Input />
+                    <Input disabled={!canEditProfile} />
                   </Form.Item>
                   <Form.Item name="bio" label={t('account.bio')}>
-                    <Input.TextArea rows={4} />
+                    <Input.TextArea rows={4} disabled={!canEditProfile} />
                   </Form.Item>
                   <Typography.Title level={5}>{t('account.homepageVisibility')}</Typography.Title>
                   <Form.Item name={['profileVisibility', 'showBio']} label={t('account.showBio')} valuePropName="checked">
-                    <Switch />
+                    <Switch disabled={!canEditProfile} />
                   </Form.Item>
                   <Form.Item name={['profileVisibility', 'showStats']} label={t('account.showStats')} valuePropName="checked">
-                    <Switch />
+                    <Switch disabled={!canEditProfile} />
                   </Form.Item>
                   <Form.Item name={['profileVisibility', 'showPublishedFiles']} label={t('account.showPublishedFiles')} valuePropName="checked">
-                    <Switch />
+                    <Switch disabled={!canEditProfile} />
                   </Form.Item>
                   <Form.Item name={['profileVisibility', 'showFavorites']} label={t('account.showFavorites')} valuePropName="checked">
-                    <Switch />
+                    <Switch disabled={!canEditProfile} />
                   </Form.Item>
-                  <Button type="primary" htmlType="submit" loading={profileMutation.isPending}>
+                  <Button type="primary" htmlType="submit" loading={profileMutation.isPending} disabled={!canEditProfile}>
                     {t('account.save')}
                   </Button>
                 </Form>
@@ -230,7 +235,7 @@ export function UserCenterPage() {
                   >
                     <Input.Password />
                   </Form.Item>
-                  <Button type="primary" htmlType="submit" loading={passwordMutation.isPending}>
+                  <Button type="primary" htmlType="submit" loading={passwordMutation.isPending} disabled={!canEditProfile}>
                     {t('account.passwordUpdate')}
                   </Button>
                 </Form>
@@ -249,7 +254,7 @@ export function UserCenterPage() {
                       <Space direction="vertical" size={4} className="profile-list-copy">
                         <Typography.Text strong>{item.name}</Typography.Text>
                         <Typography.Text type="secondary">{item.originalName}</Typography.Text>
-                        {item.createdByUsername ? (
+                        {item.createdByUsername && canViewPublicProfiles ? (
                           <Link to={`/users/${item.createdByUsername}`} className="uploader-link inline">
                             <Avatar src={item.createdByAvatarUrl} size={24}>
                               {(item.createdByDisplayName || item.createdByUsername).slice(0, 1).toUpperCase()}
@@ -282,7 +287,7 @@ export function UserCenterPage() {
                       <Space direction="vertical" size={4} className="profile-list-copy">
                         <Typography.Text strong>{item.name}</Typography.Text>
                         <Typography.Text type="secondary">{item.originalName}</Typography.Text>
-                        {item.createdByUsername ? (
+                        {item.createdByUsername && canViewPublicProfiles ? (
                           <Link to={`/users/${item.createdByUsername}`} className="uploader-link inline">
                             <Avatar src={item.createdByAvatarUrl} size={24}>
                               {(item.createdByDisplayName || item.createdByUsername).slice(0, 1).toUpperCase()}

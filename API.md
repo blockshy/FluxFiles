@@ -8,6 +8,7 @@ Base URL: `/api`
 - 用户中心接口需要 `Authorization: Bearer <user-jwt>`
 - 后台接口需要 `Authorization: Bearer <admin-jwt>`
 - 后台接口除了登录态，还会继续校验管理员权限
+- 登录后的前台功能也会校验前台权限；公开游客可访问接口在带登录态时会校验对应前台权限
 - 所有受系统设置影响的关键操作都必须以后端校验为准，前端只做体验补充
 
 标准响应：
@@ -62,14 +63,47 @@ Base URL: `/api`
 - `admin.tags.edit`
 - `admin.tags.delete`
 - `admin.tags.logs`
+- `admin.community.view`
+- `admin.community.moderate`
 - `admin.settings`
 - `admin.audit`
+
+当前前台权限值：
+
+- `public.files.view`
+- `public.files.detail`
+- `public.files.download`
+- `public.files.favorite`
+- `public.comments.create`
+- `public.comments.reply`
+- `public.comments.vote`
+- `public.comments.delete_own`
+- `public.community.view`
+- `public.community.post.create`
+- `public.community.post.edit_own`
+- `public.community.post.delete_own`
+- `public.community.reply.create`
+- `public.community.reply.delete_own`
+- `public.profile.view_own`
+- `public.profile.edit_own`
+- `public.profile.view_public`
+- `public.notifications.view`
+
+默认模板：
+
+- `default_user`：普通用户基础权限，新注册用户和新建普通用户默认使用
+- `super_admin`：后台和前台全权限
 
 ## 公开接口
 
 ### `GET /api/files`
 
 公开文件列表。
+
+权限说明：
+
+- 游客可访问
+- 已登录用户若携带登录态，需要 `public.files.view`
 
 查询参数：
 
@@ -106,6 +140,11 @@ Base URL: `/api`
 
 公开文件详情。
 
+权限说明：
+
+- 游客可访问
+- 已登录用户若携带登录态，需要 `public.files.detail`
+
 ### `GET /api/files/:id/comments`
 
 获取评论列表或某个主楼下的回复。
@@ -119,6 +158,11 @@ Base URL: `/api`
 ### `GET /api/files/:id/download`
 
 生成文件临时下载链接。
+
+权限说明：
+
+- 游客是否可下载由系统设置控制
+- 已登录用户需要 `public.files.download`
 
 查询参数：
 
@@ -139,6 +183,15 @@ Base URL: `/api`
 
 - 当前要求登录后才能访问
 - 游客不能直接查看公开用户主页
+- 登录用户需要 `public.profile.view_public`
+
+## 社区公开接口
+
+以下接口要求登录且需要 `public.community.view`：
+
+- `GET /api/community/posts`
+- `GET /api/community/posts/:id`
+- `GET /api/community/posts/:id/replies`
 
 ## 认证接口
 
@@ -204,21 +257,31 @@ Base URL: `/api`
 
 更新当前用户资料。
 
+权限：`public.profile.edit_own`
+
 ### `PUT /api/user/password`
 
 修改当前用户密码。
+
+权限：`public.profile.edit_own`
 
 ### `GET /api/user/favorites`
 
 获取当前用户收藏列表。
 
+权限：`public.files.favorite`
+
 ### `POST /api/user/favorites/:id`
 
 收藏文件。
 
+权限：`public.files.favorite`
+
 ### `DELETE /api/user/favorites/:id`
 
 取消收藏文件。
+
+权限：`public.files.favorite`
 
 ### `GET /api/user/downloads`
 
@@ -231,6 +294,11 @@ Base URL: `/api`
 ### `POST /api/user/files/:id/comments`
 
 发表评论或回复评论。
+
+权限：
+
+- 发表评论需要 `public.comments.create`
+- 回复评论需要 `public.comments.reply`
 
 请求体：
 
@@ -245,9 +313,13 @@ Base URL: `/api`
 
 删除自己的评论，级联删除其子回复。
 
+权限：`public.comments.delete_own`
+
 ### `POST /api/user/comments/:id/vote`
 
 点赞或点踩评论。
+
+权限：`public.comments.vote`
 
 请求体：
 
@@ -266,9 +338,13 @@ Base URL: `/api`
 
 获取我的评论记录。
 
+权限：`public.notifications.view`
+
 ### `GET /api/user/notifications`
 
 获取消息通知列表。
+
+权限：`public.notifications.view`
 
 查询参数：
 
@@ -280,9 +356,45 @@ Base URL: `/api`
 
 按类型或全部标记已读。
 
+权限：`public.notifications.view`
+
 ### `POST /api/user/notifications/:id/read`
 
 标记单条通知已读。
+
+权限：`public.notifications.view`
+
+## 用户社区接口
+
+### `POST /api/user/community/posts`
+
+发布社区帖子。
+
+权限：`public.community.post.create`
+
+### `PUT /api/user/community/posts/:id`
+
+编辑自己的社区帖子。
+
+权限：`public.community.post.edit_own`
+
+### `DELETE /api/user/community/posts/:id`
+
+删除自己的社区帖子。
+
+权限：`public.community.post.delete_own`
+
+### `POST /api/user/community/posts/:id/replies`
+
+回复社区帖子或楼中楼。
+
+权限：`public.community.reply.create`
+
+### `DELETE /api/user/community/replies/:id`
+
+删除自己的社区回复。
+
+权限：`public.community.reply.delete_own`
 
 ## 后台认证接口
 
@@ -381,6 +493,11 @@ Base URL: `/api`
 ### `POST /api/admin/users`
 
 创建用户。
+
+说明：
+
+- 普通用户也可以分配权限
+- 新建普通用户未传权限时后端使用 `default_user` 模板权限
 
 ### `PUT /api/admin/users/:id`
 

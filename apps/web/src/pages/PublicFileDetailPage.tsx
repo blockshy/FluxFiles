@@ -8,6 +8,16 @@ import { addFavoriteFile, createComment, deleteComment, fetchCaptcha, fetchFavor
 import type { CommentRecord, FileListDisplaySettings } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { useUserAuth } from '../features/user/AuthProvider';
+import {
+  hasPermission,
+  PERMISSION_PUBLIC_COMMENTS_CREATE,
+  PERMISSION_PUBLIC_COMMENTS_DELETE_OWN,
+  PERMISSION_PUBLIC_COMMENTS_REPLY,
+  PERMISSION_PUBLIC_COMMENTS_VOTE,
+  PERMISSION_PUBLIC_FILES_DOWNLOAD,
+  PERMISSION_PUBLIC_FILES_FAVORITE,
+  PERMISSION_PUBLIC_PROFILE_VIEW_PUBLIC,
+} from '../features/user/permissions';
 import { getApiErrorMessage } from '../lib/apiError';
 import { formatBytes, formatDate } from '../lib/format';
 
@@ -34,6 +44,10 @@ interface CommentNodeProps {
   depth: number;
   locale: string;
   token: string | null;
+  canReply: boolean;
+  canVote: boolean;
+  canDeleteOwn: boolean;
+  canViewPublicProfiles: boolean;
   replyingTo: number | null;
   submittingReply: boolean;
   onStartReply: (commentId: number) => void;
@@ -98,6 +112,10 @@ function CommentNode({
   depth,
   locale,
   token,
+  canReply,
+  canVote,
+  canDeleteOwn,
+  canViewPublicProfiles,
   replyingTo,
   submittingReply,
   onStartReply,
@@ -121,7 +139,7 @@ function CommentNode({
             <Avatar src={comment.author.avatarUrl}>{(comment.author.displayName || comment.author.username).slice(0, 1).toUpperCase()}</Avatar>
             <div>
               <Space size={8} wrap>
-                <Link to={`/users/${comment.author.username}`}>{comment.author.displayName || comment.author.username}</Link>
+                {canViewPublicProfiles ? <Link to={`/users/${comment.author.username}`}>{comment.author.displayName || comment.author.username}</Link> : <span>{comment.author.displayName || comment.author.username}</span>}
                 {depth > MAX_VISUAL_DEPTH ? <Tag bordered={false}>{locale === 'zh-CN' ? `第 ${depth + 1} 层回复` : `Level ${depth + 1}`}</Tag> : null}
               </Space>
               <div className="comment-meta">
@@ -133,16 +151,16 @@ function CommentNode({
         </div>
         <Typography.Paragraph className="comment-body-copy">{comment.content}</Typography.Paragraph>
         <Space wrap className="comment-action-row">
-          <Button className="comment-action-button" type={comment.currentUserVote === 1 ? 'primary' : 'text'} icon={<LikeOutlined />} disabled={!token} onClick={() => onVote(comment.id, threadRootId, 1)}>
+          <Button className="comment-action-button" type={comment.currentUserVote === 1 ? 'primary' : 'text'} icon={<LikeOutlined />} disabled={!token || !canVote} onClick={() => onVote(comment.id, threadRootId, 1)}>
             {comment.likeCount}
           </Button>
-          <Button className="comment-action-button" type={comment.currentUserVote === -1 ? 'primary' : 'text'} danger={comment.currentUserVote === -1} icon={<DislikeOutlined />} disabled={!token} onClick={() => onVote(comment.id, threadRootId, -1)}>
+          <Button className="comment-action-button" type={comment.currentUserVote === -1 ? 'primary' : 'text'} danger={comment.currentUserVote === -1} icon={<DislikeOutlined />} disabled={!token || !canVote} onClick={() => onVote(comment.id, threadRootId, -1)}>
             {comment.dislikeCount}
           </Button>
-          <Button className="comment-action-button" type="text" icon={<MessageOutlined />} disabled={!token} onClick={() => onStartReply(comment.id)}>
+          <Button className="comment-action-button" type="text" icon={<MessageOutlined />} disabled={!token || !canReply} onClick={() => onStartReply(comment.id)}>
             {locale === 'zh-CN' ? '回复' : 'Reply'}
           </Button>
-          {comment.canDelete ? (
+          {comment.canDelete && canDeleteOwn ? (
             <Button className="comment-action-button" type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(comment.id, threadRootId)}>
               {locale === 'zh-CN' ? '删除' : 'Delete'}
             </Button>
@@ -180,6 +198,10 @@ function CommentNode({
               depth={depth + 1}
               locale={locale}
               token={token}
+              canReply={canReply}
+              canVote={canVote}
+              canDeleteOwn={canDeleteOwn}
+              canViewPublicProfiles={canViewPublicProfiles}
               replyingTo={replyingTo}
               submittingReply={submittingReply}
               onStartReply={onStartReply}
@@ -214,8 +236,15 @@ export function PublicFileDetailPage() {
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [commentForm] = Form.useForm();
   const [downloadForm] = Form.useForm<{ captchaAnswer?: string }>();
-  const { token } = useUserAuth();
+  const { token, user } = useUserAuth();
   const { locale } = useI18n();
+  const canDownload = !token || hasPermission(user, PERMISSION_PUBLIC_FILES_DOWNLOAD);
+  const canFavorite = Boolean(token) && hasPermission(user, PERMISSION_PUBLIC_FILES_FAVORITE);
+  const canCommentCreate = Boolean(token) && hasPermission(user, PERMISSION_PUBLIC_COMMENTS_CREATE);
+  const canCommentReply = Boolean(token) && hasPermission(user, PERMISSION_PUBLIC_COMMENTS_REPLY);
+  const canCommentVote = Boolean(token) && hasPermission(user, PERMISSION_PUBLIC_COMMENTS_VOTE);
+  const canDeleteOwnComment = Boolean(token) && hasPermission(user, PERMISSION_PUBLIC_COMMENTS_DELETE_OWN);
+  const canViewPublicProfiles = Boolean(token) && hasPermission(user, PERMISSION_PUBLIC_PROFILE_VIEW_PUBLIC);
 
   const fileQuery = useQuery({ queryKey: ['public-file', fileId], queryFn: () => fetchPublicFile(fileId), enabled: Number.isFinite(fileId) && fileId > 0 });
   const downloadConfigQuery = useQuery({ queryKey: ['public-download-config'], queryFn: fetchPublicDownloadConfig });
@@ -363,6 +392,10 @@ export function PublicFileDetailPage() {
 
   async function startDownload() {
     if (!file) {
+      return;
+    }
+    if (token && !canDownload) {
+      messageApi.warning(locale === 'zh-CN' ? '当前账号没有文件下载权限。' : 'Your account does not have file download permission.');
       return;
     }
     const config = await queryClient.fetchQuery({
@@ -519,11 +552,11 @@ export function PublicFileDetailPage() {
                   <Typography.Title level={2} className="detail-page-title">{file.name}</Typography.Title>
                 </div>
                 <Space wrap className="detail-hero-actions">
-                  <Button type="primary" icon={<DownloadOutlined />} loading={downloadMutation.isPending || downloadConfigQuery.isLoading} onClick={() => void startDownload()}>
+                  <Button type="primary" icon={<DownloadOutlined />} loading={downloadMutation.isPending || downloadConfigQuery.isLoading} disabled={Boolean(token) && !canDownload} onClick={() => void startDownload()}>
                     {locale === 'zh-CN' ? '下载文件' : 'Download'}
                   </Button>
                   {token ? (
-                    <Button icon={isFavorite ? <StarFilled /> : <StarOutlined />} onClick={() => favoriteMutation.mutate()}>
+                    <Button icon={isFavorite ? <StarFilled /> : <StarOutlined />} disabled={!canFavorite} onClick={() => favoriteMutation.mutate()}>
                       {isFavorite ? (locale === 'zh-CN' ? '已收藏' : 'Favorited') : (locale === 'zh-CN' ? '收藏' : 'Favorite')}
                     </Button>
                   ) : null}
@@ -544,7 +577,7 @@ export function PublicFileDetailPage() {
                 <div className="detail-item">
                   <span className="detail-label">{locale === 'zh-CN' ? '上传者' : 'Uploader'}</span>
                   {file.createdByUsername ? (
-                    token ? (
+                    canViewPublicProfiles ? (
                       <Link to={`/users/${file.createdByUsername}`} className="uploader-link inline">
                         <Avatar src={file.createdByAvatarUrl} size={32}>{(file.createdByDisplayName || file.createdByUsername).slice(0, 1).toUpperCase()}</Avatar>
                         <span>{file.createdByDisplayName || file.createdByUsername}</span>
@@ -587,7 +620,7 @@ export function PublicFileDetailPage() {
         </Card>
 
         <Card className="surface-card detail-comments-card" title={locale === 'zh-CN' ? `评论区 (${overallCommentTotal})` : `Comments (${overallCommentTotal})`}>
-          {token ? (
+          {canCommentCreate ? (
             <Form
               form={commentForm}
               layout="vertical"
@@ -601,7 +634,11 @@ export function PublicFileDetailPage() {
               </Button>
             </Form>
           ) : (
-            <Typography.Text type="secondary">{locale === 'zh-CN' ? '登录后即可发表评论、回复和点赞。' : 'Sign in to comment, reply, and vote.'}</Typography.Text>
+            <Typography.Text type="secondary">
+              {!token
+                ? (locale === 'zh-CN' ? '登录后即可发表评论、回复和点赞。' : 'Sign in to comment, reply, and vote.')
+                : (locale === 'zh-CN' ? '当前账号没有发布评论权限。' : 'Your account does not have comment permission.')}
+            </Typography.Text>
           )}
 
           <div className="comment-list">
@@ -624,23 +661,23 @@ export function PublicFileDetailPage() {
                         <Space>
                           <Avatar src={comment.author.avatarUrl}>{(comment.author.displayName || comment.author.username).slice(0, 1).toUpperCase()}</Avatar>
                           <div>
-                            <Link to={`/users/${comment.author.username}`}>{comment.author.displayName || comment.author.username}</Link>
+                            {canViewPublicProfiles ? <Link to={`/users/${comment.author.username}`}>{comment.author.displayName || comment.author.username}</Link> : <span>{comment.author.displayName || comment.author.username}</span>}
                             <div className="comment-meta">{formatDate(comment.createdAt)}</div>
                           </div>
                         </Space>
                       </div>
                       <Typography.Paragraph className="comment-body-copy">{comment.content}</Typography.Paragraph>
                       <Space wrap className="comment-action-row">
-                        <Button className="comment-action-button" type={comment.currentUserVote === 1 ? 'primary' : 'text'} icon={<LikeOutlined />} disabled={!token} onClick={() => voteMutation.mutate({ commentId: comment.id, threadRootId: comment.id, value: 1 })}>
+                        <Button className="comment-action-button" type={comment.currentUserVote === 1 ? 'primary' : 'text'} icon={<LikeOutlined />} disabled={!token || !canCommentVote} onClick={() => voteMutation.mutate({ commentId: comment.id, threadRootId: comment.id, value: 1 })}>
                           {comment.likeCount}
                         </Button>
-                        <Button className="comment-action-button" type={comment.currentUserVote === -1 ? 'primary' : 'text'} danger={comment.currentUserVote === -1} icon={<DislikeOutlined />} disabled={!token} onClick={() => voteMutation.mutate({ commentId: comment.id, threadRootId: comment.id, value: -1 })}>
+                        <Button className="comment-action-button" type={comment.currentUserVote === -1 ? 'primary' : 'text'} danger={comment.currentUserVote === -1} icon={<DislikeOutlined />} disabled={!token || !canCommentVote} onClick={() => voteMutation.mutate({ commentId: comment.id, threadRootId: comment.id, value: -1 })}>
                           {comment.dislikeCount}
                         </Button>
-                        <Button className="comment-action-button" type="text" icon={<MessageOutlined />} disabled={!token} onClick={() => setReplyingTo(comment.id)}>
+                        <Button className="comment-action-button" type="text" icon={<MessageOutlined />} disabled={!token || !canCommentReply} onClick={() => setReplyingTo(comment.id)}>
                           {locale === 'zh-CN' ? '回复' : 'Reply'}
                         </Button>
-                        {comment.canDelete ? (
+                        {comment.canDelete && canDeleteOwnComment ? (
                           <Button className="comment-action-button" type="text" danger icon={<DeleteOutlined />} onClick={() => deleteCommentMutation.mutate({ commentId: comment.id, threadRootId: comment.id })}>
                             {locale === 'zh-CN' ? '删除' : 'Delete'}
                           </Button>
@@ -730,6 +767,10 @@ export function PublicFileDetailPage() {
                                 depth={1}
                                 locale={locale}
                                 token={token}
+                                canReply={canCommentReply}
+                                canVote={canCommentVote}
+                                canDeleteOwn={canDeleteOwnComment}
+                                canViewPublicProfiles={canViewPublicProfiles}
                                 replyingTo={replyingTo}
                                 submittingReply={createCommentMutation.isPending}
                                 onStartReply={setReplyingTo}

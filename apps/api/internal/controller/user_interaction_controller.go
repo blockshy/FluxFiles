@@ -26,6 +26,14 @@ func (ctl *UserInteractionController) CreateComment(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "invalid comment payload")
 		return
 	}
+	requiredPermission := service.PermissionPublicCommentsCreate
+	if req.ParentID != nil {
+		requiredPermission = service.PermissionPublicCommentsReply
+	}
+	if !service.HasPermission(currentPermissions(c), requiredPermission) {
+		response.Error(c, http.StatusForbidden, "insufficient permissions")
+		return
+	}
 
 	item, err := ctl.interactions.CreateComment(c.Request.Context(), c.GetUint("userID"), parseUintParam(c, "id"), req.ParentID, req.Content)
 	if err != nil {

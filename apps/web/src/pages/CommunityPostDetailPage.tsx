@@ -6,6 +6,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { createCommunityReply, deleteCommunityPost, deleteCommunityReply, fetchCommunityPost, fetchCommunityReplies } from '../api/community';
 import type { CommunityReplyRecord } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
+import { useUserAuth } from '../features/user/AuthProvider';
+import {
+  hasPermission,
+  PERMISSION_PUBLIC_COMMUNITY_POST_DELETE_OWN,
+  PERMISSION_PUBLIC_COMMUNITY_POST_EDIT_OWN,
+  PERMISSION_PUBLIC_COMMUNITY_REPLY_CREATE,
+  PERMISSION_PUBLIC_COMMUNITY_REPLY_DELETE_OWN,
+} from '../features/user/permissions';
 import { getApiErrorMessage } from '../lib/apiError';
 import { formatDate } from '../lib/format';
 
@@ -39,13 +47,15 @@ interface ReplyItemProps {
   depth: number;
   replyingTo: number | null;
   submitting: boolean;
+  canReply: boolean;
+  canDeleteOwn: boolean;
   onReply: (parentId: number, content: string) => void;
   onDelete: (replyId: number) => void;
   onStartReply: (replyId: number) => void;
   onCancelReply: () => void;
 }
 
-function ReplyItem({ item, depth, replyingTo, submitting, onReply, onDelete, onStartReply, onCancelReply }: ReplyItemProps) {
+function ReplyItem({ item, depth, replyingTo, submitting, canReply, canDeleteOwn, onReply, onDelete, onStartReply, onCancelReply }: ReplyItemProps) {
   const [form] = Form.useForm<{ content: string }>();
   const visualDepth = Math.min(depth, MAX_VISUAL_DEPTH);
 
@@ -69,8 +79,8 @@ function ReplyItem({ item, depth, replyingTo, submitting, onReply, onDelete, onS
         </div>
         <Typography.Paragraph className="community-reply-content">{item.content}</Typography.Paragraph>
         <Space wrap className="comment-action-row">
-          <Button className="comment-action-button" type="text" icon={<MessageOutlined />} onClick={() => onStartReply(item.id)}>回复</Button>
-          {item.canDelete ? <Button className="comment-action-button" type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(item.id)}>删除</Button> : null}
+          <Button className="comment-action-button" type="text" icon={<MessageOutlined />} disabled={!canReply} onClick={() => onStartReply(item.id)}>回复</Button>
+          {item.canDelete && canDeleteOwn ? <Button className="comment-action-button" type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(item.id)}>删除</Button> : null}
         </Space>
         {replyingTo === item.id ? (
           <Form
@@ -101,6 +111,8 @@ function ReplyItem({ item, depth, replyingTo, submitting, onReply, onDelete, onS
               depth={depth + 1}
               replyingTo={replyingTo}
               submitting={submitting}
+              canReply={canReply}
+              canDeleteOwn={canDeleteOwn}
               onReply={onReply}
               onDelete={onDelete}
               onStartReply={onStartReply}
@@ -123,6 +135,11 @@ export function CommunityPostDetailPage() {
   const [topLevelForm] = Form.useForm<{ content: string }>();
   const [messageApi, contextHolder] = message.useMessage();
   const { locale } = useI18n();
+  const { user } = useUserAuth();
+  const canReply = hasPermission(user, PERMISSION_PUBLIC_COMMUNITY_REPLY_CREATE);
+  const canEditOwnPost = hasPermission(user, PERMISSION_PUBLIC_COMMUNITY_POST_EDIT_OWN);
+  const canDeleteOwnPost = hasPermission(user, PERMISSION_PUBLIC_COMMUNITY_POST_DELETE_OWN);
+  const canDeleteOwnReply = hasPermission(user, PERMISSION_PUBLIC_COMMUNITY_REPLY_DELETE_OWN);
 
   const postQuery = useQuery({
     queryKey: ['community-post', postId],
@@ -222,8 +239,8 @@ export function CommunityPostDetailPage() {
             </p>
           </div>
           <Space wrap>
-            {post.canEdit ? <Link to={`/community/${post.id}/edit`} className="table-action-link file-action-button"><EditOutlined /><span>编辑帖子</span></Link> : null}
-            {post.canDelete ? <Button className="table-action-button" danger icon={<DeleteOutlined />} loading={deletePostMutation.isPending} onClick={() => deletePostMutation.mutate(post.id)}>删除帖子</Button> : null}
+            {post.canEdit && canEditOwnPost ? <Link to={`/community/${post.id}/edit`} className="table-action-link file-action-button"><EditOutlined /><span>编辑帖子</span></Link> : null}
+            {post.canDelete && canDeleteOwnPost ? <Button className="table-action-button" danger icon={<DeleteOutlined />} loading={deletePostMutation.isPending} onClick={() => deletePostMutation.mutate(post.id)}>删除帖子</Button> : null}
           </Space>
         </div>
 
@@ -238,7 +255,7 @@ export function CommunityPostDetailPage() {
           </div>
         </div>
 
-        {!post.isLocked ? (
+        {!post.isLocked && canReply ? (
           <Form
             form={topLevelForm}
             layout="vertical"
@@ -250,7 +267,7 @@ export function CommunityPostDetailPage() {
             <Button type="primary" htmlType="submit" loading={replyMutation.isPending}>发布回复</Button>
           </Form>
         ) : (
-          <Tag>该帖子已锁定，暂时不能继续回复。</Tag>
+          <Tag>{post.isLocked ? '该帖子已锁定，暂时不能继续回复。' : '当前账号没有社区回复权限。'}</Tag>
         )}
 
         <div className="community-reply-list community-reply-list-shell">
@@ -261,6 +278,8 @@ export function CommunityPostDetailPage() {
               depth={0}
               replyingTo={replyingTo}
               submitting={replyMutation.isPending}
+              canReply={canReply}
+              canDeleteOwn={canDeleteOwnReply}
               onReply={(parentId, content) => replyMutation.mutate({ parentId, content })}
               onDelete={(replyId) => deleteReplyMutation.mutate(replyId)}
               onStartReply={setReplyingTo}

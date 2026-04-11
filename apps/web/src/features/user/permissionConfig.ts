@@ -22,6 +22,24 @@ import {
   PERMISSION_ADMIN_TAGS_LOGS,
   PERMISSION_ADMIN_COMMUNITY_VIEW,
   PERMISSION_ADMIN_COMMUNITY_MODERATE,
+  PERMISSION_PUBLIC_FILES_VIEW,
+  PERMISSION_PUBLIC_FILES_DETAIL,
+  PERMISSION_PUBLIC_FILES_DOWNLOAD,
+  PERMISSION_PUBLIC_FILES_FAVORITE,
+  PERMISSION_PUBLIC_COMMENTS_CREATE,
+  PERMISSION_PUBLIC_COMMENTS_REPLY,
+  PERMISSION_PUBLIC_COMMENTS_VOTE,
+  PERMISSION_PUBLIC_COMMENTS_DELETE_OWN,
+  PERMISSION_PUBLIC_COMMUNITY_VIEW,
+  PERMISSION_PUBLIC_COMMUNITY_POST_CREATE,
+  PERMISSION_PUBLIC_COMMUNITY_POST_EDIT_OWN,
+  PERMISSION_PUBLIC_COMMUNITY_POST_DELETE_OWN,
+  PERMISSION_PUBLIC_COMMUNITY_REPLY_CREATE,
+  PERMISSION_PUBLIC_COMMUNITY_REPLY_DELETE_OWN,
+  PERMISSION_PUBLIC_PROFILE_VIEW_OWN,
+  PERMISSION_PUBLIC_PROFILE_EDIT_OWN,
+  PERMISSION_PUBLIC_PROFILE_VIEW_PUBLIC,
+  PERMISSION_PUBLIC_NOTIFICATIONS_VIEW,
 } from './permissions';
 
 export interface PermissionGroup {
@@ -59,11 +77,65 @@ export function getPermissionLabels(locale: AppLocale): Record<string, string> {
     [PERMISSION_ADMIN_COMMUNITY_MODERATE]: locale === 'zh-CN' ? '社区帖子置顶/锁定/删除' : 'Community post moderation',
     [PERMISSION_ADMIN_SETTINGS]: locale === 'zh-CN' ? '系统设置' : 'Settings',
     [PERMISSION_ADMIN_AUDIT]: locale === 'zh-CN' ? '审计日志' : 'Audit logs',
+    [PERMISSION_PUBLIC_FILES_VIEW]: locale === 'zh-CN' ? '前台文件列表查看' : 'Public file list view',
+    [PERMISSION_PUBLIC_FILES_DETAIL]: locale === 'zh-CN' ? '前台文件详情查看' : 'Public file detail view',
+    [PERMISSION_PUBLIC_FILES_DOWNLOAD]: locale === 'zh-CN' ? '前台文件下载' : 'Public file download',
+    [PERMISSION_PUBLIC_FILES_FAVORITE]: locale === 'zh-CN' ? '前台文件收藏' : 'Public file favorite',
+    [PERMISSION_PUBLIC_COMMENTS_CREATE]: locale === 'zh-CN' ? '文件评论发布' : 'File comment create',
+    [PERMISSION_PUBLIC_COMMENTS_REPLY]: locale === 'zh-CN' ? '文件评论回复' : 'File comment reply',
+    [PERMISSION_PUBLIC_COMMENTS_VOTE]: locale === 'zh-CN' ? '文件评论点赞/点踩' : 'File comment vote',
+    [PERMISSION_PUBLIC_COMMENTS_DELETE_OWN]: locale === 'zh-CN' ? '删除自己的文件评论' : 'Delete own file comments',
+    [PERMISSION_PUBLIC_COMMUNITY_VIEW]: locale === 'zh-CN' ? '社区查看' : 'Community view',
+    [PERMISSION_PUBLIC_COMMUNITY_POST_CREATE]: locale === 'zh-CN' ? '社区发帖' : 'Community post create',
+    [PERMISSION_PUBLIC_COMMUNITY_POST_EDIT_OWN]: locale === 'zh-CN' ? '编辑自己的帖子' : 'Edit own community posts',
+    [PERMISSION_PUBLIC_COMMUNITY_POST_DELETE_OWN]: locale === 'zh-CN' ? '删除自己的帖子' : 'Delete own community posts',
+    [PERMISSION_PUBLIC_COMMUNITY_REPLY_CREATE]: locale === 'zh-CN' ? '社区回复' : 'Community reply create',
+    [PERMISSION_PUBLIC_COMMUNITY_REPLY_DELETE_OWN]: locale === 'zh-CN' ? '删除自己的社区回复' : 'Delete own community replies',
+    [PERMISSION_PUBLIC_PROFILE_VIEW_OWN]: locale === 'zh-CN' ? '个人中心查看' : 'Own profile view',
+    [PERMISSION_PUBLIC_PROFILE_EDIT_OWN]: locale === 'zh-CN' ? '个人资料编辑' : 'Own profile edit',
+    [PERMISSION_PUBLIC_PROFILE_VIEW_PUBLIC]: locale === 'zh-CN' ? '用户公开主页查看' : 'Public user profile view',
+    [PERMISSION_PUBLIC_NOTIFICATIONS_VIEW]: locale === 'zh-CN' ? '消息通知与互动记录' : 'Notifications and interaction records',
   };
 }
 
 export function getPermissionGroups(locale: AppLocale): PermissionGroup[] {
   return [
+    {
+      key: 'public-files',
+      title: locale === 'zh-CN' ? '前台文件权限' : 'Public file permissions',
+      options: [
+        PERMISSION_PUBLIC_FILES_VIEW,
+        PERMISSION_PUBLIC_FILES_DETAIL,
+        PERMISSION_PUBLIC_FILES_DOWNLOAD,
+        PERMISSION_PUBLIC_FILES_FAVORITE,
+        PERMISSION_PUBLIC_COMMENTS_CREATE,
+        PERMISSION_PUBLIC_COMMENTS_REPLY,
+        PERMISSION_PUBLIC_COMMENTS_VOTE,
+        PERMISSION_PUBLIC_COMMENTS_DELETE_OWN,
+      ],
+    },
+    {
+      key: 'public-community',
+      title: locale === 'zh-CN' ? '前台社区权限' : 'Public community permissions',
+      options: [
+        PERMISSION_PUBLIC_COMMUNITY_VIEW,
+        PERMISSION_PUBLIC_COMMUNITY_POST_CREATE,
+        PERMISSION_PUBLIC_COMMUNITY_POST_EDIT_OWN,
+        PERMISSION_PUBLIC_COMMUNITY_POST_DELETE_OWN,
+        PERMISSION_PUBLIC_COMMUNITY_REPLY_CREATE,
+        PERMISSION_PUBLIC_COMMUNITY_REPLY_DELETE_OWN,
+      ],
+    },
+    {
+      key: 'public-account',
+      title: locale === 'zh-CN' ? '前台账号权限' : 'Public account permissions',
+      options: [
+        PERMISSION_PUBLIC_PROFILE_VIEW_OWN,
+        PERMISSION_PUBLIC_PROFILE_EDIT_OWN,
+        PERMISSION_PUBLIC_PROFILE_VIEW_PUBLIC,
+        PERMISSION_PUBLIC_NOTIFICATIONS_VIEW,
+      ],
+    },
     {
       key: 'files',
       title: locale === 'zh-CN' ? '文件权限' : 'File permissions',
@@ -137,6 +209,9 @@ export function getPermissionCombinationFeedback(locale: AppLocale, permissions:
   const categoryView = selected.has(PERMISSION_ADMIN_CATEGORIES_VIEW);
   const tagView = selected.has(PERMISSION_ADMIN_TAGS_VIEW);
   const communityView = selected.has(PERMISSION_ADMIN_COMMUNITY_VIEW);
+  const publicFilesView = selected.has(PERMISSION_PUBLIC_FILES_VIEW);
+  const publicFilesDetail = selected.has(PERMISSION_PUBLIC_FILES_DETAIL);
+  const publicCommunityView = selected.has(PERMISSION_PUBLIC_COMMUNITY_VIEW);
 
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -199,6 +274,76 @@ export function getPermissionCombinationFeedback(locale: AppLocale, permissions:
     errors.push(locale === 'zh-CN'
       ? '社区置顶、锁定、删除权限依赖“社区帖子查看”。'
       : 'Community moderation requires community post view.');
+  }
+
+  if (
+    (selected.has(PERMISSION_PUBLIC_FILES_DETAIL) ||
+      selected.has(PERMISSION_PUBLIC_FILES_DOWNLOAD) ||
+      selected.has(PERMISSION_PUBLIC_FILES_FAVORITE) ||
+      selected.has(PERMISSION_PUBLIC_COMMENTS_CREATE) ||
+      selected.has(PERMISSION_PUBLIC_COMMENTS_REPLY) ||
+      selected.has(PERMISSION_PUBLIC_COMMENTS_VOTE) ||
+      selected.has(PERMISSION_PUBLIC_COMMENTS_DELETE_OWN)) &&
+    !publicFilesView
+  ) {
+    errors.push(locale === 'zh-CN'
+      ? '前台文件详情、下载、收藏和评论权限依赖“前台文件列表查看”。'
+      : 'Public file actions require public file list view.');
+  }
+
+  if (
+    (selected.has(PERMISSION_PUBLIC_FILES_DOWNLOAD) ||
+      selected.has(PERMISSION_PUBLIC_FILES_FAVORITE) ||
+      selected.has(PERMISSION_PUBLIC_COMMENTS_CREATE) ||
+      selected.has(PERMISSION_PUBLIC_COMMENTS_REPLY) ||
+      selected.has(PERMISSION_PUBLIC_COMMENTS_VOTE) ||
+      selected.has(PERMISSION_PUBLIC_COMMENTS_DELETE_OWN)) &&
+    !publicFilesDetail
+  ) {
+    errors.push(locale === 'zh-CN'
+      ? '前台文件下载、收藏和评论权限依赖“前台文件详情查看”。'
+      : 'Public file interactions require public file detail view.');
+  }
+
+  if (selected.has(PERMISSION_PUBLIC_COMMENTS_REPLY) && !selected.has(PERMISSION_PUBLIC_COMMENTS_CREATE)) {
+    errors.push(locale === 'zh-CN'
+      ? '文件评论回复权限依赖“文件评论发布”。'
+      : 'File comment reply requires file comment create.');
+  }
+
+  if (
+    (selected.has(PERMISSION_PUBLIC_COMMUNITY_POST_CREATE) ||
+      selected.has(PERMISSION_PUBLIC_COMMUNITY_POST_EDIT_OWN) ||
+      selected.has(PERMISSION_PUBLIC_COMMUNITY_POST_DELETE_OWN) ||
+      selected.has(PERMISSION_PUBLIC_COMMUNITY_REPLY_CREATE) ||
+      selected.has(PERMISSION_PUBLIC_COMMUNITY_REPLY_DELETE_OWN)) &&
+    !publicCommunityView
+  ) {
+    errors.push(locale === 'zh-CN'
+      ? '社区发帖、编辑、删除和回复权限依赖“社区查看”。'
+      : 'Community actions require community view.');
+  }
+
+  if (
+    (selected.has(PERMISSION_PUBLIC_COMMUNITY_POST_EDIT_OWN) ||
+      selected.has(PERMISSION_PUBLIC_COMMUNITY_POST_DELETE_OWN)) &&
+    !selected.has(PERMISSION_PUBLIC_COMMUNITY_POST_CREATE)
+  ) {
+    errors.push(locale === 'zh-CN'
+      ? '编辑或删除自己的帖子权限依赖“社区发帖”。'
+      : 'Editing/deleting own posts requires community post create.');
+  }
+
+  if (selected.has(PERMISSION_PUBLIC_COMMUNITY_REPLY_DELETE_OWN) && !selected.has(PERMISSION_PUBLIC_COMMUNITY_REPLY_CREATE)) {
+    errors.push(locale === 'zh-CN'
+      ? '删除自己的社区回复权限依赖“社区回复”。'
+      : 'Deleting own community replies requires community reply create.');
+  }
+
+  if (selected.has(PERMISSION_PUBLIC_PROFILE_EDIT_OWN) && !selected.has(PERMISSION_PUBLIC_PROFILE_VIEW_OWN)) {
+    errors.push(locale === 'zh-CN'
+      ? '个人资料编辑权限依赖“个人中心查看”。'
+      : 'Own profile edit requires own profile view.');
   }
 
   return { errors, warnings };

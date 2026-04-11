@@ -164,20 +164,6 @@ BEGIN
     END IF;
 END $$;
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_constraint
-        WHERE conname = 'tags_tag_category_id_fkey'
-    ) THEN
-        ALTER TABLE public.tags
-            ADD CONSTRAINT tags_tag_category_id_fkey
-            FOREIGN KEY (tag_category_id) REFERENCES public.tag_categories(id)
-            ON DELETE SET NULL;
-    END IF;
-END $$;
-
 CREATE INDEX IF NOT EXISTS idx_tags_deleted_at ON public.tags(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_tags_created_by ON public.tags(created_by);
 CREATE INDEX IF NOT EXISTS idx_tags_updated_by ON public.tags(updated_by);
@@ -487,6 +473,54 @@ SET permissions = permissions || '["admin.community.view","admin.community.moder
 WHERE role = 'admin'
   AND permissions ? 'admin.files.all'
   AND NOT permissions ? 'admin.community.view';
+
+UPDATE public.users
+SET permissions = '[
+  "public.files.view",
+  "public.files.detail",
+  "public.files.download",
+  "public.files.favorite",
+  "public.comments.create",
+  "public.comments.reply",
+  "public.comments.vote",
+  "public.comments.delete_own",
+  "public.community.view",
+  "public.community.post.create",
+  "public.community.post.edit_own",
+  "public.community.post.delete_own",
+  "public.community.reply.create",
+  "public.community.reply.delete_own",
+  "public.profile.view_own",
+  "public.profile.edit_own",
+  "public.profile.view_public",
+  "public.notifications.view"
+]'::jsonb
+WHERE role = 'user'
+  AND (permissions IS NULL OR permissions = '[]'::jsonb);
+
+UPDATE public.users
+SET permissions = permissions || '[
+  "public.files.view",
+  "public.files.detail",
+  "public.files.download",
+  "public.files.favorite",
+  "public.comments.create",
+  "public.comments.reply",
+  "public.comments.vote",
+  "public.comments.delete_own",
+  "public.community.view",
+  "public.community.post.create",
+  "public.community.post.edit_own",
+  "public.community.post.delete_own",
+  "public.community.reply.create",
+  "public.community.reply.delete_own",
+  "public.profile.view_own",
+  "public.profile.edit_own",
+  "public.profile.view_public",
+  "public.notifications.view"
+]'::jsonb
+WHERE role = 'admin'
+  AND NOT permissions ? 'public.files.view';
 
 CREATE TABLE IF NOT EXISTS public.system_settings (
     key VARCHAR(128) PRIMARY KEY,

@@ -8,7 +8,7 @@ import { fetchNotifications } from '../api/user';
 import { LocaleToggle } from '../features/i18n/LocaleToggle';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { ThemeToggle } from '../features/theme/ThemeToggle';
-import { canAccessAdmin, getAdminHomePath } from '../features/user/permissions';
+import { canAccessAdmin, canAccessCommunity, getAdminHomePath, hasPermission, PERMISSION_PUBLIC_NOTIFICATIONS_VIEW } from '../features/user/permissions';
 import { useUserAuth } from '../features/user/AuthProvider';
 
 export function PublicLayout({ children }: { children: ReactNode }) {
@@ -20,12 +20,13 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   const notificationsQuery = useQuery({
     queryKey: ['user-notifications-summary'],
     queryFn: () => fetchNotifications(1, 1),
-    enabled: Boolean(user),
+    enabled: Boolean(user) && hasPermission(user, PERMISSION_PUBLIC_NOTIFICATIONS_VIEW),
   });
   const unreadCount = notificationsQuery.data?.unread ?? 0;
+  const canViewNotifications = hasPermission(user, PERMISSION_PUBLIC_NOTIFICATIONS_VIEW);
 
   const userMenuItems: MenuProps['items'] = user ? [
-    { key: 'notifications', icon: <BellOutlined />, label: <Badge count={unreadCount} size="small" offset={[10, 0]}>{t('nav.notifications') || '消息通知'}</Badge> },
+    ...(canViewNotifications ? [{ key: 'notifications', icon: <BellOutlined />, label: <Badge count={unreadCount} size="small" offset={[10, 0]}>{t('nav.notifications') || '消息通知'}</Badge> }] : []),
     { key: 'profile', icon: <UserOutlined />, label: t('nav.profile') },
     ...(canAccessAdmin(user) ? [{ key: 'admin', icon: <SettingOutlined />, label: t('nav.admin') }] : []),
     { key: 'logout', icon: <LogoutOutlined />, label: t('nav.logout') },
@@ -70,7 +71,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                 <HomeOutlined />
                 <span>{t('nav.home')}</span>
               </Link>
-              {user ? (
+              {user && canAccessCommunity(user) ? (
                 <Link to="/community" className={`shell-nav-link${location.pathname.startsWith('/community') ? ' active' : ''}`}>
                   <MessageOutlined />
                   <span>社区</span>
@@ -79,7 +80,13 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                 <button
                   type="button"
                   className="shell-nav-link shell-nav-button"
-                  onClick={() => messageApi.warning('请先登录后再进入社区。')}
+                  onClick={() => {
+                    if (!user) {
+                      messageApi.warning('请先登录后再进入社区。');
+                      return;
+                    }
+                    messageApi.warning('当前账号没有社区访问权限。');
+                  }}
                 >
                   <MessageOutlined />
                   <span>社区</span>

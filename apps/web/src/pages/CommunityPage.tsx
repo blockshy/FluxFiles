@@ -6,6 +6,8 @@ import { Link } from 'react-router-dom';
 import { fetchCommunityPosts } from '../api/community';
 import type { CommunityPostRecord } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
+import { useUserAuth } from '../features/user/AuthProvider';
+import { hasPermission, PERMISSION_PUBLIC_COMMUNITY_POST_CREATE } from '../features/user/permissions';
 import { formatDate } from '../lib/format';
 
 export function CommunityPage() {
@@ -13,6 +15,8 @@ export function CommunityPage() {
   const [page, setPage] = useState(1);
   const deferredSearch = useDeferredValue(search.trim());
   const { locale } = useI18n();
+  const { user } = useUserAuth();
+  const canCreatePost = hasPermission(user, PERMISSION_PUBLIC_COMMUNITY_POST_CREATE);
 
   const postsQuery = useQuery({
     queryKey: ['community-posts', page, deferredSearch],
@@ -41,10 +45,12 @@ export function CommunityPage() {
             <Button icon={<ReloadOutlined />} loading={postsQuery.isFetching} onClick={() => postsQuery.refetch()}>
               刷新
             </Button>
-            <Link to="/community/new" className="table-action-link file-action-button">
-              <PlusOutlined />
-              <span>发布帖子</span>
-            </Link>
+            {canCreatePost ? (
+              <Link to="/community/new" className="table-action-link file-action-button">
+                <PlusOutlined />
+                <span>发布帖子</span>
+              </Link>
+            ) : null}
           </div>
         </div>
 
