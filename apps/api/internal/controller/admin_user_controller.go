@@ -143,6 +143,16 @@ func (ctl *AdminUserController) GetSettings(c *gin.Context) {
 		response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
 		return
 	}
+	guestDownloadAllowed, err := ctl.admins.GetGuestDownloadAllowed(c.Request.Context())
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
+		return
+	}
+	downloadSettings, err := ctl.admins.GetDownloadSettings(c.Request.Context())
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
+		return
+	}
 	captcha, err := ctl.admins.GetCaptchaSettings(c.Request.Context())
 	if err != nil {
 		response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
@@ -160,10 +170,39 @@ func (ctl *AdminUserController) GetSettings(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, "ok", gin.H{
-		"registrationEnabled": enabled,
-		"captcha":             captcha,
-		"rateLimits":          rateLimits,
-		"uploadSettings":      uploadSettings,
+		"registrationEnabled":  enabled,
+		"guestDownloadAllowed": guestDownloadAllowed,
+		"downloadSettings":     downloadSettings,
+		"captcha":              captcha,
+		"rateLimits":           rateLimits,
+		"uploadSettings":       uploadSettings,
+	})
+}
+
+func (ctl *AdminUserController) UpdateDownloadSettings(c *gin.Context) {
+	var req dto.UpdateDownloadSettingsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid download settings payload")
+		return
+	}
+
+	settings, err := ctl.admins.UpdateDownloadSettings(c.Request.Context(), c.GetUint("adminUserID"), c.ClientIP(), service.DownloadSettings{
+		GuestDownloadAllowed: req.GuestDownloadAllowed,
+		CaptchaEnabled:       req.CaptchaEnabled,
+		URLExpiresSeconds:    req.URLExpiresSeconds,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrValidation):
+			response.Error(c, http.StatusBadRequest, err.Error())
+		default:
+			response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, "download settings updated", gin.H{
+		"downloadSettings": settings,
 	})
 }
 
@@ -181,6 +220,23 @@ func (ctl *AdminUserController) UpdateSettings(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "settings updated", gin.H{
 		"registrationEnabled": req.RegistrationEnabled,
+	})
+}
+
+func (ctl *AdminUserController) UpdateGuestDownloadSettings(c *gin.Context) {
+	var req dto.UpdateGuestDownloadSettingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid settings payload")
+		return
+	}
+
+	if err := ctl.admins.UpdateGuestDownloadAllowed(c.Request.Context(), c.GetUint("adminUserID"), c.ClientIP(), req.GuestDownloadAllowed); err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
+		return
+	}
+
+	response.Success(c, http.StatusOK, "settings updated", gin.H{
+		"guestDownloadAllowed": req.GuestDownloadAllowed,
 	})
 }
 

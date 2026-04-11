@@ -8,6 +8,7 @@ import type { OperationLogRecord } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { hasPermission, PERMISSION_ADMIN_USERS_EDIT } from '../features/user/permissions';
 import { useUserAuth } from '../features/user/AuthProvider';
+import { getApiErrorMessage } from '../lib/apiError';
 import { formatDate } from '../lib/format';
 
 function renderDetail(record: OperationLogRecord) {
@@ -35,7 +36,7 @@ export function AdminLogsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const deferredSearch = useDeferredValue(search.trim());
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { user } = useUserAuth();
   const canEditUsers = hasPermission(user, PERMISSION_ADMIN_USERS_EDIT);
 
@@ -52,7 +53,7 @@ export function AdminLogsPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
     onError: (error) => {
-      messageApi.error(error instanceof Error ? error.message : 'Update failed');
+      messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '账号状态更新失败。' : 'Failed to update account status.', locale));
     },
   });
 
@@ -137,6 +138,11 @@ export function AdminLogsPage() {
               { label: 'user.create', value: 'user.create' },
               { label: 'user.update', value: 'user.update' },
               { label: 'settings.registration.update', value: 'settings.registration.update' },
+              { label: 'settings.guest_download.update', value: 'settings.guest_download.update' },
+              { label: 'settings.download.update', value: 'settings.download.update' },
+              { label: 'settings.rate_limits.update', value: 'settings.rate_limits.update' },
+              { label: 'settings.captcha.update', value: 'settings.captcha.update' },
+              { label: 'settings.upload_policy.update', value: 'settings.upload_policy.update' },
               { label: 'settings.permission_templates.update', value: 'settings.permission_templates.update' },
             ]}
             onChange={(value) => {

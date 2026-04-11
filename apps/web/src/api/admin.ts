@@ -8,6 +8,9 @@ import type {
   CompleteUploadPayload,
   CreateManagedUserPayload,
   DashboardStats,
+  AdminDownloadRecord,
+  DownloadRecordQuery,
+  DownloadSettings,
   FileQuery,
   FileRecord,
   LoginPayload,
@@ -55,6 +58,20 @@ export async function fetchAdminStats() {
   return response.data.data;
 }
 
+export async function fetchAdminDownloads(query: DownloadRecordQuery) {
+  const response = await apiClient.get<ApiEnvelope<PaginatedPayload<AdminDownloadRecord>>>('/admin/downloads', {
+    params: { ...query, authStatus: query.authStatus === 'all' ? undefined : query.authStatus },
+  });
+  return response.data.data;
+}
+
+export async function fetchAdminFileDownloads(fileId: number, query: DownloadRecordQuery) {
+  const response = await apiClient.get<ApiEnvelope<PaginatedPayload<AdminDownloadRecord>>>(`/admin/files/${fileId}/downloads`, {
+    params: { ...query, authStatus: query.authStatus === 'all' ? undefined : query.authStatus },
+  });
+  return response.data.data;
+}
+
 export async function fetchAdminUsers(query: UserQuery) {
   const response = await apiClient.get<ApiEnvelope<PaginatedPayload<AdminUser>>>('/admin/users', {
     params: query,
@@ -92,6 +109,18 @@ export async function updateRegistrationSetting(registrationEnabled: boolean) {
     registrationEnabled,
   });
   return response.data.data;
+}
+
+export async function updateGuestDownloadSetting(guestDownloadAllowed: boolean) {
+  const response = await apiClient.put<ApiEnvelope<{ guestDownloadAllowed: boolean }>>('/admin/settings/guest-download', {
+    guestDownloadAllowed,
+  });
+  return response.data.data;
+}
+
+export async function updateDownloadSettings(downloadSettings: DownloadSettings) {
+  const response = await apiClient.put<ApiEnvelope<{ downloadSettings: DownloadSettings }>>('/admin/settings/download', downloadSettings);
+  return response.data.data.downloadSettings;
 }
 
 export async function updateRateLimitSettings(rateLimits: RateLimitSettings) {

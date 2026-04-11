@@ -1,22 +1,24 @@
-import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, FileSearchOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
-import { Button, Card, Input, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Card, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useDeferredValue, useMemo, useState } from 'react';
-import { createAdminFile, deleteAdminFile, fetchAdminCategoryOptions, fetchAdminFiles, fetchAdminStats, fetchAdminTagCategoryOptions, fetchAdminTagOptions, fetchAdminUploadSettings, prepareAdminUpload, updateAdminFile, uploadFileToOSS } from '../api/admin';
-import type { FileRecord, TaxonomyRecord, UpdateFilePayload } from '../api/types';
+import { createAdminFile, deleteAdminFile, fetchAdminCategoryOptions, fetchAdminFileDownloads, fetchAdminFiles, fetchAdminStats, fetchAdminTagCategoryOptions, fetchAdminTagOptions, fetchAdminUploadSettings, prepareAdminUpload, updateAdminFile, uploadFileToOSS } from '../api/admin';
+import type { AdminDownloadRecord, FileRecord, TaxonomyRecord, UpdateFilePayload } from '../api/types';
 import { FileFormModal } from '../features/admin/FileFormModal';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { useUserAuth } from '../features/user/AuthProvider';
 import {
   hasPermission,
+  PERMISSION_ADMIN_DOWNLOADS_VIEW,
   PERMISSION_ADMIN_FILES_ALL,
   PERMISSION_ADMIN_FILES_DELETE,
   PERMISSION_ADMIN_FILES_EDIT,
   PERMISSION_ADMIN_FILES_UPLOAD,
 } from '../features/user/permissions';
 import { formatBytes, formatDate } from '../lib/format';
+import { buildDownloadRecordColumns } from './AdminDownloadsPage';
+import { getApiErrorMessage } from '../lib/apiError';
 
 interface SubmitPayload extends UpdateFilePayload {
   file?: File;
@@ -41,16 +43,6 @@ const mimeTypeByExtension: Record<string, string> = {
   '.mp4': 'video/mp4',
   '.mp3': 'audio/mpeg',
 };
-
-function extractErrorMessage(error: unknown, fallback: string) {
-  if (axios.isAxiosError(error)) {
-    const text = error.response?.data?.message;
-    if (typeof text === 'string' && text.trim()) {
-      return text;
-    }
-  }
-  return error instanceof Error && error.message.trim() ? error.message : fallback;
-}
 
 interface TreeOptionNode {
   title: string;
@@ -129,6 +121,9 @@ export function AdminFilesPage() {
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [modalState, setModalState] = useState<{ open: boolean; mode: 'create' | 'edit'; file?: FileRecord | null }>({ open: false, mode: 'create', file: null });
+  const [downloadFile, setDownloadFile] = useState<FileRecord | null>(null);
+  const [downloadPage, setDownloadPage] = useState(1);
+  const [downloadPageSize, setDownloadPageSize] = useState(10);
   const deferredSearch = useDeferredValue(search.trim());
   const { t, locale } = useI18n();
   const { user } = useUserAuth();
@@ -137,6 +132,7 @@ export function AdminFilesPage() {
   const canUpload = hasPermission(user, PERMISSION_ADMIN_FILES_UPLOAD);
   const canEdit = hasPermission(user, PERMISSION_ADMIN_FILES_EDIT);
   const canDelete = hasPermission(user, PERMISSION_ADMIN_FILES_DELETE);
+  const canViewDownloads = hasPermission(user, PERMISSION_ADMIN_DOWNLOADS_VIEW);
 
   const filesQuery = useQuery({
     queryKey: ['admin-files', page, pageSize, deferredSearch, sortBy, sortOrder],
@@ -147,6 +143,11 @@ export function AdminFilesPage() {
   const categoryOptionsQuery = useQuery({ queryKey: ['admin-category-options'], queryFn: fetchAdminCategoryOptions });
   const tagCategoryOptionsQuery = useQuery({ queryKey: ['admin-tag-category-options'], queryFn: fetchAdminTagCategoryOptions });
   const tagOptionsQuery = useQuery({ queryKey: ['admin-tag-options'], queryFn: fetchAdminTagOptions });
+  const fileDownloadsQuery = useQuery({
+    queryKey: ['admin-file-downloads', downloadFile?.id, downloadPage, downloadPageSize],
+    queryFn: () => fetchAdminFileDownloads(downloadFile?.id ?? 0, { page: downloadPage, pageSize: downloadPageSize }),
+    enabled: Boolean(downloadFile),
+  });
 
   const createMutation = useMutation({
     mutationFn: async (payload: SubmitPayload) => {
@@ -174,7 +175,7 @@ export function AdminFilesPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
       void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
     },
-    onError: (error) => messageApi.error(extractErrorMessage(error, t('files.uploadSuccess'))),
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '文件上传失败，请检查文件和表单内容。' : 'File upload failed. Please check the file and form.', locale)),
   });
 
   const updateMutation = useMutation({
@@ -185,6 +186,7 @@ export function AdminFilesPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-files'] });
       void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
     },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '文件更新失败，请检查表单内容。' : 'File update failed. Please check the form.', locale)),
   });
 
   const deleteMutation = useMutation({
@@ -195,6 +197,7 @@ export function AdminFilesPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
       void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
     },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '文件删除失败，请稍后再试。' : 'File deletion failed. Please try again later.', locale)),
   });
 
   const categoryTreeData = useMemo(
@@ -220,15 +223,27 @@ export function AdminFilesPage() {
       { title: locale === 'zh-CN' ? '更新时间' : 'Updated at', dataIndex: 'updatedAt', key: 'updatedAt', width: 160, render: (value) => formatDate(value) },
     ];
 
-    if (canEdit || canDelete) {
+    if (canViewDownloads || canEdit || canDelete) {
       baseColumns.push({
         title: locale === 'zh-CN' ? '操作' : 'Action',
         key: 'action',
-        width: canEdit && canDelete ? 180 : 110,
+        width: [canViewDownloads, canEdit, canDelete].filter(Boolean).length >= 3 ? 300 : [canViewDownloads, canEdit, canDelete].filter(Boolean).length === 2 ? 220 : 120,
         fixed: 'right',
         render: (_, record) => (
           <div className="table-action-cell align-right">
             <Space size={8} wrap={false}>
+              {canViewDownloads ? (
+                <Button
+                  icon={<FileSearchOutlined />}
+                  className="stable-action-button table-action-button"
+                  onClick={() => {
+                    setDownloadFile(record);
+                    setDownloadPage(1);
+                  }}
+                >
+                  {locale === 'zh-CN' ? '下载记录' : 'Records'}
+                </Button>
+              ) : null}
               {canEdit ? <Button icon={<EditOutlined />} className="stable-action-button table-action-button" onClick={() => setModalState({ open: true, mode: 'edit', file: record })}>{t('files.edit')}</Button> : null}
               {canDelete ? (
                 <Popconfirm title={t('files.deleteConfirm')} description={t('files.deleteDesc')} okText={t('files.delete')} cancelText={t('common.cancel')} onConfirm={() => deleteMutation.mutate(record.id)}>
@@ -242,9 +257,10 @@ export function AdminFilesPage() {
     }
 
     return baseColumns;
-  }, [canDelete, canEdit, deleteMutation, locale, t]);
+  }, [canDelete, canEdit, canViewDownloads, deleteMutation, locale, t]);
 
-  const scrollX = canEdit || canDelete ? 2060 : 1880;
+  const scrollX = canViewDownloads || canEdit || canDelete ? 2180 : 1880;
+  const downloadColumns = useMemo(() => buildDownloadRecordColumns(locale), [locale]);
 
   return (
     <>
@@ -317,6 +333,31 @@ export function AdminFilesPage() {
           });
         }}
       />
+      <Modal
+        open={Boolean(downloadFile)}
+        title={downloadFile ? `${locale === 'zh-CN' ? '下载记录' : 'Download records'}：${downloadFile.name}` : ''}
+        width={1180}
+        footer={null}
+        onCancel={() => setDownloadFile(null)}
+      >
+        <Table<AdminDownloadRecord>
+          rowKey="id"
+          columns={downloadColumns}
+          dataSource={fileDownloadsQuery.data?.items ?? []}
+          loading={fileDownloadsQuery.isLoading || fileDownloadsQuery.isFetching}
+          scroll={{ x: 1690 }}
+          pagination={{
+            current: downloadPage,
+            pageSize: downloadPageSize,
+            total: fileDownloadsQuery.data?.pagination.total ?? 0,
+            showSizeChanger: true,
+            onChange: (nextPage, nextPageSize) => {
+              setDownloadPage(nextPage);
+              setDownloadPageSize(nextPageSize);
+            },
+          }}
+        />
+      </Modal>
     </>
   );
 }

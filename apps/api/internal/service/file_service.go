@@ -341,14 +341,22 @@ func (s *FileService) Delete(ctx context.Context, id uint, adminID uint, permiss
 	return nil
 }
 
-func (s *FileService) GenerateDownload(ctx context.Context, id uint) (*DownloadResult, error) {
+func (s *FileService) GenerateDownload(ctx context.Context, id uint, authenticated bool) (*DownloadResult, error) {
+	downloadSettings, err := s.settings.GetDownloadSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !authenticated && !downloadSettings.GuestDownloadAllowed {
+		return nil, ErrForbidden
+	}
+
 	file, err := s.GetPublic(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
 	result, err := s.breakers.OSS.Execute(func() (any, error) {
-		url, expiresAt, innerErr := s.storage.PresignDownload(ctx, file.ObjectKey, file.OriginalName)
+		url, expiresAt, innerErr := s.storage.PresignDownload(ctx, file.ObjectKey, file.OriginalName, time.Duration(downloadSettings.URLExpiresSeconds)*time.Second)
 		if innerErr != nil {
 			return nil, innerErr
 		}

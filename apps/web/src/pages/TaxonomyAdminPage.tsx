@@ -15,6 +15,7 @@ import type { DataNode } from 'antd/es/tree';
 import type { Key, ReactNode } from 'react';
 import { useDeferredValue, useMemo, useState } from 'react';
 import type { MoveTaxonomyPayload, Pagination, SaveTaxonomyPayload, TaxonomyLogRecord, TaxonomyQuery, TaxonomyRecord } from '../api/types';
+import { getApiErrorMessage } from '../lib/apiError';
 import { formatDate } from '../lib/format';
 
 interface TaxonomyAdminPageProps {
@@ -271,7 +272,7 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
       form.resetFields();
       await invalidateRelated();
     },
-    onError: (error) => messageApi.error(error instanceof Error ? error.message : 'Create failed.'),
+    onError: (error) => messageApi.error(getApiErrorMessage(error, props.locale === 'zh-CN' ? '创建失败，请检查名称或层级。' : 'Create failed. Please check the name or hierarchy.', props.locale)),
   });
 
   const updateMutation = useMutation({
@@ -285,7 +286,7 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
       form.resetFields();
       await invalidateRelated();
     },
-    onError: (error) => messageApi.error(error instanceof Error ? error.message : 'Update failed.'),
+    onError: (error) => messageApi.error(getApiErrorMessage(error, props.locale === 'zh-CN' ? '更新失败，请检查名称或层级。' : 'Update failed. Please check the name or hierarchy.', props.locale)),
   });
 
   const moveMutation = useMutation({
@@ -299,7 +300,7 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
     },
     onError: (error) => {
       setMovingKey(null);
-      messageApi.error(error instanceof Error ? error.message : 'Move failed.');
+      messageApi.error(getApiErrorMessage(error, props.locale === 'zh-CN' ? '移动失败，请刷新后重试。' : 'Move failed. Please refresh and try again.', props.locale));
     },
   });
 
@@ -312,7 +313,7 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
       messageApi.success(props.locale === 'zh-CN' ? '已删除。' : 'Deleted.');
       await invalidateRelated();
     },
-    onError: (error) => messageApi.error(error instanceof Error ? error.message : props.deleteInUseHint),
+    onError: (error) => messageApi.error(getApiErrorMessage(error, props.deleteInUseHint, props.locale)),
   });
 
   const categoryItems = useMemo(() => categoryOptionsQuery.data ?? [], [categoryOptionsQuery.data]);

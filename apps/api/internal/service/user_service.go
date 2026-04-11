@@ -288,8 +288,27 @@ func (s *UserService) ListFavorites(ctx context.Context, userID uint) ([]model.F
 	return items, nil
 }
 
-func (s *UserService) RecordDownload(ctx context.Context, userID, fileID uint) error {
-	if err := s.library.RecordDownload(ctx, userID, fileID); err != nil {
+type RecordDownloadInput struct {
+	UserID    *uint
+	FileID    uint
+	IP        string
+	UserAgent string
+}
+
+type ListDownloadRecordsInput struct {
+	Page       int
+	PageSize   int
+	FileID     *uint
+	Search     string
+	UserSearch string
+	IP         string
+	AuthStatus string
+	StartAt    *time.Time
+	EndAt      *time.Time
+}
+
+func (s *UserService) RecordDownload(ctx context.Context, input RecordDownloadInput) error {
+	if err := s.library.RecordDownload(ctx, input.UserID, input.FileID, input.IP, input.UserAgent); err != nil {
 		return ErrDependencyUnavailable
 	}
 	return nil
@@ -304,4 +323,34 @@ func (s *UserService) ListDownloads(ctx context.Context, userID uint, limit int)
 		applyResolvedFileUploaderAvatar(&items[index].File)
 	}
 	return items, nil
+}
+
+func (s *UserService) ListDownloadRecords(ctx context.Context, actorID uint, permissions []string, input ListDownloadRecordsInput) ([]repository.AdminDownloadRecord, int64, error) {
+	if !HasPermission(permissions, PermissionAdminDownloadsView) {
+		return nil, 0, ErrForbidden
+	}
+	var ownerID *uint
+	if !HasPermission(permissions, PermissionAdminFilesAll) {
+		if !HasPermission(permissions, PermissionAdminFilesOwn) {
+			return nil, 0, ErrForbidden
+		}
+		ownerID = &actorID
+	}
+
+	items, total, err := s.library.ListAdminDownloads(ctx, repository.DownloadRecordQuery{
+		Page:       input.Page,
+		PageSize:   input.PageSize,
+		FileID:     input.FileID,
+		Search:     input.Search,
+		UserSearch: input.UserSearch,
+		IP:         input.IP,
+		AuthStatus: input.AuthStatus,
+		StartAt:    input.StartAt,
+		EndAt:      input.EndAt,
+		OwnerID:    ownerID,
+	})
+	if err != nil {
+		return nil, 0, ErrDependencyUnavailable
+	}
+	return items, total, nil
 }

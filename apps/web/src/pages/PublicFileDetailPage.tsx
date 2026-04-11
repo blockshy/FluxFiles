@@ -1,13 +1,14 @@
 import { DeleteOutlined, DislikeOutlined, DownloadOutlined, LikeOutlined, MessageOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Avatar, Button, Card, Empty, Form, Input, Skeleton, Space, Tag, Typography, message } from 'antd';
+import { Avatar, Button, Card, Empty, Form, Input, Modal, Skeleton, Space, Tag, Typography, message } from 'antd';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { fetchPublicFile, fetchPublicFileComments, requestDownloadLink } from '../api/files';
-import { addFavoriteFile, createComment, deleteComment, fetchFavoriteFiles, voteComment, removeFavoriteFile } from '../api/user';
+import { fetchPublicDownloadConfig, fetchPublicFile, fetchPublicFileComments, requestDownloadLink } from '../api/files';
+import { addFavoriteFile, createComment, deleteComment, fetchCaptcha, fetchFavoriteFiles, voteComment, removeFavoriteFile } from '../api/user';
 import type { CommentRecord } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { useUserAuth } from '../features/user/AuthProvider';
+import { getApiErrorMessage } from '../lib/apiError';
 import { formatBytes, formatDate } from '../lib/format';
 
 const ROOT_PAGE_SIZE = 5;
@@ -202,11 +203,19 @@ export function PublicFileDetailPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [threadStates, setThreadStates] = useState<Record<number, ThreadState>>({});
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [commentForm] = Form.useForm();
+  const [downloadForm] = Form.useForm<{ captchaAnswer?: string }>();
   const { token } = useUserAuth();
   const { locale } = useI18n();
 
   const fileQuery = useQuery({ queryKey: ['public-file', fileId], queryFn: () => fetchPublicFile(fileId), enabled: Number.isFinite(fileId) && fileId > 0 });
+  const downloadConfigQuery = useQuery({ queryKey: ['public-download-config'], queryFn: fetchPublicDownloadConfig });
+  const downloadCaptchaQuery = useQuery({
+    queryKey: ['download-captcha', downloadModalOpen],
+    queryFn: fetchCaptcha,
+    enabled: downloadModalOpen,
+  });
   const rootCommentsQuery = useInfiniteQuery({
     queryKey: ['public-file-comments', fileId, 'roots'],
     enabled: Number.isFinite(fileId) && fileId > 0,
@@ -249,7 +258,7 @@ export function PublicFileDetailPage() {
           total: result.pagination.total,
         },
       }));
-    } catch {
+    } catch (error) {
       setThreadStates((state) => ({
         ...state,
         [rootId]: {
@@ -257,7 +266,7 @@ export function PublicFileDetailPage() {
           isLoading: false,
         },
       }));
-      messageApi.error(locale === 'zh-CN' ? '刷新回复失败。' : 'Failed to refresh replies.');
+      messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '刷新回复失败，请确认评论是否仍存在。' : 'Failed to refresh replies. Please confirm the comment still exists.', locale));
     }
   }
 
@@ -287,7 +296,7 @@ export function PublicFileDetailPage() {
           total: result.pagination.total,
         },
       }));
-    } catch {
+    } catch (error) {
       setThreadStates((current) => ({
         ...current,
         [rootId]: {
@@ -299,7 +308,7 @@ export function PublicFileDetailPage() {
           total: current[rootId]?.total ?? 0,
         },
       }));
-      messageApi.error(locale === 'zh-CN' ? '加载回复失败。' : 'Failed to load replies.');
+      messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '加载回复失败，请检查网络或评论状态。' : 'Failed to load replies. Please check connection or comment status.', locale));
     }
   }
 
@@ -344,8 +353,22 @@ export function PublicFileDetailPage() {
     void queryClient.invalidateQueries({ queryKey: ['public-file-comments', fileId] });
   }
 
+  function startDownload() {
+    if (!file) {
+      return;
+    }
+    if (downloadConfigQuery.data?.captchaEnabled) {
+      downloadForm.resetFields();
+      setDownloadModalOpen(true);
+      void downloadCaptchaQuery.refetch();
+      return;
+    }
+    downloadMutation.mutate({ fileId: file.id });
+  }
+
   const downloadMutation = useMutation({
-    mutationFn: requestDownloadLink,
+    mutationFn: ({ fileId: targetFileId, captchaId, captchaAnswer }: { fileId: number; captchaId?: string; captchaAnswer?: string }) =>
+      requestDownloadLink(targetFileId, { captchaId, captchaAnswer }),
     onSuccess: (payload) => {
       const anchor = document.createElement('a');
       anchor.href = payload.url;
@@ -355,8 +378,14 @@ export function PublicFileDetailPage() {
       anchor.remove();
       void queryClient.invalidateQueries({ queryKey: ['public-file', fileId] });
       void queryClient.invalidateQueries({ queryKey: ['user-downloads'] });
+      setDownloadModalOpen(false);
     },
-    onError: () => messageApi.error(locale === 'zh-CN' ? '下载失败，请稍后重试。' : 'Download failed.'),
+    onError: (error) => {
+      messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '下载失败，请检查文件状态或登录状态。' : 'Download failed. Please check file status or sign-in state.', locale));
+      if (downloadConfigQuery.data?.captchaEnabled) {
+        void downloadCaptchaQuery.refetch();
+      }
+    },
   });
 
   const favoriteMutation = useMutation({
@@ -364,7 +393,7 @@ export function PublicFileDetailPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['user-favorites'] });
     },
-    onError: () => messageApi.error(locale === 'zh-CN' ? '收藏操作失败。' : 'Favorite action failed.'),
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '收藏操作失败，请先登录或刷新页面。' : 'Favorite action failed. Please sign in or refresh the page.', locale)),
   });
 
   const createCommentMutation = useMutation({
@@ -384,7 +413,7 @@ export function PublicFileDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ['user-notifications-summary'] });
       messageApi.success(locale === 'zh-CN' ? '评论已发布。' : 'Comment posted.');
     },
-    onError: () => messageApi.error(locale === 'zh-CN' ? '评论发布失败。' : 'Failed to post comment.'),
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '评论发布失败，请检查内容或登录状态。' : 'Failed to post comment. Please check content or sign-in state.', locale)),
   });
 
   const deleteCommentMutation = useMutation({
@@ -404,7 +433,7 @@ export function PublicFileDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ['my-comments'] });
       messageApi.success(locale === 'zh-CN' ? '评论已删除。' : 'Comment deleted.');
     },
-    onError: () => messageApi.error(locale === 'zh-CN' ? '删除失败。' : 'Delete failed.'),
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '删除失败，请确认评论是否存在且属于你。' : 'Delete failed. Please confirm the comment exists and belongs to you.', locale)),
   });
 
   const voteMutation = useMutation({
@@ -416,7 +445,7 @@ export function PublicFileDetailPage() {
       }
       void queryClient.invalidateQueries({ queryKey: ['user-notifications-summary'] });
     },
-    onError: () => messageApi.error(locale === 'zh-CN' ? '操作失败。' : 'Action failed.'),
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '互动操作失败，请检查评论状态或登录状态。' : 'Interaction failed. Please check comment status or sign-in state.', locale)),
   });
 
   const file = fileQuery.data;
@@ -433,7 +462,7 @@ export function PublicFileDetailPage() {
                   <Typography.Title level={2} style={{ marginTop: 0, marginBottom: 8 }}>{file.name}</Typography.Title>
                 </div>
                 <Space wrap>
-                  <Button type="primary" icon={<DownloadOutlined />} loading={downloadMutation.isPending} onClick={() => downloadMutation.mutate(file.id)}>
+                  <Button type="primary" icon={<DownloadOutlined />} loading={downloadMutation.isPending || downloadConfigQuery.isLoading} onClick={startDownload}>
                     {locale === 'zh-CN' ? '下载文件' : 'Download'}
                   </Button>
                   {token ? (
@@ -446,24 +475,14 @@ export function PublicFileDetailPage() {
 
               <div className="detail-metadata">
                 <div className="detail-item">
-                  <span className="detail-label">{locale === 'zh-CN' ? '文件大小' : 'Size'}</span>
-                  <span className="detail-value">{formatBytes(file.size)}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">{locale === 'zh-CN' ? '下载次数' : 'Downloads'}</span>
-                  <span className="detail-value">{file.downloadCount}</span>
-                </div>
-                <div className="detail-item">
                   <span className="detail-label">{locale === 'zh-CN' ? '分类' : 'Category'}</span>
                   <span className="detail-value">{file.categoryPath || file.category || (locale === 'zh-CN' ? '未分类' : 'Uncategorized')}</span>
                 </div>
                 <div className="detail-item">
-                  <span className="detail-label">{locale === 'zh-CN' ? '上传时间' : 'Uploaded'}</span>
-                  <span className="detail-value">{formatDate(file.createdAt)}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">{locale === 'zh-CN' ? '类型' : 'Type'}</span>
-                  <span className="detail-value">{file.mimeType || '-'}</span>
+                  <span className="detail-label">{locale === 'zh-CN' ? '标签' : 'Tags'}</span>
+                  <div className="detail-tag-list">
+                    {(file.tagPaths?.length ? file.tagPaths : file.tags || []).length > 0 ? (file.tagPaths?.length ? file.tagPaths : file.tags).map((tag) => <Tag key={tag}>{tag}</Tag>) : <Tag>{locale === 'zh-CN' ? '无标签' : 'No tags'}</Tag>}
+                  </div>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">{locale === 'zh-CN' ? '上传者' : 'Uploader'}</span>
@@ -483,11 +502,17 @@ export function PublicFileDetailPage() {
                     <span className="detail-value">-</span>
                   )}
                 </div>
-                <div className="detail-item detail-item-full">
-                  <span className="detail-label">{locale === 'zh-CN' ? '标签' : 'Tags'}</span>
-                  <div className="detail-tag-list">
-                    {(file.tagPaths?.length ? file.tagPaths : file.tags || []).length > 0 ? (file.tagPaths?.length ? file.tagPaths : file.tags).map((tag) => <Tag key={tag}>{tag}</Tag>) : <Tag>{locale === 'zh-CN' ? '无标签' : 'No tags'}</Tag>}
-                  </div>
+                <div className="detail-item">
+                  <span className="detail-label">{locale === 'zh-CN' ? '上传时间' : 'Uploaded'}</span>
+                  <span className="detail-value">{formatDate(file.createdAt)}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">{locale === 'zh-CN' ? '文件大小' : 'Size'}</span>
+                  <span className="detail-value">{formatBytes(file.size)}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">{locale === 'zh-CN' ? '类型' : 'Type'}</span>
+                  <span className="detail-value">{file.mimeType || '-'}</span>
                 </div>
                 <div className="detail-item detail-item-full">
                   <span className="detail-label">{locale === 'zh-CN' ? '原文件名' : 'Original filename'}</span>
@@ -683,6 +708,47 @@ export function PublicFileDetailPage() {
             ) : null}
           </div>
         </Card>
+
+        <Modal
+          open={downloadModalOpen}
+          title={locale === 'zh-CN' ? '下载验证码' : 'Download captcha'}
+          okText={locale === 'zh-CN' ? '验证并下载' : 'Verify and download'}
+          cancelText={locale === 'zh-CN' ? '取消' : 'Cancel'}
+          confirmLoading={downloadMutation.isPending}
+          onCancel={() => setDownloadModalOpen(false)}
+          onOk={() => downloadForm.submit()}
+        >
+          <Form
+            form={downloadForm}
+            layout="vertical"
+            onFinish={(values) => {
+              if (!file) {
+                return;
+              }
+              downloadMutation.mutate({
+                fileId: file.id,
+                captchaId: downloadCaptchaQuery.data?.id,
+                captchaAnswer: values.captchaAnswer,
+              });
+            }}
+          >
+            <Form.Item label={locale === 'zh-CN' ? '验证码题目' : 'Captcha challenge'} required>
+              <Space.Compact style={{ width: '100%' }}>
+                <Input value={downloadCaptchaQuery.data?.question ?? ''} readOnly />
+                <Button onClick={() => downloadCaptchaQuery.refetch()} loading={downloadCaptchaQuery.isFetching}>
+                  {locale === 'zh-CN' ? '刷新' : 'Refresh'}
+                </Button>
+              </Space.Compact>
+            </Form.Item>
+            <Form.Item
+              name="captchaAnswer"
+              label={locale === 'zh-CN' ? '验证码答案' : 'Captcha answer'}
+              rules={[{ required: true, message: locale === 'zh-CN' ? '请输入验证码答案' : 'Please enter the captcha answer.' }]}
+            >
+              <Input placeholder={locale === 'zh-CN' ? '输入计算结果' : 'Enter the result'} />
+            </Form.Item>
+          </Form>
+        </Modal>
       </div>
     </>
   );

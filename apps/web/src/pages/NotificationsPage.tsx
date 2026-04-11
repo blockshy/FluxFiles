@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { createComment, deleteComment, fetchMyComments, fetchNotifications, markNotificationRead, markNotificationsRead } from '../api/user';
 import type { CommentRecord, NotificationRecord } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
+import { getApiErrorMessage } from '../lib/apiError';
 import { formatDate } from '../lib/format';
 
 type NotificationTabKey = 'all' | 'replies' | 'likes' | 'dislikes' | 'mine';
@@ -42,6 +43,7 @@ export function NotificationsPage() {
       void queryClient.invalidateQueries({ queryKey: ['user-notifications'] });
       void queryClient.invalidateQueries({ queryKey: ['user-notifications-summary'] });
     },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '标记已读失败，请稍后再试。' : 'Failed to mark as read. Please try again later.', locale)),
   });
 
   const markAllReadMutation = useMutation({
@@ -51,6 +53,7 @@ export function NotificationsPage() {
       void queryClient.invalidateQueries({ queryKey: ['user-notifications-summary'] });
       messageApi.success(locale === 'zh-CN' ? '已标记为已读。' : 'Marked as read.');
     },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '批量标记已读失败，请稍后再试。' : 'Failed to mark all as read. Please try again later.', locale)),
   });
 
   const deleteCommentMutation = useMutation({
@@ -59,6 +62,7 @@ export function NotificationsPage() {
       void queryClient.invalidateQueries({ queryKey: ['my-comments'] });
       messageApi.success(locale === 'zh-CN' ? '评论已删除。' : 'Comment deleted.');
     },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '删除评论失败，请确认评论是否存在且属于你。' : 'Failed to delete comment. Please confirm it exists and belongs to you.', locale)),
   });
 
   const replyMutation = useMutation({
@@ -70,6 +74,7 @@ export function NotificationsPage() {
       void queryClient.invalidateQueries({ queryKey: ['user-notifications-summary'] });
       messageApi.success(locale === 'zh-CN' ? '回复已发送。' : 'Reply posted.');
     },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '回复发送失败，请检查内容或评论状态。' : 'Failed to send reply. Please check content or comment status.', locale)),
   });
 
   function renderNotification(item: NotificationRecord) {

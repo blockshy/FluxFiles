@@ -127,8 +127,10 @@ type UserFavorite struct {
 
 type UserDownloadRecord struct {
 	ID           uint      `gorm:"primaryKey"`
-	UserID       uint      `gorm:"not null;index"`
+	UserID       *uint     `gorm:"index" json:"userId,omitempty"`
 	FileID       uint      `gorm:"not null;index"`
+	IP           string    `gorm:"size:64;not null;default:''" json:"ip"`
+	UserAgent    string    `gorm:"type:text;not null;default:''" json:"userAgent"`
 	DownloadedAt time.Time `gorm:"not null;index" json:"downloadedAt"`
 }
 

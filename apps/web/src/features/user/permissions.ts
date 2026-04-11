@@ -5,6 +5,7 @@ export const PERMISSION_ADMIN_FILES_ALL = 'admin.files.all';
 export const PERMISSION_ADMIN_FILES_UPLOAD = 'admin.files.upload';
 export const PERMISSION_ADMIN_FILES_EDIT = 'admin.files.edit';
 export const PERMISSION_ADMIN_FILES_DELETE = 'admin.files.delete';
+export const PERMISSION_ADMIN_DOWNLOADS_VIEW = 'admin.downloads.view';
 export const PERMISSION_ADMIN_USERS_CREATE = 'admin.users.create';
 export const PERMISSION_ADMIN_USERS_EDIT = 'admin.users.edit';
 export const PERMISSION_ADMIN_CATEGORIES_VIEW = 'admin.categories.view';
@@ -26,6 +27,7 @@ export const ALL_ADMIN_PERMISSIONS = [
   PERMISSION_ADMIN_FILES_UPLOAD,
   PERMISSION_ADMIN_FILES_EDIT,
   PERMISSION_ADMIN_FILES_DELETE,
+  PERMISSION_ADMIN_DOWNLOADS_VIEW,
   PERMISSION_ADMIN_USERS_CREATE,
   PERMISSION_ADMIN_USERS_EDIT,
   PERMISSION_ADMIN_CATEGORIES_VIEW,
@@ -56,8 +58,13 @@ export function canAccessAdminFiles(user: UserAccount | null | undefined) {
     hasPermission(user, PERMISSION_ADMIN_FILES_ALL) ||
     hasPermission(user, PERMISSION_ADMIN_FILES_UPLOAD) ||
     hasPermission(user, PERMISSION_ADMIN_FILES_EDIT) ||
-    hasPermission(user, PERMISSION_ADMIN_FILES_DELETE)
+    hasPermission(user, PERMISSION_ADMIN_FILES_DELETE) ||
+    hasPermission(user, PERMISSION_ADMIN_DOWNLOADS_VIEW)
   );
+}
+
+export function canAccessAdminDownloads(user: UserAccount | null | undefined) {
+  return hasPermission(user, PERMISSION_ADMIN_DOWNLOADS_VIEW);
 }
 
 export function canAccessAdminUsers(user: UserAccount | null | undefined) {
@@ -87,6 +94,9 @@ export function canAccessAdminTags(user: UserAccount | null | undefined) {
 export function getAdminHomePath(user: UserAccount | null | undefined) {
   if (canAccessAdminFiles(user)) {
     return '/admin/files';
+  }
+  if (canAccessAdminDownloads(user)) {
+    return '/admin/downloads';
   }
   if (canAccessAdminCategories(user)) {
     return '/admin/categories';

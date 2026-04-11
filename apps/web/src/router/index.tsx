@@ -9,6 +9,7 @@ import {
   PERMISSION_ADMIN_FILES_UPLOAD,
   PERMISSION_ADMIN_FILES_EDIT,
   PERMISSION_ADMIN_FILES_DELETE,
+  PERMISSION_ADMIN_DOWNLOADS_VIEW,
   PERMISSION_ADMIN_AUDIT,
   PERMISSION_ADMIN_CATEGORIES_CREATE,
   PERMISSION_ADMIN_CATEGORIES_DELETE,
@@ -29,6 +30,7 @@ import { AdminLayout } from '../layouts/AdminLayout';
 import { AdminTagsPage } from '../pages/AdminTagsPage';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { AdminFilesPage } from '../pages/AdminFilesPage';
+import { AdminDownloadsPage } from '../pages/AdminDownloadsPage';
 import { AdminLogsPage } from '../pages/AdminLogsPage';
 import { AdminSettingsPage } from '../pages/AdminSettingsPage';
 import { AdminUsersPage } from '../pages/AdminUsersPage';
@@ -106,6 +108,14 @@ export function AppRouter() {
           element={
             <AdminPermissionRoute permission={[PERMISSION_ADMIN_FILES_OWN, PERMISSION_ADMIN_FILES_ALL, PERMISSION_ADMIN_FILES_UPLOAD, PERMISSION_ADMIN_FILES_EDIT, PERMISSION_ADMIN_FILES_DELETE]}>
               <AdminFilesPage />
+            </AdminPermissionRoute>
+          }
+        />
+        <Route
+          path="downloads"
+          element={
+            <AdminPermissionRoute permission={PERMISSION_ADMIN_DOWNLOADS_VIEW}>
+              <AdminDownloadsPage />
             </AdminPermissionRoute>
           }
         />

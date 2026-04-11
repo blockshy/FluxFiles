@@ -56,6 +56,16 @@ type UpdateRegistrationSettingRequest struct {
 	RegistrationEnabled bool `json:"registrationEnabled"`
 }
 
+type UpdateGuestDownloadSettingRequest struct {
+	GuestDownloadAllowed bool `json:"guestDownloadAllowed"`
+}
+
+type UpdateDownloadSettingsRequest struct {
+	GuestDownloadAllowed bool `json:"guestDownloadAllowed"`
+	CaptchaEnabled       bool `json:"captchaEnabled"`
+	URLExpiresSeconds    int  `json:"urlExpiresSeconds" binding:"required,min=10,max=86400"`
+}
+
 type UpdateCaptchaSettingsRequest struct {
 	LoginEnabled        bool `json:"loginEnabled"`
 	RegistrationEnabled bool `json:"registrationEnabled"`
@@ -67,7 +77,7 @@ type RateLimitRuleRequest struct {
 }
 
 type UpdateRateLimitSettingsRequest struct {
-	Login    struct {
+	Login struct {
 		Guest         RateLimitRuleRequest `json:"guest"`
 		Authenticated RateLimitRuleRequest `json:"authenticated"`
 	} `json:"login"`

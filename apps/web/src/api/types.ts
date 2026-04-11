@@ -157,6 +157,17 @@ export interface CaptchaSettings {
   registrationEnabled: boolean;
 }
 
+export interface DownloadSettings {
+  guestDownloadAllowed: boolean;
+  captchaEnabled: boolean;
+  urlExpiresSeconds: number;
+}
+
+export interface PublicDownloadConfig {
+  guestDownloadAllowed: boolean;
+  captchaEnabled: boolean;
+}
+
 export interface CaptchaChallenge {
   id: string;
   question: string;
@@ -182,6 +193,40 @@ export interface ChangePasswordPayload {
 
 export interface UserDownloadRecord extends FileRecord {
   downloadedAt: string;
+}
+
+export interface AdminDownloadRecord {
+  id: number;
+  fileId: number;
+  fileName: string;
+  originalName: string;
+  size: number;
+  mimeType: string;
+  category: string;
+  tags: string[];
+  isPublic: boolean;
+  downloadCount: number;
+  fileCreatedBy?: number;
+  fileCreatedByUsername?: string;
+  fileCreatedByDisplayName?: string;
+  userId?: number;
+  userUsername?: string;
+  userDisplayName?: string;
+  userAvatarUrl?: string;
+  ip: string;
+  userAgent: string;
+  downloadedAt: string;
+}
+
+export interface DownloadRecordQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+  userSearch?: string;
+  ip?: string;
+  authStatus?: 'all' | 'guest' | 'user';
+  startAt?: string;
+  endAt?: string;
 }
 
 export interface PublicUserProfileStats {
@@ -284,6 +329,8 @@ export interface UpdateManagedUserPayload {
 
 export interface AdminSettings {
   registrationEnabled: boolean;
+  guestDownloadAllowed: boolean;
+  downloadSettings: DownloadSettings;
   captcha: CaptchaSettings;
   rateLimits: RateLimitSettings;
   uploadSettings: UploadSettings;

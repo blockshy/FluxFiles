@@ -384,8 +384,10 @@ CREATE INDEX IF NOT EXISTS idx_user_favorites_created_at ON public.user_favorite
 
 CREATE TABLE IF NOT EXISTS public.user_download_records (
     id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
+    user_id BIGINT NULL,
     file_id BIGINT NOT NULL,
+    ip VARCHAR(64) NOT NULL DEFAULT '',
+    user_agent TEXT NOT NULL DEFAULT '',
     downloaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT user_download_records_user_id_fkey
         FOREIGN KEY (user_id) REFERENCES public.users(id)
@@ -395,9 +397,20 @@ CREATE TABLE IF NOT EXISTS public.user_download_records (
         ON DELETE CASCADE
 );
 
+ALTER TABLE public.user_download_records ALTER COLUMN user_id DROP NOT NULL;
+ALTER TABLE public.user_download_records ADD COLUMN IF NOT EXISTS ip VARCHAR(64) NOT NULL DEFAULT '';
+ALTER TABLE public.user_download_records ADD COLUMN IF NOT EXISTS user_agent TEXT NOT NULL DEFAULT '';
+
 CREATE INDEX IF NOT EXISTS idx_user_download_records_user_id ON public.user_download_records(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_download_records_file_id ON public.user_download_records(file_id);
+CREATE INDEX IF NOT EXISTS idx_user_download_records_ip ON public.user_download_records(ip);
 CREATE INDEX IF NOT EXISTS idx_user_download_records_downloaded_at ON public.user_download_records(downloaded_at);
+
+UPDATE public.users
+SET permissions = permissions || '["admin.downloads.view"]'::jsonb
+WHERE role = 'admin'
+  AND permissions ? 'admin.files.all'
+  AND NOT permissions ? 'admin.downloads.view';
 
 CREATE TABLE IF NOT EXISTS public.file_comments (
     id BIGSERIAL PRIMARY KEY,

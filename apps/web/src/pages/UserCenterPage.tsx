@@ -13,6 +13,7 @@ import {
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { useUserAuth } from '../features/user/AuthProvider';
 import { buildDefaultAvatarDataUrl } from '../lib/avatar';
+import { getApiErrorMessage } from '../lib/apiError';
 import { formatBytes, formatDate } from '../lib/format';
 
 export function UserCenterPage() {
@@ -54,6 +55,7 @@ export function UserCenterPage() {
       messageApi.success(t('account.profileUpdated'));
       void queryClient.invalidateQueries({ queryKey: ['user-me'] });
     },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '资料保存失败，请检查邮箱、昵称、头像或简介。' : 'Failed to save profile. Please check email, nickname, avatar, or bio.', locale)),
   });
 
   const passwordMutation = useMutation({
@@ -64,6 +66,7 @@ export function UserCenterPage() {
       logout();
       window.location.href = '/fluxfiles/login';
     },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '密码修改失败，请检查当前密码和新密码。' : 'Failed to change password. Please check current and new passwords.', locale)),
   });
 
   if (meQuery.isLoading && !meQuery.data) {
@@ -87,22 +90,26 @@ export function UserCenterPage() {
       return;
     }
 
-    const result = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          resolve(reader.result);
-          return;
-        }
-        reject(new Error('invalid avatar'));
-      };
-      reader.onerror = () => reject(reader.error ?? new Error('avatar read failed'));
-      reader.readAsDataURL(file);
-    });
+    try {
+      const result = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result);
+            return;
+          }
+          reject(new Error('invalid avatar'));
+        };
+        reader.onerror = () => reject(reader.error ?? new Error('avatar read failed'));
+        reader.readAsDataURL(file);
+      });
 
-    profileForm.setFieldValue('avatarUrl', result);
-    setSelectedAvatarName(file.name);
-    messageApi.success(locale === 'zh-CN' ? '头像已选中，点击“保存资料”后生效。' : 'Avatar selected. Click "Save profile" to apply it.');
+      profileForm.setFieldValue('avatarUrl', result);
+      setSelectedAvatarName(file.name);
+      messageApi.success(locale === 'zh-CN' ? '头像已选中，点击“保存资料”后生效。' : 'Avatar selected. Click "Save profile" to apply it.');
+    } catch (error) {
+      messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '头像读取失败，请重新选择图片。' : 'Failed to read avatar. Please choose the image again.', locale));
+    }
   }
 
   return (

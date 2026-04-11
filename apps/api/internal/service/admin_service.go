@@ -310,6 +310,49 @@ func (s *AdminService) GetRegistrationSettings(ctx context.Context) (bool, error
 	return s.settings.IsRegistrationOpen(ctx)
 }
 
+func (s *AdminService) GetGuestDownloadAllowed(ctx context.Context) (bool, error) {
+	return s.settings.IsGuestDownloadAllowed(ctx)
+}
+
+func (s *AdminService) GetDownloadSettings(ctx context.Context) (DownloadSettings, error) {
+	return s.settings.GetDownloadSettings(ctx)
+}
+
+func (s *AdminService) UpdateGuestDownloadAllowed(ctx context.Context, adminID uint, ip string, allowed bool) error {
+	before, err := s.settings.IsGuestDownloadAllowed(ctx)
+	if err != nil {
+		return err
+	}
+	if err := s.settings.SetGuestDownloadAllowed(ctx, allowed); err != nil {
+		return err
+	}
+	s.logs.Record(ctx, adminID, "settings.guest_download.update", "system_setting", guestDownloadAllowedSettingKey, MarshalAuditDetail(AuditDetail{
+		Summary: "Updated guest download setting",
+		Changes: []AuditFieldChange{
+			{Field: "guestDownloadAllowed", Label: "Guest Download Allowed", Before: before, After: allowed},
+		},
+	}), ip)
+	return nil
+}
+
+func (s *AdminService) UpdateDownloadSettings(ctx context.Context, adminID uint, ip string, value DownloadSettings) (DownloadSettings, error) {
+	before, err := s.settings.GetDownloadSettings(ctx)
+	if err != nil {
+		return DownloadSettings{}, err
+	}
+	after, err := s.settings.SetDownloadSettings(ctx, value)
+	if err != nil {
+		return DownloadSettings{}, err
+	}
+	s.logs.Record(ctx, adminID, "settings.download.update", "system_setting", downloadSettingsKey, MarshalAuditDetail(AuditDetail{
+		Summary: "Updated download settings",
+		Changes: []AuditFieldChange{
+			{Field: "downloadSettings", Label: "Download Settings", Before: before, After: after},
+		},
+	}), ip)
+	return after, nil
+}
+
 func (s *AdminService) GetRateLimitSettings(ctx context.Context) (RateLimitSettings, error) {
 	return s.settings.GetRateLimitSettings(ctx)
 }

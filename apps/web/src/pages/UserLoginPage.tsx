@@ -1,6 +1,5 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { Button, Card, Form, Input, Space, Typography, message } from 'antd';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { fetchCaptcha, fetchRegisterConfig, loginUser } from '../api/user';
@@ -8,16 +7,7 @@ import { LocaleToggle } from '../features/i18n/LocaleToggle';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { ThemeToggle } from '../features/theme/ThemeToggle';
 import { useUserAuth } from '../features/user/AuthProvider';
-
-function extractErrorMessage(error: unknown, fallback: string) {
-  if (axios.isAxiosError(error)) {
-    const text = error.response?.data?.message;
-    if (typeof text === 'string' && text.trim()) {
-      return text;
-    }
-  }
-  return error instanceof Error && error.message.trim() ? error.message : fallback;
-}
+import { getApiErrorMessage } from '../lib/apiError';
 
 export function UserLoginPage() {
   const navigate = useNavigate();
@@ -46,7 +36,7 @@ export function UserLoginPage() {
       navigate(target, { replace: true });
     },
     onError: (error) => {
-      messageApi.error(extractErrorMessage(error, t('login.error')));
+      messageApi.error(getApiErrorMessage(error, t('login.error'), locale));
       void captchaQuery.refetch();
     },
   });

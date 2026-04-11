@@ -9,16 +9,13 @@ import { useI18n } from '../features/i18n/LocaleProvider';
 import { getPermissionCombinationFeedback, getPermissionGroups, getPermissionLabels } from '../features/user/permissionConfig';
 import { useUserAuth } from '../features/user/AuthProvider';
 import { hasPermission, PERMISSION_ADMIN_USERS_CREATE, PERMISSION_ADMIN_USERS_EDIT } from '../features/user/permissions';
+import { getApiErrorMessage } from '../lib/apiError';
 import { formatDate } from '../lib/format';
 
 interface UserModalState {
   open: boolean;
   mode: 'create' | 'edit';
   user?: AdminUser | null;
-}
-
-function errorText(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 export function AdminUsersPage() {
@@ -57,7 +54,7 @@ export function AdminUsersPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
     },
-    onError: (error) => messageApi.error(errorText(error, 'Create user failed.')),
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '用户创建失败，请检查账号、邮箱、角色和权限。' : 'User creation failed. Please check account, email, role, and permissions.', locale)),
   });
 
   const updateMutation = useMutation({
@@ -69,7 +66,7 @@ export function AdminUsersPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
     },
-    onError: (error) => messageApi.error(errorText(error, 'Update user failed.')),
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '用户更新失败，请检查邮箱、角色和权限。' : 'User update failed. Please check email, role, and permissions.', locale)),
   });
 
   const templates = templatesQuery.data ?? [];

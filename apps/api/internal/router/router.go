@@ -22,6 +22,7 @@ type Dependencies struct {
 	PublicAuth      *controller.PublicAuthController
 	AdminAuth       *controller.AdminAuthController
 	AdminFiles      *controller.AdminFileController
+	AdminDownloads  *controller.AdminDownloadController
 	AdminTaxonomies *controller.AdminTaxonomyController
 	AdminUsers      *controller.AdminUserController
 	AdminLogs       *controller.AdminLogController
@@ -61,6 +62,7 @@ func New(deps Dependencies) *gin.Engine {
 	api.GET("/files/categories/options", deps.PublicFiles.CategoryOptions)
 	api.GET("/files/tag-categories/options", deps.PublicFiles.TagCategoryOptions)
 	api.GET("/files/tags/options", deps.PublicFiles.TagOptions)
+	api.GET("/files/download-config", deps.PublicFiles.DownloadConfig)
 	api.GET("/files/:id", deps.PublicFiles.Get)
 	api.GET("/files/:id/comments",
 		middleware.OptionalAuth(deps.AuthService),
@@ -123,6 +125,11 @@ func New(deps Dependencies) *gin.Engine {
 	)
 	adminFiles.PUT("/files/:id", deps.AdminFiles.Update)
 	adminFiles.DELETE("/files/:id", deps.AdminFiles.Delete)
+
+	adminDownloads := adminAuthorized.Group("")
+	adminDownloads.Use(middleware.RequireAnyPermission(deps.AuthService, service.PermissionAdminDownloadsView))
+	adminDownloads.GET("/downloads", deps.AdminDownloads.List)
+	adminDownloads.GET("/files/:id/downloads", deps.AdminDownloads.ListForFile)
 
 	adminUsers := adminAuthorized.Group("")
 	adminUsers.Use(middleware.RequireAnyPermission(deps.AuthService, service.PermissionAdminUsersCreate, service.PermissionAdminUsersEdit))
@@ -198,6 +205,8 @@ func New(deps Dependencies) *gin.Engine {
 	adminSettings.Use(middleware.RequirePermission(deps.AuthService, service.PermissionAdminSettings))
 	adminSettings.GET("/settings", deps.AdminUsers.GetSettings)
 	adminSettings.PUT("/settings/registration", deps.AdminUsers.UpdateSettings)
+	adminSettings.PUT("/settings/guest-download", deps.AdminUsers.UpdateGuestDownloadSettings)
+	adminSettings.PUT("/settings/download", deps.AdminUsers.UpdateDownloadSettings)
 	adminSettings.PUT("/settings/captcha", deps.AdminUsers.UpdateCaptchaSettings)
 	adminSettings.PUT("/settings/rate-limits", deps.AdminUsers.UpdateRateLimitSettings)
 	adminSettings.PUT("/settings/upload", deps.AdminUsers.UpdateUploadSettings)

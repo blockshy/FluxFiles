@@ -12,6 +12,7 @@ const (
 	PermissionAdminFilesUpload      = "admin.files.upload"
 	PermissionAdminFilesEdit        = "admin.files.edit"
 	PermissionAdminFilesDelete      = "admin.files.delete"
+	PermissionAdminDownloadsView    = "admin.downloads.view"
 	PermissionAdminUsersCreate      = "admin.users.create"
 	PermissionAdminUsersEdit        = "admin.users.edit"
 	PermissionAdminCategoriesView   = "admin.categories.view"
@@ -34,6 +35,7 @@ var AllAdminPermissions = []string{
 	PermissionAdminFilesUpload,
 	PermissionAdminFilesEdit,
 	PermissionAdminFilesDelete,
+	PermissionAdminDownloadsView,
 	PermissionAdminUsersCreate,
 	PermissionAdminUsersEdit,
 	PermissionAdminCategoriesView,
@@ -68,7 +70,7 @@ var DefaultPermissionTemplates = []PermissionTemplate{
 		Key:         "ops_admin",
 		Name:        "Ops Admin",
 		Description: "Manage files and view audit logs",
-		Permissions: []string{PermissionAdminFilesAll, PermissionAdminFilesUpload, PermissionAdminFilesEdit, PermissionAdminFilesDelete, PermissionAdminAudit},
+		Permissions: []string{PermissionAdminFilesAll, PermissionAdminFilesUpload, PermissionAdminFilesEdit, PermissionAdminFilesDelete, PermissionAdminDownloadsView, PermissionAdminAudit},
 	},
 	{
 		Key:         "taxonomy_admin",
@@ -168,6 +170,9 @@ func ValidatePermissionCombination(permissions []string) error {
 
 	if (HasPermission(permissions, PermissionAdminFilesEdit) || HasPermission(permissions, PermissionAdminFilesDelete)) && !hasFileScope {
 		return fmt.Errorf("%w: file edit/delete permissions require own-file or all-file scope", ErrValidation)
+	}
+	if HasPermission(permissions, PermissionAdminDownloadsView) && !hasFileScope {
+		return fmt.Errorf("%w: download record view permission requires own-file or all-file scope", ErrValidation)
 	}
 	if err := validateTaxonomyPermissionViewDependency(permissions, PermissionAdminCategoriesView, PermissionAdminCategoriesCreate, PermissionAdminCategoriesEdit, PermissionAdminCategoriesDelete, PermissionAdminCategoriesLogs); err != nil {
 		return err

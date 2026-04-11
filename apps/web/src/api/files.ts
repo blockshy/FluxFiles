@@ -6,6 +6,7 @@ import type {
   FileQuery,
   FileRecord,
   PaginatedPayload,
+  PublicDownloadConfig,
   TaxonomyRecord,
 } from './types';
 
@@ -47,8 +48,15 @@ export async function fetchPublicFile(id: number) {
   return response.data.data;
 }
 
-export async function requestDownloadLink(id: number) {
-  const response = await apiClient.get<ApiEnvelope<DownloadPayload>>(`/files/${id}/download`);
+export async function fetchPublicDownloadConfig() {
+  const response = await apiClient.get<ApiEnvelope<PublicDownloadConfig>>('/files/download-config');
+  return response.data.data;
+}
+
+export async function requestDownloadLink(id: number, captcha?: { captchaId?: string; captchaAnswer?: string }) {
+  const response = await apiClient.get<ApiEnvelope<DownloadPayload>>(`/files/${id}/download`, {
+    params: captcha,
+  });
   return response.data.data;
 }
 

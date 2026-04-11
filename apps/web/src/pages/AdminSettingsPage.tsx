@@ -7,14 +7,16 @@ import {
   fetchAdminSettings,
   fetchPermissionTemplates,
   updateCaptchaSettings,
+  updateDownloadSettings,
   updatePermissionTemplates,
   updateRateLimitSettings,
   updateRegistrationSetting,
   updateUploadSettings,
 } from '../api/admin';
-import type { PermissionTemplate, RateLimitSettings, UploadSettings } from '../api/types';
+import type { DownloadSettings, PermissionTemplate, RateLimitSettings, UploadSettings } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { getPermissionCombinationFeedback, getPermissionGroups, getPermissionLabels } from '../features/user/permissionConfig';
+import { getApiErrorMessage } from '../lib/apiError';
 
 const splitList = (value: string) =>
   value
@@ -32,6 +34,7 @@ export function AdminSettingsPage() {
   const [draftTemplates, setDraftTemplates] = useState<PermissionTemplate[]>([]);
   const [templateForm] = Form.useForm<PermissionTemplate>();
   const [rateLimitForm] = Form.useForm<RateLimitSettings>();
+  const [downloadForm] = Form.useForm<DownloadSettings>();
   const [uploadForm] = Form.useForm<UploadSettings & { allowedExtensionsText?: string; allowedMimeTypesText?: string }>();
   const selectedPermissions = Form.useWatch('permissions', templateForm) as string[] | undefined;
   const restrictFileTypes = Form.useWatch('restrictFileTypes', uploadForm);
@@ -46,12 +49,13 @@ export function AdminSettingsPage() {
       return;
     }
     rateLimitForm.setFieldsValue(settingsQuery.data.rateLimits);
+    downloadForm.setFieldsValue(settingsQuery.data.downloadSettings);
     uploadForm.setFieldsValue({
       ...settingsQuery.data.uploadSettings,
       allowedExtensionsText: joinList(settingsQuery.data.uploadSettings.allowedExtensions),
       allowedMimeTypesText: joinList(settingsQuery.data.uploadSettings.allowedMimeTypes),
     });
-  }, [rateLimitForm, settingsQuery.data, uploadForm]);
+  }, [downloadForm, rateLimitForm, settingsQuery.data, uploadForm]);
 
   const registrationMutation = useMutation({
     mutationFn: updateRegistrationSetting,
@@ -60,6 +64,7 @@ export function AdminSettingsPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
       void queryClient.invalidateQueries({ queryKey: ['register-config'] });
     },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '注册开关更新失败。' : 'Failed to update registration setting.', locale)),
   });
 
   const captchaMutation = useMutation({
@@ -69,6 +74,17 @@ export function AdminSettingsPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
       void queryClient.invalidateQueries({ queryKey: ['register-config'] });
     },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '验证码设置更新失败。' : 'Failed to update captcha settings.', locale)),
+  });
+
+  const downloadMutation = useMutation({
+    mutationFn: updateDownloadSettings,
+    onSuccess: () => {
+      messageApi.success(t('settings.saved'));
+      void queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
+    },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '下载设置保存失败，请检查验证码开关和链接有效期。' : 'Failed to save download settings. Please check captcha and URL expiry.', locale)),
   });
 
   const rateLimitMutation = useMutation({
@@ -78,6 +94,7 @@ export function AdminSettingsPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
       void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
     },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '限流配置保存失败，请检查数值。' : 'Failed to save rate limits. Please check values.', locale)),
   });
 
   const uploadMutation = useMutation({
@@ -87,6 +104,7 @@ export function AdminSettingsPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
       void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
     },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '上传限制保存失败，请检查文件大小和类型配置。' : 'Failed to save upload restrictions. Please check size and type settings.', locale)),
   });
 
   const templatesMutation = useMutation({
@@ -97,6 +115,7 @@ export function AdminSettingsPage() {
       void queryClient.invalidateQueries({ queryKey: ['permission-templates'] });
       void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
     },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '权限模板保存失败，请检查模板名称和权限组合。' : 'Failed to save permission templates. Please check template names and permission combinations.', locale)),
   });
 
   const templates = draftTemplates.length > 0 ? draftTemplates : templatesQuery.data ?? [];
@@ -185,6 +204,38 @@ export function AdminSettingsPage() {
             </div>
           </div>
         </Space>
+      </Card>
+
+      <Card className="surface-card" style={{ marginTop: 24 }} loading={settingsQuery.isLoading}>
+        <div className="toolbar-row">
+          <div>
+            <h2 className="section-title">{locale === 'zh-CN' ? '文件下载设置' : 'Download Settings'}</h2>
+            <p className="section-subtitle">
+              {locale === 'zh-CN' ? '控制游客下载、下载验证码，以及阿里云临时下载链接的有效期。' : 'Control guest downloads, download captcha, and the expiry of temporary Aliyun download links.'}
+            </p>
+          </div>
+          <Button type="primary" loading={downloadMutation.isPending} onClick={() => downloadForm.submit()}>
+            {t('common.save')}
+          </Button>
+        </div>
+
+        <Form form={downloadForm} layout="vertical" onFinish={(values) => downloadMutation.mutate(values)}>
+          <div className="detail-metadata">
+            <Form.Item label={locale === 'zh-CN' ? '允许游客下载' : 'Allow guest downloads'} name="guestDownloadAllowed" valuePropName="checked">
+              <Switch checkedChildren={t('common.on')} unCheckedChildren={t('common.off')} />
+            </Form.Item>
+            <Form.Item label={locale === 'zh-CN' ? '下载验证码' : 'Download captcha'} name="captchaEnabled" valuePropName="checked">
+              <Switch checkedChildren={t('common.on')} unCheckedChildren={t('common.off')} />
+            </Form.Item>
+            <Form.Item
+              label={locale === 'zh-CN' ? '下载链接有效期（秒）' : 'Download URL expiry (s)'}
+              name="urlExpiresSeconds"
+              rules={[{ required: true, message: locale === 'zh-CN' ? '请输入下载链接有效期' : 'Please enter download URL expiry.' }]}
+            >
+              <InputNumber min={10} max={86400} style={{ width: '100%' }} />
+            </Form.Item>
+          </div>
+        </Form>
       </Card>
 
       <Card className="surface-card" style={{ marginTop: 24 }} loading={settingsQuery.isLoading}>

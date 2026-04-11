@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { adminLogin } from '../api/admin';
 import { useAuth } from '../features/admin/AuthProvider';
 import { ThemeToggle } from '../features/theme/ThemeToggle';
+import { getApiErrorMessage } from '../lib/apiError';
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
@@ -20,8 +21,8 @@ export function AdminLoginPage() {
       const target = (location.state as { from?: string } | null)?.from ?? '/admin/files';
       navigate(target, { replace: true });
     },
-    onError: () => {
-      messageApi.error('登录失败，请检查账号密码或稍后重试。');
+    onError: (error) => {
+      messageApi.error(getApiErrorMessage(error, '登录失败，请检查账号密码。', 'zh-CN'));
     },
   });
 

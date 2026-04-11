@@ -47,12 +47,15 @@ func New(cfg config.StorageConfig) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) PresignDownload(ctx context.Context, objectKey, downloadName string) (string, time.Time, error) {
+func (c *Client) PresignDownload(ctx context.Context, objectKey, downloadName string, ttl time.Duration) (string, time.Time, error) {
+	if ttl <= 0 {
+		ttl = c.signedTTL
+	}
 	download, err := c.client.Presign(ctx, &ossv2.GetObjectRequest{
 		Bucket:                     ossv2.Ptr(c.bucket),
 		Key:                        ossv2.Ptr(objectKey),
 		ResponseContentDisposition: ossv2.Ptr(buildAttachmentDisposition(downloadName)),
-	}, ossv2.PresignExpires(c.signedTTL))
+	}, ossv2.PresignExpires(ttl))
 	if err != nil {
 		return "", time.Time{}, err
 	}

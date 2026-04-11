@@ -21,6 +21,8 @@ const permissionTemplatesSettingKey = "admin.permission_templates"
 const rateLimitSettingsKey = "security.rate_limits"
 const captchaSettingsKey = "security.captcha"
 const uploadSettingsKey = "storage.upload_policy"
+const guestDownloadAllowedSettingKey = "security.guest_download_allowed"
+const downloadSettingsKey = "security.download_settings"
 
 type RateLimitRuleSettings struct {
 	Limit         int `json:"limit"`
@@ -50,6 +52,12 @@ type UploadSettings struct {
 	RestrictFileTypes bool     `json:"restrictFileTypes"`
 	AllowedExtensions []string `json:"allowedExtensions"`
 	AllowedMimeTypes  []string `json:"allowedMimeTypes"`
+}
+
+type DownloadSettings struct {
+	GuestDownloadAllowed bool `json:"guestDownloadAllowed"`
+	CaptchaEnabled       bool `json:"captchaEnabled"`
+	URLExpiresSeconds    int  `json:"urlExpiresSeconds"`
 }
 
 type SettingsService struct {
@@ -93,6 +101,88 @@ func (s *SettingsService) SetRegistrationOpen(ctx context.Context, enabled bool)
 		return ErrDependencyUnavailable
 	}
 	return nil
+}
+
+func (s *SettingsService) IsGuestDownloadAllowed(ctx context.Context) (bool, error) {
+	settings, err := s.GetDownloadSettings(ctx)
+	if err != nil {
+		return false, err
+	}
+	return settings.GuestDownloadAllowed, nil
+}
+
+func (s *SettingsService) SetGuestDownloadAllowed(ctx context.Context, allowed bool) error {
+	settings, err := s.GetDownloadSettings(ctx)
+	if err != nil {
+		return err
+	}
+	settings.GuestDownloadAllowed = allowed
+	_, err = s.SetDownloadSettings(ctx, settings)
+	return err
+}
+
+func (s *SettingsService) DefaultDownloadSettings() DownloadSettings {
+	return DownloadSettings{
+		GuestDownloadAllowed: true,
+		CaptchaEnabled:       false,
+		URLExpiresSeconds:    60,
+	}
+}
+
+func (s *SettingsService) GetDownloadSettings(ctx context.Context) (DownloadSettings, error) {
+	item, err := s.settings.GetByKey(ctx, downloadSettingsKey)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			guestAllowed, guestErr := s.legacyGuestDownloadAllowed(ctx)
+			if guestErr != nil {
+				return DownloadSettings{}, guestErr
+			}
+			settings := s.DefaultDownloadSettings()
+			settings.GuestDownloadAllowed = guestAllowed
+			return settings, nil
+		}
+		return DownloadSettings{}, ErrDependencyUnavailable
+	}
+
+	var settings DownloadSettings
+	if err := json.Unmarshal([]byte(item.Value), &settings); err != nil {
+		return DownloadSettings{}, ErrDependencyUnavailable
+	}
+	return normalizeDownloadSettings(settings, s.DefaultDownloadSettings())
+}
+
+func (s *SettingsService) legacyGuestDownloadAllowed(ctx context.Context) (bool, error) {
+	item, err := s.settings.GetByKey(ctx, guestDownloadAllowedSettingKey)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return true, nil
+		}
+		return false, ErrDependencyUnavailable
+	}
+
+	value, parseErr := strconv.ParseBool(item.Value)
+	if parseErr != nil {
+		return false, ErrDependencyUnavailable
+	}
+	return value, nil
+}
+
+func (s *SettingsService) SetDownloadSettings(ctx context.Context, settings DownloadSettings) (DownloadSettings, error) {
+	normalized, err := normalizeDownloadSettings(settings, s.DefaultDownloadSettings())
+	if err != nil {
+		return DownloadSettings{}, err
+	}
+	payload, err := json.Marshal(normalized)
+	if err != nil {
+		return DownloadSettings{}, ErrDependencyUnavailable
+	}
+	if err := s.settings.Upsert(ctx, downloadSettingsKey, string(payload)); err != nil {
+		return DownloadSettings{}, ErrDependencyUnavailable
+	}
+	if err := s.settings.Upsert(ctx, guestDownloadAllowedSettingKey, strconv.FormatBool(normalized.GuestDownloadAllowed)); err != nil {
+		return DownloadSettings{}, ErrDependencyUnavailable
+	}
+	return normalized, nil
 }
 
 func (s *SettingsService) GetCaptchaSettings(ctx context.Context) (CaptchaSettings, error) {
@@ -390,6 +480,19 @@ func normalizeUploadSettings(value UploadSettings, defaults UploadSettings) (Upl
 		value.AllowedMimeTypes = []string{}
 	}
 
+	return value, nil
+}
+
+func normalizeDownloadSettings(value DownloadSettings, defaults DownloadSettings) (DownloadSettings, error) {
+	if value.URLExpiresSeconds < 0 {
+		return DownloadSettings{}, ErrValidation
+	}
+	if value.URLExpiresSeconds == 0 {
+		value.URLExpiresSeconds = defaults.URLExpiresSeconds
+	}
+	if value.URLExpiresSeconds < 10 || value.URLExpiresSeconds > 86400 {
+		return DownloadSettings{}, ErrValidation
+	}
 	return value, nil
 }
 

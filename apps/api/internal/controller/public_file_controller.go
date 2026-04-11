@@ -3,8 +3,8 @@ package controller
 import (
 	"errors"
 	"net/http"
-	"strings"
 	"strconv"
+	"strings"
 
 	"fluxfiles/api/internal/repository"
 	"fluxfiles/api/internal/service"
@@ -17,10 +17,12 @@ type PublicFileController struct {
 	files      *service.FileService
 	users      *service.UserService
 	taxonomies *service.TaxonomyService
+	settings   *service.SettingsService
+	captcha    *service.CaptchaService
 }
 
-func NewPublicFileController(files *service.FileService, users *service.UserService, taxonomies *service.TaxonomyService) *PublicFileController {
-	return &PublicFileController{files: files, users: users, taxonomies: taxonomies}
+func NewPublicFileController(files *service.FileService, users *service.UserService, taxonomies *service.TaxonomyService, settings *service.SettingsService, captcha *service.CaptchaService) *PublicFileController {
+	return &PublicFileController{files: files, users: users, taxonomies: taxonomies, settings: settings, captcha: captcha}
 }
 
 func (ctl *PublicFileController) List(c *gin.Context) {
@@ -83,6 +85,18 @@ func (ctl *PublicFileController) TagCategoryOptions(c *gin.Context) {
 	response.Success(c, http.StatusOK, "ok", gin.H{"items": items})
 }
 
+func (ctl *PublicFileController) DownloadConfig(c *gin.Context) {
+	settings, err := ctl.settings.GetDownloadSettings(c.Request.Context())
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
+		return
+	}
+	response.Success(c, http.StatusOK, "ok", gin.H{
+		"captchaEnabled":       settings.CaptchaEnabled,
+		"guestDownloadAllowed": settings.GuestDownloadAllowed,
+	})
+}
+
 func (ctl *PublicFileController) Get(c *gin.Context) {
 	file, err := ctl.files.GetPublic(c.Request.Context(), parseUintParam(c, "id"))
 	if err != nil {
@@ -99,11 +113,34 @@ func (ctl *PublicFileController) Get(c *gin.Context) {
 
 func (ctl *PublicFileController) Download(c *gin.Context) {
 	fileID := parseUintParam(c, "id")
-	result, err := ctl.files.GenerateDownload(c.Request.Context(), fileID)
+	userID := c.GetUint("userID")
+	settings, settingsErr := ctl.settings.GetDownloadSettings(c.Request.Context())
+	if settingsErr != nil {
+		response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
+		return
+	}
+	if userID == 0 && !settings.GuestDownloadAllowed {
+		response.Error(c, http.StatusForbidden, "guest downloads are disabled")
+		return
+	}
+	if settings.CaptchaEnabled {
+		ok, verifyErr := ctl.captcha.Verify(c.Request.Context(), c.Query("captchaId"), c.Query("captchaAnswer"))
+		if verifyErr != nil {
+			response.Error(c, http.StatusServiceUnavailable, "captcha service is temporarily unavailable")
+			return
+		}
+		if !ok {
+			response.Error(c, http.StatusBadRequest, "captcha verification failed")
+			return
+		}
+	}
+	result, err := ctl.files.GenerateDownload(c.Request.Context(), fileID, userID > 0)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNotFound):
 			response.Error(c, http.StatusNotFound, "file not found")
+		case errors.Is(err, service.ErrForbidden):
+			response.Error(c, http.StatusForbidden, "guest downloads are disabled")
 		case errors.Is(err, service.ErrDependencyUnavailable):
 			response.Error(c, http.StatusServiceUnavailable, "download service is temporarily unavailable")
 		default:
@@ -112,8 +149,17 @@ func (ctl *PublicFileController) Download(c *gin.Context) {
 		return
 	}
 
-	if userID := c.GetUint("userID"); userID > 0 && ctl.users != nil {
-		_ = ctl.users.RecordDownload(c.Request.Context(), userID, fileID)
+	if ctl.users != nil {
+		var recordUserID *uint
+		if userID > 0 {
+			recordUserID = &userID
+		}
+		_ = ctl.users.RecordDownload(c.Request.Context(), service.RecordDownloadInput{
+			UserID:    recordUserID,
+			FileID:    fileID,
+			IP:        c.ClientIP(),
+			UserAgent: c.Request.UserAgent(),
+		})
 	}
 
 	response.Success(c, http.StatusOK, "download url generated", result)

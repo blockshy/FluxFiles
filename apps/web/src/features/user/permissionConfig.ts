@@ -6,6 +6,7 @@ import {
   PERMISSION_ADMIN_FILES_EDIT,
   PERMISSION_ADMIN_FILES_OWN,
   PERMISSION_ADMIN_FILES_UPLOAD,
+  PERMISSION_ADMIN_DOWNLOADS_VIEW,
   PERMISSION_ADMIN_SETTINGS,
   PERMISSION_ADMIN_USERS_CREATE,
   PERMISSION_ADMIN_USERS_EDIT,
@@ -39,6 +40,7 @@ export function getPermissionLabels(locale: AppLocale): Record<string, string> {
     [PERMISSION_ADMIN_FILES_UPLOAD]: locale === 'zh-CN' ? '文件上传' : 'File upload',
     [PERMISSION_ADMIN_FILES_EDIT]: locale === 'zh-CN' ? '文件编辑' : 'File edit',
     [PERMISSION_ADMIN_FILES_DELETE]: locale === 'zh-CN' ? '文件删除' : 'File delete',
+    [PERMISSION_ADMIN_DOWNLOADS_VIEW]: locale === 'zh-CN' ? '下载记录查看' : 'Download record view',
     [PERMISSION_ADMIN_USERS_CREATE]: locale === 'zh-CN' ? '用户新建' : 'User create',
     [PERMISSION_ADMIN_USERS_EDIT]: locale === 'zh-CN' ? '用户编辑' : 'User edit',
     [PERMISSION_ADMIN_CATEGORIES_VIEW]: locale === 'zh-CN' ? '分类树查看' : 'Category tree view',
@@ -67,6 +69,7 @@ export function getPermissionGroups(locale: AppLocale): PermissionGroup[] {
         PERMISSION_ADMIN_FILES_UPLOAD,
         PERMISSION_ADMIN_FILES_EDIT,
         PERMISSION_ADMIN_FILES_DELETE,
+        PERMISSION_ADMIN_DOWNLOADS_VIEW,
       ],
     },
     {
@@ -118,6 +121,7 @@ export function getPermissionCombinationFeedback(locale: AppLocale, permissions:
   const canEditFile = selected.has(PERMISSION_ADMIN_FILES_EDIT);
   const canDeleteFile = selected.has(PERMISSION_ADMIN_FILES_DELETE);
   const canUploadFile = selected.has(PERMISSION_ADMIN_FILES_UPLOAD);
+  const canViewDownloads = selected.has(PERMISSION_ADMIN_DOWNLOADS_VIEW);
   const categoryView = selected.has(PERMISSION_ADMIN_CATEGORIES_VIEW);
   const tagView = selected.has(PERMISSION_ADMIN_TAGS_VIEW);
 
@@ -128,6 +132,12 @@ export function getPermissionCombinationFeedback(locale: AppLocale, permissions:
     errors.push(locale === 'zh-CN'
       ? '勾选“文件编辑”或“文件删除”时，必须同时勾选“自己的文件范围”或“全部文件范围”。'
       : 'File edit/delete requires either own-file scope or all-file scope.');
+  }
+
+  if (canViewDownloads && !hasFileScope) {
+    errors.push(locale === 'zh-CN'
+      ? '勾选“下载记录查看”时，必须同时勾选“自己的文件范围”或“全部文件范围”。'
+      : 'Download record view requires either own-file scope or all-file scope.');
   }
 
   if (hasOwnScope && hasAllScope) {

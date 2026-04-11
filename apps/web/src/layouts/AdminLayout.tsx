@@ -1,4 +1,4 @@
-import { CloudServerOutlined, FileSearchOutlined, FolderOpenOutlined, HomeOutlined, LogoutOutlined, SettingOutlined, TagsOutlined, TeamOutlined } from '@ant-design/icons';
+import { CloudServerOutlined, DownloadOutlined, FileSearchOutlined, FolderOpenOutlined, HomeOutlined, LogoutOutlined, SettingOutlined, TagsOutlined, TeamOutlined } from '@ant-design/icons';
 import { Button, Layout, Menu, Typography } from 'antd';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { LocaleToggle } from '../features/i18n/LocaleToggle';
@@ -11,6 +11,7 @@ import {
   PERMISSION_ADMIN_FILES_UPLOAD,
   PERMISSION_ADMIN_FILES_EDIT,
   PERMISSION_ADMIN_FILES_DELETE,
+  PERMISSION_ADMIN_DOWNLOADS_VIEW,
   PERMISSION_ADMIN_SETTINGS,
   PERMISSION_ADMIN_USERS_CREATE,
   PERMISSION_ADMIN_USERS_EDIT,
@@ -45,6 +46,9 @@ export function AdminLayout() {
     hasPermission(user, PERMISSION_ADMIN_FILES_DELETE)
   ) {
     items.push({ key: '/admin/files', icon: <CloudServerOutlined />, label: <Link to="/admin/files">{t('admin.files')}</Link> });
+  }
+  if (hasPermission(user, PERMISSION_ADMIN_DOWNLOADS_VIEW)) {
+    items.push({ key: '/admin/downloads', icon: <DownloadOutlined />, label: <Link to="/admin/downloads">{locale === 'zh-CN' ? '下载记录' : 'Downloads'}</Link> });
   }
   if (hasPermission(user, PERMISSION_ADMIN_USERS_CREATE) || hasPermission(user, PERMISSION_ADMIN_USERS_EDIT)) {
     items.push({ key: '/admin/users', icon: <TeamOutlined />, label: <Link to="/admin/users">{t('admin.users')}</Link> });
