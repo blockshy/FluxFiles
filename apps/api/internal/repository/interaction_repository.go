@@ -306,7 +306,10 @@ func (r *InteractionRepository) notificationBaseQuery(ctx context.Context) *gorm
 			actor.avatar_url AS actor_avatar_url,
 			COALESCE((user_notifications.data->>'commentId')::bigint, 0) AS related_comment_id,
 			COALESCE((user_notifications.data->>'fileId')::bigint, 0) AS related_comment_file_id,
-			COALESCE(user_notifications.data->>'commentContent', '') AS related_comment_body
+			COALESCE(user_notifications.data->>'commentContent', '') AS related_comment_body,
+			COALESCE((user_notifications.data->>'postId')::bigint, 0) AS related_post_id,
+			COALESCE(user_notifications.data->>'postTitle', '') AS related_post_title,
+			COALESCE((user_notifications.data->>'replyId')::bigint, 0) AS related_reply_id
 		`).
 		Joins("LEFT JOIN users actor ON actor.id = user_notifications.actor_user_id")
 }

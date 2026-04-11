@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { BellOutlined, DownOutlined, HomeOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { BellOutlined, DownOutlined, HomeOutlined, LogoutOutlined, MessageOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import type { MenuProps } from 'antd';
-import { Avatar, Badge, Button, Dropdown, Space } from 'antd';
+import { Avatar, Badge, Button, Dropdown, Space, message } from 'antd';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { fetchNotifications } from '../api/user';
 import { LocaleToggle } from '../features/i18n/LocaleToggle';
@@ -16,6 +16,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
+  const [messageApi, contextHolder] = message.useMessage();
   const notificationsQuery = useQuery({
     queryKey: ['user-notifications-summary'],
     queryFn: () => fetchNotifications(1, 1),
@@ -53,49 +54,67 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="app-shell">
-      <header className="shell-header">
-        <div className="shell-header-left">
-          <Link to="/" className="brand-link">
-            <div>
-              <h1 className="brand-title">{t('public.title')}</h1>
-              <p className="brand-subtitle">{t('public.subtitle')}</p>
-            </div>
-          </Link>
-          <nav className="shell-nav" aria-label="Primary">
-            <Link to="/" className={`shell-nav-link${location.pathname === '/' ? ' active' : ''}`}>
-              <HomeOutlined />
-              <span>{t('nav.home')}</span>
+    <>
+      {contextHolder}
+      <div className="app-shell">
+        <header className="shell-header">
+          <div className="shell-header-left">
+            <Link to="/" className="brand-link">
+              <div>
+                <h1 className="brand-title">{t('public.title')}</h1>
+                <p className="brand-subtitle">{t('public.subtitle')}</p>
+              </div>
             </Link>
-          </nav>
-        </div>
+            <nav className="shell-nav" aria-label="Primary">
+              <Link to="/" className={`shell-nav-link${location.pathname === '/' ? ' active' : ''}`}>
+                <HomeOutlined />
+                <span>{t('nav.home')}</span>
+              </Link>
+              {user ? (
+                <Link to="/community" className={`shell-nav-link${location.pathname.startsWith('/community') ? ' active' : ''}`}>
+                  <MessageOutlined />
+                  <span>社区</span>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="shell-nav-link shell-nav-button"
+                  onClick={() => messageApi.warning('请先登录后再进入社区。')}
+                >
+                  <MessageOutlined />
+                  <span>社区</span>
+                </button>
+              )}
+            </nav>
+          </div>
 
-        <Space size={12} wrap>
-          <LocaleToggle />
-          <ThemeToggle />
-          {user ? (
-            <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} trigger={['click']} placement="bottomRight">
-              <button type="button" className="user-menu-trigger">
-                <Badge count={unreadCount} size="small">
-                  <Avatar src={user.avatarUrl} size={36} icon={<UserOutlined />} />
-                </Badge>
-                <span className="user-menu-name">{user.displayName || user.username}</span>
-                <DownOutlined />
-              </button>
-            </Dropdown>
-          ) : (
-            <>
-              <Button type="default">
-                <Link to="/login">{t('nav.login')}</Link>
-              </Button>
-              <Button type="default">
-                <Link to="/register">{t('nav.register')}</Link>
-              </Button>
-            </>
-          )}
-        </Space>
-      </header>
-      <main className="shell-body">{children}</main>
-    </div>
+          <Space size={12} wrap>
+            <LocaleToggle />
+            <ThemeToggle />
+            {user ? (
+              <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} trigger={['click']} placement="bottomRight">
+                <button type="button" className="user-menu-trigger">
+                  <Badge count={unreadCount} size="small">
+                    <Avatar src={user.avatarUrl} size={36} icon={<UserOutlined />} />
+                  </Badge>
+                  <span className="user-menu-name">{user.displayName || user.username}</span>
+                  <DownOutlined />
+                </button>
+              </Dropdown>
+            ) : (
+              <>
+                <Button type="default">
+                  <Link to="/login">{t('nav.login')}</Link>
+                </Button>
+                <Button type="default">
+                  <Link to="/register">{t('nav.register')}</Link>
+                </Button>
+              </>
+            )}
+          </Space>
+        </header>
+        <main className="shell-body">{children}</main>
+      </div>
+    </>
   );
 }

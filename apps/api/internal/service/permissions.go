@@ -7,26 +7,28 @@ import (
 )
 
 const (
-	PermissionAdminFilesOwn         = "admin.files.own"
-	PermissionAdminFilesAll         = "admin.files.all"
-	PermissionAdminFilesUpload      = "admin.files.upload"
-	PermissionAdminFilesEdit        = "admin.files.edit"
-	PermissionAdminFilesDelete      = "admin.files.delete"
-	PermissionAdminDownloadsView    = "admin.downloads.view"
-	PermissionAdminUsersCreate      = "admin.users.create"
-	PermissionAdminUsersEdit        = "admin.users.edit"
-	PermissionAdminCategoriesView   = "admin.categories.view"
-	PermissionAdminCategoriesCreate = "admin.categories.create"
-	PermissionAdminCategoriesEdit   = "admin.categories.edit"
-	PermissionAdminCategoriesDelete = "admin.categories.delete"
-	PermissionAdminCategoriesLogs   = "admin.categories.logs"
-	PermissionAdminTagsView         = "admin.tags.view"
-	PermissionAdminTagsCreate       = "admin.tags.create"
-	PermissionAdminTagsEdit         = "admin.tags.edit"
-	PermissionAdminTagsDelete       = "admin.tags.delete"
-	PermissionAdminTagsLogs         = "admin.tags.logs"
-	PermissionAdminSettings         = "admin.settings"
-	PermissionAdminAudit            = "admin.audit"
+	PermissionAdminFilesOwn          = "admin.files.own"
+	PermissionAdminFilesAll          = "admin.files.all"
+	PermissionAdminFilesUpload       = "admin.files.upload"
+	PermissionAdminFilesEdit         = "admin.files.edit"
+	PermissionAdminFilesDelete       = "admin.files.delete"
+	PermissionAdminDownloadsView     = "admin.downloads.view"
+	PermissionAdminUsersCreate       = "admin.users.create"
+	PermissionAdminUsersEdit         = "admin.users.edit"
+	PermissionAdminCategoriesView    = "admin.categories.view"
+	PermissionAdminCategoriesCreate  = "admin.categories.create"
+	PermissionAdminCategoriesEdit    = "admin.categories.edit"
+	PermissionAdminCategoriesDelete  = "admin.categories.delete"
+	PermissionAdminCategoriesLogs    = "admin.categories.logs"
+	PermissionAdminTagsView          = "admin.tags.view"
+	PermissionAdminTagsCreate        = "admin.tags.create"
+	PermissionAdminTagsEdit          = "admin.tags.edit"
+	PermissionAdminTagsDelete        = "admin.tags.delete"
+	PermissionAdminTagsLogs          = "admin.tags.logs"
+	PermissionAdminCommunityView     = "admin.community.view"
+	PermissionAdminCommunityModerate = "admin.community.moderate"
+	PermissionAdminSettings          = "admin.settings"
+	PermissionAdminAudit             = "admin.audit"
 )
 
 var AllAdminPermissions = []string{
@@ -48,6 +50,8 @@ var AllAdminPermissions = []string{
 	PermissionAdminTagsEdit,
 	PermissionAdminTagsDelete,
 	PermissionAdminTagsLogs,
+	PermissionAdminCommunityView,
+	PermissionAdminCommunityModerate,
 	PermissionAdminSettings,
 	PermissionAdminAudit,
 }
@@ -70,7 +74,7 @@ var DefaultPermissionTemplates = []PermissionTemplate{
 		Key:         "ops_admin",
 		Name:        "Ops Admin",
 		Description: "Manage files and view audit logs",
-		Permissions: []string{PermissionAdminFilesAll, PermissionAdminFilesUpload, PermissionAdminFilesEdit, PermissionAdminFilesDelete, PermissionAdminDownloadsView, PermissionAdminAudit},
+		Permissions: []string{PermissionAdminFilesAll, PermissionAdminFilesUpload, PermissionAdminFilesEdit, PermissionAdminFilesDelete, PermissionAdminDownloadsView, PermissionAdminCommunityView, PermissionAdminCommunityModerate, PermissionAdminAudit},
 	},
 	{
 		Key:         "taxonomy_admin",
@@ -94,6 +98,12 @@ var DefaultPermissionTemplates = []PermissionTemplate{
 		Name:        "User Admin",
 		Description: "Manage users and view audit logs",
 		Permissions: []string{PermissionAdminUsersCreate, PermissionAdminUsersEdit, PermissionAdminAudit},
+	},
+	{
+		Key:         "community_admin",
+		Name:        "Community Admin",
+		Description: "Review, pin, lock, and remove community posts",
+		Permissions: []string{PermissionAdminCommunityView, PermissionAdminCommunityModerate, PermissionAdminAudit},
 	},
 	{
 		Key:         "config_admin",
@@ -179,6 +189,9 @@ func ValidatePermissionCombination(permissions []string) error {
 	}
 	if err := validateTaxonomyPermissionViewDependency(permissions, PermissionAdminTagsView, PermissionAdminTagsCreate, PermissionAdminTagsEdit, PermissionAdminTagsDelete, PermissionAdminTagsLogs); err != nil {
 		return err
+	}
+	if HasPermission(permissions, PermissionAdminCommunityModerate) && !HasPermission(permissions, PermissionAdminCommunityView) {
+		return fmt.Errorf("%w: community moderation requires community view permission", ErrValidation)
 	}
 
 	return nil

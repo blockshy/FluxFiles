@@ -29,6 +29,9 @@ type Dependencies struct {
 	UserFiles       *controller.UserFileController
 	PublicComments  *controller.PublicInteractionController
 	UserActions     *controller.UserInteractionController
+	PublicCommunity *controller.PublicCommunityController
+	UserCommunity   *controller.UserCommunityController
+	AdminCommunity  *controller.AdminCommunityController
 	Settings        *service.SettingsService
 	RateLimiter     *resilience.RateLimiter
 }
@@ -67,6 +70,18 @@ func New(deps Dependencies) *gin.Engine {
 	api.GET("/files/:id/comments",
 		middleware.OptionalAuth(deps.AuthService),
 		deps.PublicComments.ListComments,
+	)
+	api.GET("/community/posts",
+		middleware.OptionalAuth(deps.AuthService),
+		deps.PublicCommunity.ListPosts,
+	)
+	api.GET("/community/posts/:id",
+		middleware.OptionalAuth(deps.AuthService),
+		deps.PublicCommunity.GetPost,
+	)
+	api.GET("/community/posts/:id/replies",
+		middleware.OptionalAuth(deps.AuthService),
+		deps.PublicCommunity.ListReplies,
 	)
 	api.GET("/files/:id/download",
 		middleware.OptionalAuth(deps.AuthService),
@@ -218,6 +233,14 @@ func New(deps Dependencies) *gin.Engine {
 	adminAudit.Use(middleware.RequirePermission(deps.AuthService, service.PermissionAdminAudit))
 	adminAudit.GET("/logs", deps.AdminLogs.List)
 
+	adminCommunity := adminAuthorized.Group("/community")
+	adminCommunity.Use(middleware.RequireAnyPermission(deps.AuthService, service.PermissionAdminCommunityView, service.PermissionAdminCommunityModerate))
+	adminCommunity.GET("/posts", deps.AdminCommunity.ListPosts)
+	adminCommunity.POST("/posts/:id/moderate",
+		middleware.RequirePermission(deps.AuthService, service.PermissionAdminCommunityModerate),
+		deps.AdminCommunity.ModeratePost,
+	)
+
 	userAuthorized := api.Group("/user")
 	userAuthorized.Use(middleware.RequireAuth(deps.AuthService))
 	userAuthorized.GET("/me", deps.PublicAuth.Me)
@@ -234,6 +257,11 @@ func New(deps Dependencies) *gin.Engine {
 	userAuthorized.GET("/notifications", deps.UserActions.ListNotifications)
 	userAuthorized.POST("/notifications/read-all", deps.UserActions.MarkNotificationsRead)
 	userAuthorized.POST("/notifications/:id/read", deps.UserActions.MarkNotificationRead)
+	userAuthorized.POST("/community/posts", deps.UserCommunity.CreatePost)
+	userAuthorized.PUT("/community/posts/:id", deps.UserCommunity.UpdatePost)
+	userAuthorized.DELETE("/community/posts/:id", deps.UserCommunity.DeletePost)
+	userAuthorized.POST("/community/posts/:id/replies", deps.UserCommunity.CreateReply)
+	userAuthorized.DELETE("/community/replies/:id", deps.UserCommunity.DeleteReply)
 
 	return engine
 }

@@ -391,17 +391,30 @@ func toCommentItem(comment *model.FileComment, currentUserID *uint) CommentItem 
 }
 
 func buildNotification(userID uint, actorUserID *uint, kind, title, content string, fileID, commentID uint, commentContent string) *model.UserNotification {
+	return buildNotificationWithData(userID, actorUserID, kind, title, content, fileID, commentID, commentContent, nil)
+}
+
+func buildNotificationWithData(userID uint, actorUserID *uint, kind, title, content string, fileID, commentID uint, commentContent string, extra map[string]any) *model.UserNotification {
+	data := map[string]any{}
+	if fileID > 0 {
+		data["fileId"] = fileID
+	}
+	if commentID > 0 {
+		data["commentId"] = commentID
+	}
+	if commentContent != "" {
+		data["commentContent"] = commentContent
+	}
+	for key, value := range extra {
+		data[key] = value
+	}
 	return &model.UserNotification{
 		UserID:      userID,
 		ActorUserID: actorUserID,
 		Type:        kind,
 		Title:       title,
 		Content:     content,
-		Data: map[string]any{
-			"fileId":         fileID,
-			"commentId":      commentID,
-			"commentContent": commentContent,
-		},
+		Data:        data,
 	}
 }
 

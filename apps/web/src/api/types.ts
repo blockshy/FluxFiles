@@ -84,7 +84,55 @@ export interface NotificationRecord {
   relatedCommentId?: number;
   relatedCommentBody?: string;
   relatedCommentFileId?: number;
+  relatedPostId?: number;
+  relatedPostTitle?: string;
+  relatedReplyId?: number;
   createdAt: string;
+}
+
+export interface CommunityPostRecord {
+  id: number;
+  title: string;
+  contentHtml: string;
+  contentText: string;
+  isPinned: boolean;
+  isLocked: boolean;
+  viewCount: number;
+  replyCount: number;
+  lastRepliedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  canEdit: boolean;
+  canDelete: boolean;
+  author: CommentAuthor;
+}
+
+export interface CommunityReplyRecord {
+  id: number;
+  postId: number;
+  parentId?: number;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  canDelete: boolean;
+  author: CommentAuthor;
+  replyTo?: CommentAuthor;
+}
+
+export interface CommunityPostPayload {
+  title: string;
+  contentHtml: string;
+}
+
+export interface CommunityReplyPayload {
+  content: string;
+  parentId?: number;
+}
+
+export interface CommunityModerationPayload {
+  isPinned?: boolean;
+  isLocked?: boolean;
+  delete?: boolean;
 }
 
 export interface DashboardStats {

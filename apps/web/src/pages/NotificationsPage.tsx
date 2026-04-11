@@ -3,19 +3,21 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Avatar, Button, Card, Empty, Form, Input, List, Skeleton, Space, Tabs, Typography, message } from 'antd';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { createCommunityReply } from '../api/community';
 import { createComment, deleteComment, fetchMyComments, fetchNotifications, markNotificationRead, markNotificationsRead } from '../api/user';
 import type { CommentRecord, NotificationRecord } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { getApiErrorMessage } from '../lib/apiError';
 import { formatDate } from '../lib/format';
 
-type NotificationTabKey = 'all' | 'replies' | 'likes' | 'dislikes' | 'mine';
+type NotificationTabKey = 'all' | 'replies' | 'likes' | 'dislikes' | 'community' | 'mine';
 
 const typeMap: Record<Exclude<NotificationTabKey, 'mine'>, string | undefined> = {
   all: undefined,
   replies: 'comment.reply',
   likes: 'comment.like',
   dislikes: 'comment.dislike',
+  community: 'community.post.reply,community.reply.reply',
 };
 
 export function NotificationsPage() {
@@ -77,13 +79,29 @@ export function NotificationsPage() {
     onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '回复发送失败，请检查内容或评论状态。' : 'Failed to send reply. Please check content or comment status.', locale)),
   });
 
+  const communityReplyMutation = useMutation({
+    mutationFn: ({ postId, replyId, content }: { postId: number; replyId?: number; content: string }) => createCommunityReply(postId, { parentId: replyId, content }),
+    onSuccess: () => {
+      form.resetFields();
+      setReplyingNotification(null);
+      void queryClient.invalidateQueries({ queryKey: ['user-notifications'] });
+      void queryClient.invalidateQueries({ queryKey: ['user-notifications-summary'] });
+      void queryClient.invalidateQueries({ queryKey: ['community-post'] });
+      void queryClient.invalidateQueries({ queryKey: ['community-replies'] });
+      messageApi.success(locale === 'zh-CN' ? '社区回复已发送。' : 'Community reply posted.');
+    },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '社区回复发送失败，请检查内容或帖子状态。' : 'Failed to send community reply.', locale)),
+  });
+
   function renderNotification(item: NotificationRecord) {
     return (
       <List.Item
         actions={[
           !item.isRead ? <Button key="read" className="table-action-button" icon={<CheckOutlined />} onClick={() => markReadMutation.mutate(item.id)}>{locale === 'zh-CN' ? '标记已读' : 'Mark read'}</Button> : null,
           item.relatedCommentFileId && item.relatedCommentId ? <Link key="link" to={`/files/${item.relatedCommentFileId}`} className="table-action-link file-action-button">{locale === 'zh-CN' ? '查看详情' : 'Open'}</Link> : null,
+          item.relatedPostId ? <Link key="post" to={`/community/${item.relatedPostId}`} className="table-action-link file-action-button">{locale === 'zh-CN' ? '查看帖子' : 'Open post'}</Link> : null,
           item.relatedCommentFileId && item.relatedCommentId ? <Button key="reply" className="table-action-button" icon={<MessageOutlined />} onClick={() => setReplyingNotification(item.id)}>{locale === 'zh-CN' ? '快捷回复' : 'Quick reply'}</Button> : null,
+          item.relatedPostId ? <Button key="community-reply" className="table-action-button" icon={<MessageOutlined />} onClick={() => setReplyingNotification(item.id)}>{locale === 'zh-CN' ? '社区回复' : 'Reply'}</Button> : null,
         ].filter(Boolean)}
       >
         <List.Item.Meta
@@ -110,6 +128,21 @@ export function NotificationsPage() {
                   </Form.Item>
                   <Space>
                     <Button type="primary" htmlType="submit" loading={replyMutation.isPending}>{locale === 'zh-CN' ? '发送回复' : 'Reply'}</Button>
+                    <Button onClick={() => setReplyingNotification(null)}>{locale === 'zh-CN' ? '取消' : 'Cancel'}</Button>
+                  </Space>
+                </Form>
+              ) : null}
+              {replyingNotification === item.id && item.relatedPostId ? (
+                <Form
+                  form={form}
+                  layout="vertical"
+                  onFinish={(values: { content: string }) => communityReplyMutation.mutate({ postId: item.relatedPostId!, replyId: item.relatedReplyId, content: values.content })}
+                >
+                  <Form.Item name="content" rules={[{ required: true, message: locale === 'zh-CN' ? '请输入回复内容' : 'Please enter a reply.' }]}>
+                    <Input.TextArea rows={3} placeholder={locale === 'zh-CN' ? '直接回复这条社区互动…' : 'Reply to this community interaction...'} />
+                  </Form.Item>
+                  <Space>
+                    <Button type="primary" htmlType="submit" loading={communityReplyMutation.isPending}>{locale === 'zh-CN' ? '发送回复' : 'Reply'}</Button>
                     <Button onClick={() => setReplyingNotification(null)}>{locale === 'zh-CN' ? '取消' : 'Cancel'}</Button>
                   </Space>
                 </Form>
@@ -172,6 +205,7 @@ export function NotificationsPage() {
             { key: 'replies', label: locale === 'zh-CN' ? '回复我的' : 'Replies' },
             { key: 'likes', label: locale === 'zh-CN' ? '点赞我的' : 'Likes' },
             { key: 'dislikes', label: locale === 'zh-CN' ? '点踩我的' : 'Dislikes' },
+            { key: 'community', label: locale === 'zh-CN' ? '社区互动' : 'Community' },
             { key: 'mine', label: locale === 'zh-CN' ? '我的评论' : 'My comments' },
           ]}
         />

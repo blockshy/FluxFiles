@@ -75,6 +75,7 @@ func New() (*App, error) {
 	userLibraryRepo := repository.NewUserLibraryRepository(db)
 	settingsRepo := repository.NewSystemSettingRepository(db)
 	interactionRepo := repository.NewInteractionRepository(db)
+	communityRepo := repository.NewCommunityRepository(db)
 
 	logService := service.NewOperationLogService(logRepo)
 	authService := service.NewAuthService(cfg.Security, userRepo, redisClient, jwtManager)
@@ -85,6 +86,7 @@ func New() (*App, error) {
 	taxonomyService := service.NewTaxonomyService(db, taxonomyRepo, taxonomyLogRepo, fileRepo, logService)
 	fileService := service.NewFileService(cfg, fileRepo, storage, breakers, logService, settingsService, taxonomyService)
 	interactionService := service.NewInteractionService(fileRepo, interactionRepo, userRepo, userLibraryRepo)
+	communityService := service.NewCommunityService(communityRepo, interactionRepo, logService)
 
 	if err := authService.EnsureBootstrapAdmin(context.Background()); err != nil {
 		return nil, fmt.Errorf("bootstrap admin: %w", err)
@@ -106,6 +108,9 @@ func New() (*App, error) {
 		UserFiles:       controller.NewUserFileController(userService),
 		PublicComments:  controller.NewPublicInteractionController(interactionService),
 		UserActions:     controller.NewUserInteractionController(interactionService),
+		PublicCommunity: controller.NewPublicCommunityController(communityService),
+		UserCommunity:   controller.NewUserCommunityController(communityService),
+		AdminCommunity:  controller.NewAdminCommunityController(communityService),
 		Settings:        settingsService,
 		RateLimiter:     rateLimiter,
 	})

@@ -1,4 +1,4 @@
-import { CloudServerOutlined, DownloadOutlined, FileSearchOutlined, FolderOpenOutlined, HomeOutlined, LogoutOutlined, SettingOutlined, TagsOutlined, TeamOutlined } from '@ant-design/icons';
+import { CloudServerOutlined, DownloadOutlined, FileSearchOutlined, FolderOpenOutlined, HomeOutlined, LogoutOutlined, MessageOutlined, SettingOutlined, TagsOutlined, TeamOutlined } from '@ant-design/icons';
 import { Button, Layout, Menu, Typography } from 'antd';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { LocaleToggle } from '../features/i18n/LocaleToggle';
@@ -25,6 +25,8 @@ import {
   PERMISSION_ADMIN_TAGS_EDIT,
   PERMISSION_ADMIN_TAGS_DELETE,
   PERMISSION_ADMIN_TAGS_LOGS,
+  PERMISSION_ADMIN_COMMUNITY_VIEW,
+  PERMISSION_ADMIN_COMMUNITY_MODERATE,
   hasPermission,
 } from '../features/user/permissions';
 import { useUserAuth } from '../features/user/AuthProvider';
@@ -70,6 +72,9 @@ export function AdminLayout() {
     hasPermission(user, PERMISSION_ADMIN_TAGS_LOGS)
   ) {
     items.push({ key: '/admin/tags', icon: <TagsOutlined />, label: <Link to="/admin/tags">{t('admin.tags')}</Link> });
+  }
+  if (hasPermission(user, PERMISSION_ADMIN_COMMUNITY_VIEW) || hasPermission(user, PERMISSION_ADMIN_COMMUNITY_MODERATE)) {
+    items.push({ key: '/admin/community', icon: <MessageOutlined />, label: <Link to="/admin/community">{locale === 'zh-CN' ? '社区管理' : 'Community'}</Link> });
   }
   if (hasPermission(user, PERMISSION_ADMIN_SETTINGS)) {
     items.push({ key: '/admin/settings', icon: <SettingOutlined />, label: <Link to="/admin/settings">{t('admin.settings')}</Link> });

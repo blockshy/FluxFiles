@@ -179,7 +179,45 @@ type UserNotification struct {
 	RelatedCommentID     uint           `gorm:"->;column:related_comment_id;-:migration" json:"relatedCommentId,omitempty"`
 	RelatedCommentBody   string         `gorm:"->;column:related_comment_body;-:migration" json:"relatedCommentBody,omitempty"`
 	RelatedCommentFileID uint           `gorm:"->;column:related_comment_file_id;-:migration" json:"relatedCommentFileId,omitempty"`
+	RelatedPostID        uint           `gorm:"->;column:related_post_id;-:migration" json:"relatedPostId,omitempty"`
+	RelatedPostTitle     string         `gorm:"->;column:related_post_title;-:migration" json:"relatedPostTitle,omitempty"`
+	RelatedReplyID       uint           `gorm:"->;column:related_reply_id;-:migration" json:"relatedReplyId,omitempty"`
 	CreatedAt            time.Time      `json:"createdAt"`
+}
+
+type CommunityPost struct {
+	ID                uint           `gorm:"primaryKey" json:"id"`
+	Title             string         `gorm:"size:255;not null;index" json:"title"`
+	ContentHTML       string         `gorm:"column:content_html;type:text;not null" json:"contentHtml"`
+	ContentText       string         `gorm:"column:content_text;type:text;not null;default:''" json:"contentText"`
+	IsPinned          bool           `gorm:"not null;default:false;index" json:"isPinned"`
+	IsLocked          bool           `gorm:"not null;default:false;index" json:"isLocked"`
+	ViewCount         int64          `gorm:"not null;default:0" json:"viewCount"`
+	LastRepliedAt     *time.Time     `json:"lastRepliedAt,omitempty"`
+	AuthorID          uint           `gorm:"not null;index" json:"authorId"`
+	AuthorUsername    string         `gorm:"->;column:author_username;-:migration" json:"authorUsername,omitempty"`
+	AuthorDisplayName string         `gorm:"->;column:author_display_name;-:migration" json:"authorDisplayName,omitempty"`
+	AuthorAvatarURL   string         `gorm:"->;column:author_avatar_url;-:migration" json:"authorAvatarUrl,omitempty"`
+	ReplyCount        int64          `gorm:"->;column:reply_count;-:migration" json:"replyCount"`
+	CreatedAt         time.Time      `json:"createdAt"`
+	UpdatedAt         time.Time      `json:"updatedAt"`
+	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type CommunityReply struct {
+	ID                uint           `gorm:"primaryKey" json:"id"`
+	PostID            uint           `gorm:"not null;index" json:"postId"`
+	UserID            uint           `gorm:"not null;index" json:"userId"`
+	ParentID          *uint          `gorm:"index" json:"parentId,omitempty"`
+	Content           string         `gorm:"type:text;not null" json:"content"`
+	UserUsername      string         `gorm:"->;column:user_username;-:migration" json:"userUsername,omitempty"`
+	UserDisplayName   string         `gorm:"->;column:user_display_name;-:migration" json:"userDisplayName,omitempty"`
+	UserAvatarURL     string         `gorm:"->;column:user_avatar_url;-:migration" json:"userAvatarUrl,omitempty"`
+	ParentUsername    string         `gorm:"->;column:parent_username;-:migration" json:"parentUsername,omitempty"`
+	ParentDisplayName string         `gorm:"->;column:parent_display_name;-:migration" json:"parentDisplayName,omitempty"`
+	CreatedAt         time.Time      `json:"createdAt"`
+	UpdatedAt         time.Time      `json:"updatedAt"`
+	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type SystemSetting struct {

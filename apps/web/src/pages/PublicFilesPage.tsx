@@ -1,4 +1,4 @@
-import { FilterOutlined, FileSearchOutlined, ReloadOutlined, SearchOutlined, TagsOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import { FilterOutlined, FileSearchOutlined, FolderOpenOutlined, ReloadOutlined, SearchOutlined, TagsOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Avatar, Button, Card, Input, Modal, Select, Skeleton, Space, Table, Tag, Tree, Typography } from 'antd';
 import type { DataNode } from 'antd/es/tree';
@@ -15,7 +15,28 @@ function sortTaxonomyItems<T extends { sortOrder: number; name: string }>(items:
   return [...items].sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'zh-Hans-CN'));
 }
 
-function buildCategoryTreeOptions(items: TaxonomyRecord[]) {
+function toggleSelection(current: string[], targets: string[]) {
+  const currentSet = new Set(current);
+  const allSelected = targets.every((item) => currentSet.has(item));
+  if (allSelected) {
+    return current.filter((item) => !targets.includes(item));
+  }
+  const next = new Set(current);
+  targets.forEach((item) => next.add(item));
+  return Array.from(next);
+}
+
+function buildNodeTitle(label: string, selectedLeaves: number, totalLeaves: number, active: boolean, partial: boolean) {
+  return (
+    <span className={`filter-node-title${active ? ' is-active' : ''}${partial ? ' is-partial' : ''}`}>
+      <span className="filter-node-label">{label}</span>
+      {totalLeaves > 1 ? <span className="filter-node-count">{selectedLeaves}/{totalLeaves}</span> : null}
+    </span>
+  );
+}
+
+function buildCategoryTreeOptions(items: TaxonomyRecord[], selected: string[]) {
+  const selectedSet = new Set(selected);
   const childrenByParent = new Map<number | null, TaxonomyRecord[]>();
   for (const item of items) {
     const key = item.parentId ?? null;
@@ -24,17 +45,26 @@ function buildCategoryTreeOptions(items: TaxonomyRecord[]) {
     childrenByParent.set(key, siblings);
   }
 
+  const descendants = new Map<string, string[]>();
   const build = (parentId: number | null): DataNode[] =>
-    sortTaxonomyItems(childrenByParent.get(parentId) ?? []).map((item) => ({
-      title: item.fullPath || item.name,
-      key: item.name,
-      children: build(item.id),
-    }));
+    sortTaxonomyItems(childrenByParent.get(parentId) ?? []).map((item) => {
+      const children = build(item.id);
+      const childDescendants = children.flatMap((child) => descendants.get(String(child.key)) ?? []);
+      const ownDescendants = [item.name, ...childDescendants];
+      descendants.set(item.name, ownDescendants);
+      const selectedLeaves = ownDescendants.filter((entry) => selectedSet.has(entry)).length;
+      return {
+        title: buildNodeTitle(item.fullPath || item.name, selectedLeaves, ownDescendants.length, selectedLeaves === ownDescendants.length, selectedLeaves > 0 && selectedLeaves < ownDescendants.length),
+        key: item.name,
+        children,
+      };
+    });
 
-  return build(null);
+  return { treeData: build(null), descendants };
 }
 
-function buildTagTreeOptions(categories: TaxonomyRecord[], tags: TaxonomyRecord[]) {
+function buildTagTreeOptions(categories: TaxonomyRecord[], tags: TaxonomyRecord[], selected: string[]) {
+  const selectedSet = new Set(selected);
   const categoryChildrenByParent = new Map<number | null, TaxonomyRecord[]>();
   for (const item of categories) {
     const key = item.parentId ?? null;
@@ -53,22 +83,34 @@ function buildTagTreeOptions(categories: TaxonomyRecord[], tags: TaxonomyRecord[
     tagsByCategory.set(item.categoryId, siblings);
   }
 
+  const descendants = new Map<string, string[]>();
   const build = (parentId: number | null): DataNode[] =>
-    sortTaxonomyItems(categoryChildrenByParent.get(parentId) ?? []).map((category) => ({
-      title: category.fullPath || category.name,
-      key: `category-${category.id}`,
-      selectable: false,
-      disableCheckbox: true,
-      children: [
-        ...build(category.id),
-        ...sortTaxonomyItems(tagsByCategory.get(category.id) ?? []).map((tag) => ({
-          title: tag.fullPath || tag.name,
-          key: tag.name,
-        })),
-      ],
-    }));
+    sortTaxonomyItems(categoryChildrenByParent.get(parentId) ?? []).map((category) => {
+      const childCategories = build(category.id);
+      const childCategoryTags = childCategories.flatMap((child) => descendants.get(String(child.key)) ?? []);
+      const leafTags = sortTaxonomyItems(tagsByCategory.get(category.id) ?? []).map((tag) => {
+        const tagKey = `tag:${tag.name}`;
+        descendants.set(tagKey, [tag.name]);
+        const selectedLeaves = selectedSet.has(tag.name) ? 1 : 0;
+        return {
+          title: buildNodeTitle(tag.fullPath || tag.name, selectedLeaves, 1, selectedLeaves === 1, false),
+          key: tagKey,
+        };
+      });
+      const ownTags = [...childCategoryTags, ...leafTags.flatMap((item) => descendants.get(String(item.key)) ?? [])];
+      const categoryKey = `tag-category:${category.id}`;
+      descendants.set(categoryKey, ownTags);
+      const selectedLeaves = ownTags.filter((entry) => selectedSet.has(entry)).length;
+      return {
+        title: buildNodeTitle(category.fullPath || category.name, selectedLeaves, ownTags.length, ownTags.length > 0 && selectedLeaves === ownTags.length, selectedLeaves > 0 && selectedLeaves < ownTags.length),
+        key: categoryKey,
+        selectable: true,
+        disableCheckbox: true,
+        children: [...childCategories, ...leafTags],
+      };
+    });
 
-  return build(null);
+  return { treeData: build(null), descendants };
 }
 
 export function PublicFilesPage() {
@@ -83,7 +125,7 @@ export function PublicFilesPage() {
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const deferredSearch = useDeferredValue(search.trim());
-  const { t, locale } = useI18n();
+  const { locale } = useI18n();
   const { token } = useUserAuth();
 
   const categoryOptionsQuery = useQuery({ queryKey: ['public-category-options'], queryFn: fetchPublicCategoryOptions });
@@ -102,13 +144,13 @@ export function PublicFilesPage() {
     }),
   });
 
-  const categoryTreeData = useMemo(
-    () => buildCategoryTreeOptions(categoryOptionsQuery.data ?? []),
-    [categoryOptionsQuery.data],
+  const categoryTree = useMemo(
+    () => buildCategoryTreeOptions(categoryOptionsQuery.data ?? [], draftCategories),
+    [categoryOptionsQuery.data, draftCategories],
   );
-  const tagTreeData = useMemo(
-    () => buildTagTreeOptions(tagCategoryOptionsQuery.data ?? [], tagOptionsQuery.data ?? []),
-    [tagCategoryOptionsQuery.data, tagOptionsQuery.data],
+  const tagTree = useMemo(
+    () => buildTagTreeOptions(tagCategoryOptionsQuery.data ?? [], tagOptionsQuery.data ?? [], draftTags),
+    [tagCategoryOptionsQuery.data, tagOptionsQuery.data, draftTags],
   );
   const taxonomyLoading = categoryOptionsQuery.isLoading || tagCategoryOptionsQuery.isLoading || tagOptionsQuery.isLoading;
   const categoryPathMap = useMemo(() => new Map((categoryOptionsQuery.data ?? []).map((item) => [item.name, item.fullPath || item.name])), [categoryOptionsQuery.data]);
@@ -138,7 +180,7 @@ export function PublicFilesPage() {
       title: locale === 'zh-CN' ? '展示名称' : 'Name',
       dataIndex: 'name',
       key: 'name',
-      width: 240,
+      width: 220,
       render: (value, record) => (
         <Link to={`/files/${record.id}`} className="file-entry-link">
           <Typography.Text strong>{value}</Typography.Text>
@@ -149,14 +191,14 @@ export function PublicFilesPage() {
       title: locale === 'zh-CN' ? '标签' : 'Tags',
       dataIndex: 'tagPaths',
       key: 'tagPaths',
-      width: 260,
+      width: 340,
       render: (value: string[] | undefined, record) => {
         const items = value?.length ? value : record.tags;
         if (!items?.length) {
           return '-';
         }
         return (
-          <div className="public-tag-grid">
+          <div className="public-tag-grid adaptive">
             {items.map((tag) => (
               <Tag key={tag} className="public-tag-grid-item" title={tag}>{tag}</Tag>
             ))}
@@ -164,11 +206,17 @@ export function PublicFilesPage() {
         );
       },
     },
-    { title: locale === 'zh-CN' ? '分类' : 'Category', dataIndex: 'categoryPath', key: 'categoryPath', width: 180, render: (value, record) => ((value || record.category) ? <Tag>{value || record.category}</Tag> : '-') },
+    {
+      title: locale === 'zh-CN' ? '分类' : 'Category',
+      dataIndex: 'categoryPath',
+      key: 'categoryPath',
+      width: 150,
+      render: (value, record) => ((value || record.category) ? <Tag>{value || record.category}</Tag> : '-'),
+    },
     {
       title: locale === 'zh-CN' ? '上传者' : 'Uploader',
       key: 'uploader',
-      width: 180,
+      width: 150,
       render: (_, record) => {
         if (!record.createdByUsername) {
           return '-';
@@ -186,9 +234,9 @@ export function PublicFilesPage() {
         return <Link to={`/users/${record.createdByUsername}`} className="uploader-link">{content}</Link>;
       },
     },
-    { title: locale === 'zh-CN' ? '大小' : 'Size', dataIndex: 'size', key: 'size', width: 120, render: (value) => formatBytes(value) },
-    { title: locale === 'zh-CN' ? '上传时间' : 'Created at', dataIndex: 'createdAt', key: 'createdAt', width: 180, render: (value) => formatDate(value) },
-    { title: locale === 'zh-CN' ? '类型' : 'MIME', dataIndex: 'mimeType', key: 'mimeType', width: 180, render: (value) => <Typography.Text type="secondary">{value || '-'}</Typography.Text> },
+    { title: locale === 'zh-CN' ? '大小' : 'Size', dataIndex: 'size', key: 'size', width: 110, render: (value) => formatBytes(value) },
+    { title: locale === 'zh-CN' ? '类型' : 'MIME', dataIndex: 'mimeType', key: 'mimeType', width: 150, render: (value) => <Typography.Text type="secondary">{value || '-'}</Typography.Text> },
+    { title: locale === 'zh-CN' ? '上传时间' : 'Created at', dataIndex: 'createdAt', key: 'createdAt', width: 165, render: (value) => formatDate(value) },
     {
       title: locale === 'zh-CN' ? '操作' : 'Action',
       key: 'action',
@@ -212,12 +260,19 @@ export function PublicFilesPage() {
       <Card className="surface-card">
         <div className="toolbar-row">
           <div>
-            <h2 className="section-title">{t('publicFiles.title')}</h2>
-            <p className="section-subtitle">{t('publicFiles.subtitle')}</p>
+            <h2 className="section-title">{locale === 'zh-CN' ? '文件列表' : 'Files'}</h2>
+            <p className="section-subtitle">{locale === 'zh-CN' ? '按关键词、分类和标签快速定位公开文件。' : 'Browse public files with keyword, category, and tag filters.'}</p>
           </div>
 
           <div className="toolbar-controls">
-            <Input allowClear placeholder={t('publicFiles.search')} prefix={<SearchOutlined />} style={{ width: 320 }} value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
+            <Input
+              allowClear
+              placeholder={locale === 'zh-CN' ? '搜索展示名称、原文件名、描述、上传者等关键词' : 'Search by keywords'}
+              prefix={<SearchOutlined />}
+              style={{ width: 360 }}
+              value={search}
+              onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+            />
             <Button className="filter-trigger-button" icon={<FilterOutlined />} onClick={openFilterModal}>
               {locale === 'zh-CN' ? `分类与标签筛选${appliedFilterCount ? ` (${appliedFilterCount})` : ''}` : `Filters${appliedFilterCount ? ` (${appliedFilterCount})` : ''}`}
             </Button>
@@ -234,7 +289,7 @@ export function PublicFilesPage() {
             ) : null}
             <Select style={{ width: 150 }} value={sortBy} options={[{ label: locale === 'zh-CN' ? '按上传时间' : 'Created at', value: 'createdAt' }, { label: locale === 'zh-CN' ? '按名称' : 'Name', value: 'name' }, { label: locale === 'zh-CN' ? '按大小' : 'Size', value: 'size' }]} onChange={(value) => { setSortBy(value); setPage(1); }} />
             <Select style={{ width: 110 }} value={sortOrder} options={[{ label: locale === 'zh-CN' ? '降序' : 'Desc', value: 'desc' }, { label: locale === 'zh-CN' ? '升序' : 'Asc', value: 'asc' }]} onChange={(value) => { setSortOrder(value); setPage(1); }} />
-            <Button icon={<ReloadOutlined />} onClick={() => filesQuery.refetch()}>{t('files.refresh')}</Button>
+            <Button icon={<ReloadOutlined />} onClick={() => filesQuery.refetch()}>{locale === 'zh-CN' ? '刷新' : 'Refresh'}</Button>
           </div>
         </div>
 
@@ -265,7 +320,7 @@ export function PublicFilesPage() {
 
         <Table<FileRecord>
           rowKey="id"
-          scroll={{ x: 1720 }}
+          scroll={{ x: 1500 }}
           columns={columns}
           dataSource={filesQuery.data?.items ?? []}
           loading={filesQuery.isLoading}
@@ -275,7 +330,7 @@ export function PublicFilesPage() {
 
       <Modal
         open={filterModalOpen}
-        width={860}
+        width={920}
         title={locale === 'zh-CN' ? '筛选分类与标签' : 'Filter categories and tags'}
         onCancel={() => setFilterModalOpen(false)}
         onOk={applyFilters}
@@ -302,15 +357,20 @@ export function PublicFilesPage() {
               <div className="filter-panel-header">
                 <Typography.Title level={5}><FolderOpenOutlined /> {locale === 'zh-CN' ? '分类' : 'Categories'}</Typography.Title>
                 <Typography.Text type="secondary">
-                  {locale === 'zh-CN' ? '支持多选，命中任一分类即可。' : 'Multi-select. Files in any selected category will match.'}
+                  {locale === 'zh-CN' ? '勾选表示命中任一已选分类，点击父分类可一次选中整个分支。' : 'Select any categories. Clicking a parent selects the whole branch.'}
                 </Typography.Text>
               </div>
               <Tree
                 checkable
                 defaultExpandAll
                 checkedKeys={draftCategories}
-                treeData={categoryTreeData}
-                onCheck={(checkedKeys) => setDraftCategories((checkedKeys as string[]).filter((item) => !item.startsWith('category-')))}
+                treeData={categoryTree.treeData}
+                onCheck={(checkedKeys) => setDraftCategories(checkedKeys as string[])}
+                onSelect={(selectedKeys, info) => {
+                  const key = String(info.node.key);
+                  const targets = categoryTree.descendants.get(key) ?? [key];
+                  setDraftCategories((current) => toggleSelection(current, targets));
+                }}
                 className="filter-selection-tree"
               />
             </section>
@@ -319,15 +379,20 @@ export function PublicFilesPage() {
               <div className="filter-panel-header">
                 <Typography.Title level={5}><TagsOutlined /> {locale === 'zh-CN' ? '标签' : 'Tags'}</Typography.Title>
                 <Typography.Text type="secondary">
-                  {locale === 'zh-CN' ? '支持多选，命中任一标签即可。' : 'Multi-select. Files with any selected tag will match.'}
+                  {locale === 'zh-CN' ? '勾选标签即可生效，点击标签分类可批量选中其下全部标签。' : 'Select tags directly, or click a category to batch select its tags.'}
                 </Typography.Text>
               </div>
               <Tree
                 checkable
                 defaultExpandAll
-                checkedKeys={draftTags}
-                treeData={tagTreeData}
-                onCheck={(checkedKeys) => setDraftTags((checkedKeys as string[]).filter((item) => !item.startsWith('category-')))}
+                checkedKeys={draftTags.map((item) => `tag:${item}`)}
+                treeData={tagTree.treeData}
+                onCheck={(checkedKeys) => setDraftTags((checkedKeys as string[]).filter((item) => item.startsWith('tag:')).map((item) => item.slice(4)))}
+                onSelect={(selectedKeys, info) => {
+                  const key = String(info.node.key);
+                  const targets = tagTree.descendants.get(key) ?? (key.startsWith('tag:') ? [key.slice(4)] : []);
+                  setDraftTags((current) => toggleSelection(current, targets));
+                }}
                 className="filter-selection-tree"
               />
             </section>

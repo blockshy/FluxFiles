@@ -18,6 +18,8 @@ export const PERMISSION_ADMIN_TAGS_CREATE = 'admin.tags.create';
 export const PERMISSION_ADMIN_TAGS_EDIT = 'admin.tags.edit';
 export const PERMISSION_ADMIN_TAGS_DELETE = 'admin.tags.delete';
 export const PERMISSION_ADMIN_TAGS_LOGS = 'admin.tags.logs';
+export const PERMISSION_ADMIN_COMMUNITY_VIEW = 'admin.community.view';
+export const PERMISSION_ADMIN_COMMUNITY_MODERATE = 'admin.community.moderate';
 export const PERMISSION_ADMIN_SETTINGS = 'admin.settings';
 export const PERMISSION_ADMIN_AUDIT = 'admin.audit';
 
@@ -40,6 +42,8 @@ export const ALL_ADMIN_PERMISSIONS = [
   PERMISSION_ADMIN_TAGS_EDIT,
   PERMISSION_ADMIN_TAGS_DELETE,
   PERMISSION_ADMIN_TAGS_LOGS,
+  PERMISSION_ADMIN_COMMUNITY_VIEW,
+  PERMISSION_ADMIN_COMMUNITY_MODERATE,
   PERMISSION_ADMIN_SETTINGS,
   PERMISSION_ADMIN_AUDIT,
 ];
@@ -103,6 +107,9 @@ export function getAdminHomePath(user: UserAccount | null | undefined) {
   }
   if (canAccessAdminTags(user)) {
     return '/admin/tags';
+  }
+  if (hasPermission(user, PERMISSION_ADMIN_COMMUNITY_VIEW) || hasPermission(user, PERMISSION_ADMIN_COMMUNITY_MODERATE)) {
+    return '/admin/community';
   }
   if (canAccessAdminUsers(user)) {
     return '/admin/users';

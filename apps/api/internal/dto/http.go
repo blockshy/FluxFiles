@@ -154,3 +154,24 @@ type VoteCommentRequest struct {
 type UpdateUserEnabledRequest struct {
 	IsEnabled bool `json:"isEnabled"`
 }
+
+type CreateCommunityPostRequest struct {
+	Title       string `json:"title" binding:"required,min=1,max=255"`
+	ContentHTML string `json:"contentHtml" binding:"required"`
+}
+
+type UpdateCommunityPostRequest struct {
+	Title       string `json:"title" binding:"required,min=1,max=255"`
+	ContentHTML string `json:"contentHtml" binding:"required"`
+}
+
+type CreateCommunityReplyRequest struct {
+	Content  string `json:"content" binding:"required,min=1,max=2000"`
+	ParentID *uint  `json:"parentId"`
+}
+
+type ModerateCommunityPostRequest struct {
+	IsPinned *bool `json:"isPinned"`
+	IsLocked *bool `json:"isLocked"`
+	Delete   bool  `json:"delete"`
+}

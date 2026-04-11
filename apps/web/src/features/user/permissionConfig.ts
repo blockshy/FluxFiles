@@ -20,6 +20,8 @@ import {
   PERMISSION_ADMIN_TAGS_EDIT,
   PERMISSION_ADMIN_TAGS_DELETE,
   PERMISSION_ADMIN_TAGS_LOGS,
+  PERMISSION_ADMIN_COMMUNITY_VIEW,
+  PERMISSION_ADMIN_COMMUNITY_MODERATE,
 } from './permissions';
 
 export interface PermissionGroup {
@@ -53,6 +55,8 @@ export function getPermissionLabels(locale: AppLocale): Record<string, string> {
     [PERMISSION_ADMIN_TAGS_EDIT]: locale === 'zh-CN' ? '标签编辑及分类调整' : 'Tag edit and category reassignment',
     [PERMISSION_ADMIN_TAGS_DELETE]: locale === 'zh-CN' ? '标签删除' : 'Tag delete',
     [PERMISSION_ADMIN_TAGS_LOGS]: locale === 'zh-CN' ? '标签记录查看' : 'Tag logs',
+    [PERMISSION_ADMIN_COMMUNITY_VIEW]: locale === 'zh-CN' ? '社区帖子查看' : 'Community post view',
+    [PERMISSION_ADMIN_COMMUNITY_MODERATE]: locale === 'zh-CN' ? '社区帖子置顶/锁定/删除' : 'Community post moderation',
     [PERMISSION_ADMIN_SETTINGS]: locale === 'zh-CN' ? '系统设置' : 'Settings',
     [PERMISSION_ADMIN_AUDIT]: locale === 'zh-CN' ? '审计日志' : 'Audit logs',
   };
@@ -103,6 +107,14 @@ export function getPermissionGroups(locale: AppLocale): PermissionGroup[] {
       ],
     },
     {
+      key: 'community',
+      title: locale === 'zh-CN' ? '社区权限' : 'Community permissions',
+      options: [
+        PERMISSION_ADMIN_COMMUNITY_VIEW,
+        PERMISSION_ADMIN_COMMUNITY_MODERATE,
+      ],
+    },
+    {
       key: 'system',
       title: locale === 'zh-CN' ? '系统权限' : 'System permissions',
       options: [
@@ -124,6 +136,7 @@ export function getPermissionCombinationFeedback(locale: AppLocale, permissions:
   const canViewDownloads = selected.has(PERMISSION_ADMIN_DOWNLOADS_VIEW);
   const categoryView = selected.has(PERMISSION_ADMIN_CATEGORIES_VIEW);
   const tagView = selected.has(PERMISSION_ADMIN_TAGS_VIEW);
+  const communityView = selected.has(PERMISSION_ADMIN_COMMUNITY_VIEW);
 
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -180,6 +193,12 @@ export function getPermissionCombinationFeedback(locale: AppLocale, permissions:
     errors.push(locale === 'zh-CN'
       ? '标签的新建、编辑、删除、记录查看权限依赖“标签查看”。'
       : 'Tag create/edit/delete/logs require tag view.');
+  }
+
+  if (selected.has(PERMISSION_ADMIN_COMMUNITY_MODERATE) && !communityView) {
+    errors.push(locale === 'zh-CN'
+      ? '社区置顶、锁定、删除权限依赖“社区帖子查看”。'
+      : 'Community moderation requires community post view.');
   }
 
   return { errors, warnings };

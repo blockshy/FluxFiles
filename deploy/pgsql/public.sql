@@ -472,6 +472,55 @@ CREATE INDEX IF NOT EXISTS idx_user_notifications_type ON public.user_notificati
 CREATE INDEX IF NOT EXISTS idx_user_notifications_is_read ON public.user_notifications(is_read);
 CREATE INDEX IF NOT EXISTS idx_user_notifications_created_at ON public.user_notifications(created_at);
 
+CREATE TABLE IF NOT EXISTS public.community_posts (
+    id BIGSERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content_html TEXT NOT NULL,
+    content_text TEXT NOT NULL DEFAULT '',
+    is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+    is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+    view_count BIGINT NOT NULL DEFAULT 0,
+    last_replied_at TIMESTAMPTZ NULL,
+    author_id BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ NULL,
+    CONSTRAINT community_posts_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_community_posts_author_id ON public.community_posts(author_id);
+CREATE INDEX IF NOT EXISTS idx_community_posts_is_pinned ON public.community_posts(is_pinned);
+CREATE INDEX IF NOT EXISTS idx_community_posts_is_locked ON public.community_posts(is_locked);
+CREATE INDEX IF NOT EXISTS idx_community_posts_created_at ON public.community_posts(created_at);
+CREATE INDEX IF NOT EXISTS idx_community_posts_last_replied_at ON public.community_posts(last_replied_at);
+CREATE INDEX IF NOT EXISTS idx_community_posts_deleted_at ON public.community_posts(deleted_at);
+
+CREATE TABLE IF NOT EXISTS public.community_replies (
+    id BIGSERIAL PRIMARY KEY,
+    post_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    parent_id BIGINT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ NULL,
+    CONSTRAINT community_replies_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.community_posts(id) ON DELETE CASCADE,
+    CONSTRAINT community_replies_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+    CONSTRAINT community_replies_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.community_replies(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_community_replies_post_id ON public.community_replies(post_id);
+CREATE INDEX IF NOT EXISTS idx_community_replies_user_id ON public.community_replies(user_id);
+CREATE INDEX IF NOT EXISTS idx_community_replies_parent_id ON public.community_replies(parent_id);
+CREATE INDEX IF NOT EXISTS idx_community_replies_created_at ON public.community_replies(created_at);
+CREATE INDEX IF NOT EXISTS idx_community_replies_deleted_at ON public.community_replies(deleted_at);
+
+UPDATE public.users
+SET permissions = permissions || '["admin.community.view","admin.community.moderate"]'::jsonb
+WHERE role = 'admin'
+  AND permissions ? 'admin.files.all'
+  AND NOT permissions ? 'admin.community.view';
+
 CREATE TABLE IF NOT EXISTS public.system_settings (
     key VARCHAR(128) PRIMARY KEY,
     value TEXT NOT NULL,

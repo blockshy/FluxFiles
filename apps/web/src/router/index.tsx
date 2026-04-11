@@ -22,9 +22,12 @@ import {
   PERMISSION_ADMIN_TAGS_EDIT,
   PERMISSION_ADMIN_TAGS_LOGS,
   PERMISSION_ADMIN_TAGS_VIEW,
+  PERMISSION_ADMIN_COMMUNITY_VIEW,
+  PERMISSION_ADMIN_COMMUNITY_MODERATE,
   PERMISSION_ADMIN_USERS_CREATE,
   PERMISSION_ADMIN_USERS_EDIT,
 } from '../features/user/permissions';
+import { AdminCommunityPage } from '../pages/AdminCommunityPage';
 import { AdminCategoriesPage } from '../pages/AdminCategoriesPage';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { AdminTagsPage } from '../pages/AdminTagsPage';
@@ -37,6 +40,9 @@ import { AdminUsersPage } from '../pages/AdminUsersPage';
 import { PublicFilesPage } from '../pages/PublicFilesPage';
 import { PublicFileDetailPage } from '../pages/PublicFileDetailPage';
 import { PublicUserProfilePage } from '../pages/PublicUserProfilePage';
+import { CommunityPage } from '../pages/CommunityPage';
+import { CommunityPostDetailPage } from '../pages/CommunityPostDetailPage';
+import { CommunityPostEditorPage } from '../pages/CommunityPostEditorPage';
 import { NotificationsPage } from '../pages/NotificationsPage';
 import { UserCenterPage } from '../pages/UserCenterPage';
 import { UserLoginPage } from '../pages/UserLoginPage';
@@ -58,6 +64,46 @@ export function AppRouter() {
         element={
           <PublicLayout>
             <PublicFileDetailPage />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/community"
+        element={
+          <PublicLayout>
+            <UserProtectedRoute>
+              <CommunityPage />
+            </UserProtectedRoute>
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/community/new"
+        element={
+          <PublicLayout>
+            <UserProtectedRoute>
+              <CommunityPostEditorPage />
+            </UserProtectedRoute>
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/community/:id"
+        element={
+          <PublicLayout>
+            <UserProtectedRoute>
+              <CommunityPostDetailPage />
+            </UserProtectedRoute>
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/community/:id/edit"
+        element={
+          <PublicLayout>
+            <UserProtectedRoute>
+              <CommunityPostEditorPage />
+            </UserProtectedRoute>
           </PublicLayout>
         }
       />
@@ -140,6 +186,14 @@ export function AppRouter() {
           element={
             <AdminPermissionRoute permission={[PERMISSION_ADMIN_TAGS_VIEW, PERMISSION_ADMIN_TAGS_CREATE, PERMISSION_ADMIN_TAGS_EDIT, PERMISSION_ADMIN_TAGS_DELETE, PERMISSION_ADMIN_TAGS_LOGS]}>
               <AdminTagsPage />
+            </AdminPermissionRoute>
+          }
+        />
+        <Route
+          path="community"
+          element={
+            <AdminPermissionRoute permission={[PERMISSION_ADMIN_COMMUNITY_VIEW, PERMISSION_ADMIN_COMMUNITY_MODERATE]}>
+              <AdminCommunityPage />
             </AdminPermissionRoute>
           }
         />
