@@ -288,7 +288,7 @@ export function AdminFilesPage() {
             <Select style={{ width: 120 }} value={sortOrder} options={[{ label: locale === 'zh-CN' ? '降序' : 'Desc', value: 'desc' }, { label: locale === 'zh-CN' ? '升序' : 'Asc', value: 'asc' }]} onChange={(value) => { setSortOrder(value); setPage(1); }} />
             <Button icon={<ReloadOutlined />} onClick={() => filesQuery.refetch()}>{t('files.refresh')}</Button>
             {canUpload ? (
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalState({ open: true, mode: 'create', file: null })}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => { void uploadSettingsQuery.refetch(); setModalState({ open: true, mode: 'create', file: null }); }}>
                 {canManageAll ? t('files.upload') : (locale === 'zh-CN' ? '上传我的文件' : 'Upload my file')}
               </Button>
             ) : null}
@@ -317,6 +317,7 @@ export function AdminFilesPage() {
         onCancel={() => setModalState({ open: false, mode: 'create', file: null })}
         onSubmit={async (payload) => {
           if (modalState.mode === 'create') {
+            await uploadSettingsQuery.refetch();
             await createMutation.mutateAsync(payload);
             return;
           }

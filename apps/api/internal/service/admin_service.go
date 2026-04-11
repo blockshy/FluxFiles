@@ -306,6 +306,61 @@ func (s *AdminService) SetUserEnabled(ctx context.Context, adminID, userID uint,
 	return updated, nil
 }
 
+func (s *AdminService) DeleteUser(ctx context.Context, adminID, userID uint, ip string) error {
+	if adminID == userID {
+		return fmt.Errorf("%w: cannot delete current admin user", ErrValidation)
+	}
+
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrNotFound
+		}
+		return ErrDependencyUnavailable
+	}
+
+	uploadedFiles, err := s.users.CountUploadedFiles(ctx, userID)
+	if err != nil {
+		return ErrDependencyUnavailable
+	}
+	if uploadedFiles > 0 {
+		return fmt.Errorf("%w: cannot delete user with uploaded files", ErrValidation)
+	}
+
+	if user.Role == "admin" && user.IsEnabled && HasPermission(user.Permissions, PermissionAdminUsersEdit) {
+		remaining, countErr := s.users.CountEnabledAdminsWithPermissionExcluding(ctx, user.ID, PermissionAdminUsersEdit)
+		if countErr != nil {
+			return ErrDependencyUnavailable
+		}
+		if remaining == 0 {
+			return fmt.Errorf("%w: at least one enabled admin with user edit permission must remain", ErrValidation)
+		}
+	}
+
+	blocker, err := s.users.FindDeletionBlocker(ctx, userID)
+	if err != nil {
+		return ErrDependencyUnavailable
+	}
+	if blocker != "" {
+		return fmt.Errorf("%w: %s", ErrValidation, blocker)
+	}
+
+	if err := s.users.DeleteHard(ctx, userID); err != nil {
+		return ErrDependencyUnavailable
+	}
+
+	s.logs.Record(ctx, adminID, "user.delete", "user", fmt.Sprintf("%d", user.ID), MarshalAuditDetail(AuditDetail{
+		Summary: "Deleted user",
+		Changes: []AuditFieldChange{
+			{Field: "username", Label: "Username", Before: user.Username},
+			{Field: "displayName", Label: "Nickname", Before: user.DisplayName},
+			{Field: "email", Label: "Email", Before: user.Email},
+			{Field: "role", Label: "Role", Before: user.Role},
+		},
+	}), ip)
+	return nil
+}
+
 func (s *AdminService) GetRegistrationSettings(ctx context.Context) (bool, error) {
 	return s.settings.IsRegistrationOpen(ctx)
 }

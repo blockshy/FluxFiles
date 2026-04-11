@@ -73,6 +73,18 @@ func (r *FileRepository) SoftDelete(ctx context.Context, file *model.File) error
 	return r.db.WithContext(ctx).Delete(file).Error
 }
 
+func (r *FileRepository) HardDelete(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`
+			DELETE FROM user_notifications
+			WHERE COALESCE((data->>'fileId')::bigint, 0) = ?
+		`, id).Error; err != nil {
+			return err
+		}
+		return tx.Unscoped().Delete(&model.File{}, id).Error
+	})
+}
+
 func (r *FileRepository) GetByID(ctx context.Context, id uint, includeDeleted bool) (*model.File, error) {
 	lookup := r.db.WithContext(ctx)
 	if includeDeleted {

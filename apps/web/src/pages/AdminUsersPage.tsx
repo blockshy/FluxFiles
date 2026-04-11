@@ -1,9 +1,9 @@
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { DeleteOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Card, Checkbox, Form, Input, Modal, Select, Space, Switch, Table, Tag, message } from 'antd';
+import { Alert, Button, Card, Checkbox, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useDeferredValue, useMemo, useState } from 'react';
-import { createAdminUser, fetchAdminUsers, fetchPermissionTemplates, updateAdminUser } from '../api/admin';
+import { createAdminUser, deleteAdminUser, fetchAdminUsers, fetchPermissionTemplates, updateAdminUser } from '../api/admin';
 import type { AdminUser, CreateManagedUserPayload, PermissionTemplate, UpdateManagedUserPayload } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { getPermissionCombinationFeedback, getPermissionGroups, getPermissionLabels } from '../features/user/permissionConfig';
@@ -69,6 +69,16 @@ export function AdminUsersPage() {
     onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '用户更新失败，请检查邮箱、角色和权限。' : 'User update failed. Please check email, role, and permissions.', locale)),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: deleteAdminUser,
+    onSuccess: () => {
+      messageApi.success(locale === 'zh-CN' ? '用户已删除。' : 'User deleted.');
+      void queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
+    },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '用户删除失败，请检查该用户是否仍有关联数据。' : 'User deletion failed. Please check whether the user still has linked data.', locale)),
+  });
+
   const templates = templatesQuery.data ?? [];
   const permissionLabels = getPermissionLabels(locale);
   const permissionGroups = getPermissionGroups(locale);
@@ -93,35 +103,49 @@ export function AdminUsersPage() {
 
     if (canEdit) {
       base.push({
-        title: t('common.edit'),
+        title: locale === 'zh-CN' ? '操作' : 'Actions',
         key: 'action',
-        width: 100,
+        width: 220,
         fixed: 'right',
         render: (_, record) => (
           <div className="table-action-cell align-right">
-            <Button
-              className="table-action-button"
-              onClick={() => {
-                setModalState({ open: true, mode: 'edit', user: record });
-                form.setFieldsValue({
-                  displayName: record.displayName,
-                  email: record.email,
-                  role: record.role,
-                  permissions: record.permissions,
-                  permissionTemplate: undefined,
-                  isEnabled: record.isEnabled,
-                });
-              }}
-            >
-              {t('common.edit')}
-            </Button>
+            <Space size={8} wrap={false}>
+              <Button
+                className="table-action-button"
+                onClick={() => {
+                  setModalState({ open: true, mode: 'edit', user: record });
+                  form.setFieldsValue({
+                    displayName: record.displayName,
+                    email: record.email,
+                    role: record.role,
+                    permissions: record.permissions,
+                    permissionTemplate: undefined,
+                    isEnabled: record.isEnabled,
+                  });
+                }}
+              >
+                {t('common.edit')}
+              </Button>
+              <Popconfirm
+                title={locale === 'zh-CN' ? '确认删除该用户？' : 'Delete this user?'}
+                description={locale === 'zh-CN' ? '仅未上传任何文件、且不存在其他关键关联数据的用户可被物理删除。' : 'Only users without uploaded files and critical linked data can be permanently deleted.'}
+                okText={locale === 'zh-CN' ? '删除' : 'Delete'}
+                cancelText={t('common.cancel')}
+                onConfirm={() => deleteMutation.mutate(record.id)}
+                disabled={record.id === user?.id}
+              >
+                <Button danger icon={<DeleteOutlined />} className="table-action-button" disabled={record.id === user?.id} loading={deleteMutation.isPending && deleteMutation.variables === record.id}>
+                  {locale === 'zh-CN' ? '删除' : 'Delete'}
+                </Button>
+              </Popconfirm>
+            </Space>
           </div>
         ),
       });
     }
 
     return base;
-  }, [canEdit, form, permissionLabels, t]);
+  }, [canEdit, deleteMutation, form, locale, permissionLabels, t, user?.id]);
 
   function applyTemplate(templateKey: string | undefined) {
     const template = templates.find((item) => item.key === templateKey);
@@ -154,7 +178,7 @@ export function AdminUsersPage() {
           columns={columns}
           dataSource={usersQuery.data?.items ?? []}
           loading={usersQuery.isLoading}
-          scroll={{ x: canEdit ? 1500 : 1400 }}
+          scroll={{ x: canEdit ? 1620 : 1400 }}
           pagination={{ current: page, pageSize, total: usersQuery.data?.pagination.total ?? 0, onChange: (nextPage, nextPageSize) => { setPage(nextPage); setPageSize(nextPageSize); } }}
         />
       </Card>

@@ -94,6 +94,11 @@ export async function updateAdminUserEnabled(id: number, isEnabled: boolean) {
   return response.data.data;
 }
 
+export async function deleteAdminUser(id: number) {
+  const response = await apiClient.delete<ApiEnvelope<null>>(`/admin/users/${id}`);
+  return response.data;
+}
+
 export async function fetchAdminSettings() {
   const response = await apiClient.get<ApiEnvelope<AdminSettings>>('/admin/settings');
   return response.data.data;

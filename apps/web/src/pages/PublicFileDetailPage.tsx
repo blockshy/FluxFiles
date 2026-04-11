@@ -353,22 +353,62 @@ export function PublicFileDetailPage() {
     void queryClient.invalidateQueries({ queryKey: ['public-file-comments', fileId] });
   }
 
-  function startDownload() {
+  async function startDownload() {
     if (!file) {
       return;
     }
-    if (downloadConfigQuery.data?.captchaEnabled) {
+    const config = await queryClient.fetchQuery({
+      queryKey: ['public-download-config'],
+      queryFn: fetchPublicDownloadConfig,
+    });
+    if (!token && config.guestDownloadAllowed === false) {
+      messageApi.error(locale === 'zh-CN' ? '当前站点已关闭游客下载，请登录后再下载。' : 'Guest downloads are disabled. Please sign in first.');
+      return;
+    }
+    if (config.captchaEnabled) {
       downloadForm.resetFields();
       setDownloadModalOpen(true);
-      void downloadCaptchaQuery.refetch();
+      await queryClient.fetchQuery({
+        queryKey: ['download-captcha', true],
+        queryFn: fetchCaptcha,
+      });
       return;
     }
     downloadMutation.mutate({ fileId: file.id });
   }
 
   const downloadMutation = useMutation({
-    mutationFn: ({ fileId: targetFileId, captchaId, captchaAnswer }: { fileId: number; captchaId?: string; captchaAnswer?: string }) =>
-      requestDownloadLink(targetFileId, { captchaId, captchaAnswer }),
+    mutationFn: async ({ fileId: targetFileId, captchaAnswer }: { fileId: number; captchaId?: string; captchaAnswer?: string }) => {
+      const config = await queryClient.fetchQuery({
+        queryKey: ['public-download-config'],
+        queryFn: fetchPublicDownloadConfig,
+      });
+
+      if (!token && config.guestDownloadAllowed === false) {
+        throw new Error('guest downloads are disabled');
+      }
+
+      let captchaId: string | undefined;
+      if (config.captchaEnabled) {
+        const answer = captchaAnswer?.trim();
+        if (!answer) {
+          await queryClient.fetchQuery({
+            queryKey: ['download-captcha', true],
+            queryFn: fetchCaptcha,
+          });
+          throw new Error(locale === 'zh-CN' ? '当前下载已启用验证码，请先填写验证码。' : 'Downloads now require captcha. Please complete the captcha first.');
+        }
+        const challenge = downloadCaptchaQuery.data?.id
+          ? downloadCaptchaQuery.data
+          : await queryClient.fetchQuery({
+            queryKey: ['download-captcha', true],
+            queryFn: fetchCaptcha,
+          });
+        captchaId = challenge.id;
+      }
+
+      return requestDownloadLink(targetFileId, { captchaId, captchaAnswer: config.captchaEnabled ? captchaAnswer?.trim() : undefined });
+    },
     onSuccess: (payload) => {
       const anchor = document.createElement('a');
       anchor.href = payload.url;
@@ -382,7 +422,8 @@ export function PublicFileDetailPage() {
     },
     onError: (error) => {
       messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '下载失败，请检查文件状态或登录状态。' : 'Download failed. Please check file status or sign-in state.', locale));
-      if (downloadConfigQuery.data?.captchaEnabled) {
+      void downloadConfigQuery.refetch();
+      if (downloadConfigQuery.data?.captchaEnabled || downloadModalOpen) {
         void downloadCaptchaQuery.refetch();
       }
     },
@@ -462,7 +503,7 @@ export function PublicFileDetailPage() {
                   <Typography.Title level={2} style={{ marginTop: 0, marginBottom: 8 }}>{file.name}</Typography.Title>
                 </div>
                 <Space wrap>
-                  <Button type="primary" icon={<DownloadOutlined />} loading={downloadMutation.isPending || downloadConfigQuery.isLoading} onClick={startDownload}>
+                  <Button type="primary" icon={<DownloadOutlined />} loading={downloadMutation.isPending || downloadConfigQuery.isLoading} onClick={() => void startDownload()}>
                     {locale === 'zh-CN' ? '下载文件' : 'Download'}
                   </Button>
                   {token ? (
@@ -727,7 +768,6 @@ export function PublicFileDetailPage() {
               }
               downloadMutation.mutate({
                 fileId: file.id,
-                captchaId: downloadCaptchaQuery.data?.id,
                 captchaAnswer: values.captchaAnswer,
               });
             }}

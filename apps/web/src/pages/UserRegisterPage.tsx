@@ -1,5 +1,5 @@
 import { LockOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Card, Form, Input, Space, Typography, message } from 'antd';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchCaptcha, fetchRegisterConfig, registerUser } from '../api/user';
@@ -10,8 +10,10 @@ import { getApiErrorMessage } from '../lib/apiError';
 
 export function UserRegisterPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [messageApi, contextHolder] = message.useMessage();
   const { t, locale } = useI18n();
+  const [form] = Form.useForm<{ username: string; email: string; displayName: string; password: string; captchaAnswer?: string }>();
 
   const registerConfigQuery = useQuery({
     queryKey: ['register-config'],
@@ -25,13 +27,52 @@ export function UserRegisterPage() {
   });
 
   const registerMutation = useMutation({
-    mutationFn: registerUser,
+    mutationFn: async (values: { username: string; email: string; displayName: string; password: string; captchaAnswer?: string }) => {
+      const config = await queryClient.fetchQuery({
+        queryKey: ['register-config'],
+        queryFn: fetchRegisterConfig,
+      });
+      if (config.registrationEnabled === false) {
+        throw new Error('registration is currently disabled');
+      }
+
+      const captchaEnabled = config.captcha.registrationEnabled === true;
+      let captchaId: string | undefined;
+      if (captchaEnabled) {
+        const answer = values.captchaAnswer?.trim();
+        if (!answer) {
+          await queryClient.fetchQuery({
+            queryKey: ['auth-captcha', 'register', true],
+            queryFn: fetchCaptcha,
+          });
+          throw new Error(locale === 'zh-CN' ? '当前注册已启用验证码，请先填写验证码。' : 'Registration now requires captcha. Please complete the captcha first.');
+        }
+
+        const challenge = captchaQuery.data?.id
+          ? captchaQuery.data
+          : await queryClient.fetchQuery({
+            queryKey: ['auth-captcha', 'register', true],
+            queryFn: fetchCaptcha,
+          });
+        captchaId = challenge.id;
+      }
+
+      return registerUser({
+        username: values.username,
+        email: values.email,
+        displayName: values.displayName,
+        password: values.password,
+        captchaId,
+        captchaAnswer: captchaEnabled ? values.captchaAnswer?.trim() : undefined,
+      });
+    },
     onSuccess: () => {
       messageApi.success(t('register.success'));
       navigate('/login', { replace: true });
     },
     onError: (error) => {
       messageApi.error(getApiErrorMessage(error, t('register.error'), locale));
+      void registerConfigQuery.refetch();
       void captchaQuery.refetch();
     },
   });
@@ -59,17 +100,11 @@ export function UserRegisterPage() {
         ) : null}
 
         <Form
+          form={form}
           layout="vertical"
           size="large"
           disabled={registrationDisabled}
-          onFinish={(values: { username: string; email: string; displayName: string; password: string; captchaAnswer?: string }) => registerMutation.mutate({
-            username: values.username,
-            email: values.email,
-            displayName: values.displayName,
-            password: values.password,
-            captchaId: captchaQuery.data?.id,
-            captchaAnswer: values.captchaAnswer,
-          })}
+          onFinish={(values) => registerMutation.mutate(values)}
         >
           <Form.Item
             name="username"

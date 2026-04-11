@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -167,4 +168,73 @@ func (r *UserRepository) TouchLastLogin(ctx context.Context, userID uint) error 
 		Model(&model.User{}).
 		Where("id = ?", userID).
 		Update("last_login_at", time.Now().UTC()).Error
+}
+
+func (r *UserRepository) CountUploadedFiles(ctx context.Context, userID uint) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.File{}).
+		Where("created_by = ?", userID).
+		Count(&count).Error
+	return count, err
+}
+
+func (r *UserRepository) DeleteHard(ctx context.Context, userID uint) error {
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.User{}, userID).Error
+}
+
+func (r *UserRepository) FindDeletionBlocker(ctx context.Context, userID uint) (string, error) {
+	checks := []struct {
+		query   string
+		message string
+		args    []any
+	}{
+		{
+			query:   "SELECT COUNT(*) FROM operation_logs WHERE admin_user_id = ?",
+			message: "user still has operation logs",
+			args:    []any{userID},
+		},
+		{
+			query:   "SELECT COUNT(*) FROM taxonomy_change_logs WHERE admin_user_id = ?",
+			message: "user still has taxonomy change logs",
+			args:    []any{userID},
+		},
+		{
+			query:   "SELECT COUNT(*) FROM categories WHERE deleted_at IS NULL AND (created_by = ? OR updated_by = ?)",
+			message: "user still owns category records",
+			args:    []any{userID, userID},
+		},
+		{
+			query:   "SELECT COUNT(*) FROM tag_categories WHERE deleted_at IS NULL AND (created_by = ? OR updated_by = ?)",
+			message: "user still owns tag category records",
+			args:    []any{userID, userID},
+		},
+		{
+			query:   "SELECT COUNT(*) FROM tags WHERE deleted_at IS NULL AND (created_by = ? OR updated_by = ?)",
+			message: "user still owns tag records",
+			args:    []any{userID, userID},
+		},
+	}
+
+	for _, check := range checks {
+		var count int64
+		if err := r.db.WithContext(ctx).Raw(check.query, check.args...).Scan(&count).Error; err != nil {
+			return "", err
+		}
+		if count > 0 {
+			return check.message, nil
+		}
+	}
+
+	return "", nil
+}
+
+func (r *UserRepository) EnsureDeleteResult(result *gorm.DB, userID uint) error {
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("no user deleted: %d", userID)
+	}
+	return nil
 }

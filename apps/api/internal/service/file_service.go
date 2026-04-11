@@ -323,22 +323,32 @@ func (s *FileService) Delete(ctx context.Context, id uint, adminID uint, permiss
 		return err
 	}
 
-	if s.cfg.Storage.DeleteMode == "sync" {
-		if _, err := s.breakers.OSS.Execute(func() (any, error) {
-			return nil, s.storage.Delete(ctx, file.ObjectKey)
-		}); err != nil {
-			return ErrDependencyUnavailable
+	if _, err := s.breakers.OSS.Execute(func() (any, error) {
+		deleteErr := s.storage.Delete(ctx, file.ObjectKey)
+		if deleteErr != nil && !isObjectMissingError(deleteErr) {
+			return nil, deleteErr
 		}
+		return nil, nil
+	}); err != nil {
+		return ErrDependencyUnavailable
 	}
 
 	if _, err := s.breakers.DB.Execute(func() (any, error) {
-		return nil, s.files.SoftDelete(ctx, file)
+		return nil, s.files.HardDelete(ctx, id)
 	}); err != nil {
 		return ErrDependencyUnavailable
 	}
 
 	s.logs.Record(ctx, adminID, "file.delete", "file", strconv.FormatUint(uint64(id), 10), file.Name, ip)
 	return nil
+}
+
+func isObjectMissingError(err error) bool {
+	if err == nil {
+		return false
+	}
+	text := strings.ToLower(err.Error())
+	return strings.Contains(text, "nosuchkey") || strings.Contains(text, "not found")
 }
 
 func (s *FileService) GenerateDownload(ctx context.Context, id uint, authenticated bool) (*DownloadResult, error) {

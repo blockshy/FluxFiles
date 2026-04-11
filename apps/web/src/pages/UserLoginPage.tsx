@@ -1,5 +1,5 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Form, Input, Space, Typography, message } from 'antd';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { fetchCaptcha, fetchRegisterConfig, loginUser } from '../api/user';
@@ -12,9 +12,11 @@ import { getApiErrorMessage } from '../lib/apiError';
 export function UserLoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const [messageApi, contextHolder] = message.useMessage();
   const { login } = useUserAuth();
   const { t, locale } = useI18n();
+  const [form] = Form.useForm<{ username: string; password: string; captchaAnswer?: string }>();
 
   const authConfigQuery = useQuery({
     queryKey: ['register-config'],
@@ -28,8 +30,35 @@ export function UserLoginPage() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: ({ username, password, captchaId, captchaAnswer }: { username: string; password: string; captchaId?: string; captchaAnswer?: string }) =>
-      loginUser(username, password, captchaId, captchaAnswer),
+    mutationFn: async ({ username, password, captchaAnswer }: { username: string; password: string; captchaAnswer?: string }) => {
+      const config = await queryClient.fetchQuery({
+        queryKey: ['register-config'],
+        queryFn: fetchRegisterConfig,
+      });
+      const captchaEnabled = config.captcha.loginEnabled === true;
+      let captchaId: string | undefined;
+
+      if (captchaEnabled) {
+        const answer = captchaAnswer?.trim();
+        if (!answer) {
+          await queryClient.fetchQuery({
+            queryKey: ['auth-captcha', 'login', true],
+            queryFn: fetchCaptcha,
+          });
+          throw new Error(locale === 'zh-CN' ? '当前登录已启用验证码，请先填写验证码。' : 'Login now requires captcha. Please complete the captcha first.');
+        }
+
+        const challenge = captchaQuery.data?.id
+          ? captchaQuery.data
+          : await queryClient.fetchQuery({
+            queryKey: ['auth-captcha', 'login', true],
+            queryFn: fetchCaptcha,
+          });
+        captchaId = challenge.id;
+      }
+
+      return loginUser(username, password, captchaId, captchaEnabled ? captchaAnswer?.trim() : undefined);
+    },
     onSuccess: (payload) => {
       login(payload);
       const target = (location.state as { from?: string } | null)?.from ?? (payload.user.role === 'admin' ? '/admin' : '/me');
@@ -37,6 +66,7 @@ export function UserLoginPage() {
     },
     onError: (error) => {
       messageApi.error(getApiErrorMessage(error, t('login.error'), locale));
+      void authConfigQuery.refetch();
       void captchaQuery.refetch();
     },
   });
@@ -59,14 +89,10 @@ export function UserLoginPage() {
         </Typography.Paragraph>
 
         <Form
+          form={form}
           layout="vertical"
           size="large"
-          onFinish={(values: { username: string; password: string; captchaAnswer?: string }) => loginMutation.mutate({
-            username: values.username,
-            password: values.password,
-            captchaId: captchaQuery.data?.id,
-            captchaAnswer: values.captchaAnswer,
-          })}
+          onFinish={(values) => loginMutation.mutate(values)}
         >
           <Form.Item name="username" label={t('login.username')} rules={[{ required: true, message: t('login.username') }]}>
             <Input prefix={<UserOutlined />} placeholder={t('login.username')} />

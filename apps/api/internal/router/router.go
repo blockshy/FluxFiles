@@ -137,6 +137,7 @@ func New(deps Dependencies) *gin.Engine {
 	adminUsers.POST("/users", deps.AdminUsers.Create)
 	adminUsers.PUT("/users/:id", deps.AdminUsers.Update)
 	adminUsers.PUT("/users/:id/enabled", deps.AdminUsers.UpdateEnabled)
+	adminUsers.DELETE("/users/:id", deps.AdminUsers.Delete)
 
 	adminCategories := adminAuthorized.Group("/categories")
 	adminCategories.Use(middleware.RequireAnyPermission(
