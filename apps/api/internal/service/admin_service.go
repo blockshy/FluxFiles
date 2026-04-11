@@ -373,6 +373,10 @@ func (s *AdminService) GetDownloadSettings(ctx context.Context) (DownloadSetting
 	return s.settings.GetDownloadSettings(ctx)
 }
 
+func (s *AdminService) GetFileListDisplaySettings(ctx context.Context) (FileListDisplaySettings, error) {
+	return s.settings.GetFileListDisplaySettings(ctx)
+}
+
 func (s *AdminService) UpdateGuestDownloadAllowed(ctx context.Context, adminID uint, ip string, allowed bool) error {
 	before, err := s.settings.IsGuestDownloadAllowed(ctx)
 	if err != nil {
@@ -403,6 +407,24 @@ func (s *AdminService) UpdateDownloadSettings(ctx context.Context, adminID uint,
 		Summary: "Updated download settings",
 		Changes: []AuditFieldChange{
 			{Field: "downloadSettings", Label: "Download Settings", Before: before, After: after},
+		},
+	}), ip)
+	return after, nil
+}
+
+func (s *AdminService) UpdateFileListDisplaySettings(ctx context.Context, adminID uint, ip string, value FileListDisplaySettings) (FileListDisplaySettings, error) {
+	before, err := s.settings.GetFileListDisplaySettings(ctx)
+	if err != nil {
+		return FileListDisplaySettings{}, err
+	}
+	after, err := s.settings.SetFileListDisplaySettings(ctx, value)
+	if err != nil {
+		return FileListDisplaySettings{}, err
+	}
+	s.logs.Record(ctx, adminID, "settings.file_list_display.update", "system_setting", fileListDisplaySettingsKey, MarshalAuditDetail(AuditDetail{
+		Summary: "Updated file list display settings",
+		Changes: []AuditFieldChange{
+			{Field: "fileListDisplay", Label: "File List Display", Before: before, After: after},
 		},
 	}), ip)
 	return after, nil

@@ -67,7 +67,7 @@ function buildCategoryTreeOptions(items: TaxonomyRecord[]) {
 
   const build = (parentId: number | null): TreeOptionNode[] =>
     sortTaxonomyItems(childrenByParent.get(parentId) ?? []).map((item) => ({
-      title: item.fullPath || item.name,
+      title: item.name,
       value: item.name,
       children: build(item.id),
     }));
@@ -86,7 +86,7 @@ function buildTagTreeOptions(tags: TaxonomyRecord[]) {
 
   const build = (parentId: number | null): TreeOptionNode[] =>
     sortTaxonomyItems(childrenByParent.get(parentId) ?? []).map((item) => ({
-      title: item.fullPath || item.name,
+      title: item.name,
       value: item.name,
       children: build(item.id),
     }));

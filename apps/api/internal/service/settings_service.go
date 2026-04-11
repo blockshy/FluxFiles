@@ -23,6 +23,7 @@ const captchaSettingsKey = "security.captcha"
 const uploadSettingsKey = "storage.upload_policy"
 const guestDownloadAllowedSettingKey = "security.guest_download_allowed"
 const downloadSettingsKey = "security.download_settings"
+const fileListDisplaySettingsKey = "ui.file_list_display"
 
 type RateLimitRuleSettings struct {
 	Limit         int `json:"limit"`
@@ -58,6 +59,11 @@ type DownloadSettings struct {
 	GuestDownloadAllowed bool `json:"guestDownloadAllowed"`
 	CaptchaEnabled       bool `json:"captchaEnabled"`
 	URLExpiresSeconds    int  `json:"urlExpiresSeconds"`
+}
+
+type FileListDisplaySettings struct {
+	CategoryMode string `json:"categoryMode"`
+	TagMode      string `json:"tagMode"`
 }
 
 type SettingsService struct {
@@ -129,6 +135,13 @@ func (s *SettingsService) DefaultDownloadSettings() DownloadSettings {
 	}
 }
 
+func (s *SettingsService) DefaultFileListDisplaySettings() FileListDisplaySettings {
+	return FileListDisplaySettings{
+		CategoryMode: "fullPath",
+		TagMode:      "fullPath",
+	}
+}
+
 func (s *SettingsService) GetDownloadSettings(ctx context.Context) (DownloadSettings, error) {
 	item, err := s.settings.GetByKey(ctx, downloadSettingsKey)
 	if err != nil {
@@ -181,6 +194,37 @@ func (s *SettingsService) SetDownloadSettings(ctx context.Context, settings Down
 	}
 	if err := s.settings.Upsert(ctx, guestDownloadAllowedSettingKey, strconv.FormatBool(normalized.GuestDownloadAllowed)); err != nil {
 		return DownloadSettings{}, ErrDependencyUnavailable
+	}
+	return normalized, nil
+}
+
+func (s *SettingsService) GetFileListDisplaySettings(ctx context.Context) (FileListDisplaySettings, error) {
+	item, err := s.settings.GetByKey(ctx, fileListDisplaySettingsKey)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return s.DefaultFileListDisplaySettings(), nil
+		}
+		return FileListDisplaySettings{}, ErrDependencyUnavailable
+	}
+
+	var settings FileListDisplaySettings
+	if err := json.Unmarshal([]byte(item.Value), &settings); err != nil {
+		return FileListDisplaySettings{}, ErrDependencyUnavailable
+	}
+	return normalizeFileListDisplaySettings(settings, s.DefaultFileListDisplaySettings())
+}
+
+func (s *SettingsService) SetFileListDisplaySettings(ctx context.Context, settings FileListDisplaySettings) (FileListDisplaySettings, error) {
+	normalized, err := normalizeFileListDisplaySettings(settings, s.DefaultFileListDisplaySettings())
+	if err != nil {
+		return FileListDisplaySettings{}, err
+	}
+	payload, err := json.Marshal(normalized)
+	if err != nil {
+		return FileListDisplaySettings{}, ErrDependencyUnavailable
+	}
+	if err := s.settings.Upsert(ctx, fileListDisplaySettingsKey, string(payload)); err != nil {
+		return FileListDisplaySettings{}, ErrDependencyUnavailable
 	}
 	return normalized, nil
 }
@@ -492,6 +536,24 @@ func normalizeDownloadSettings(value DownloadSettings, defaults DownloadSettings
 	}
 	if value.URLExpiresSeconds < 10 || value.URLExpiresSeconds > 86400 {
 		return DownloadSettings{}, ErrValidation
+	}
+	return value, nil
+}
+
+func normalizeFileListDisplaySettings(value FileListDisplaySettings, defaults FileListDisplaySettings) (FileListDisplaySettings, error) {
+	value.CategoryMode = strings.TrimSpace(value.CategoryMode)
+	value.TagMode = strings.TrimSpace(value.TagMode)
+	if value.CategoryMode == "" {
+		value.CategoryMode = defaults.CategoryMode
+	}
+	if value.TagMode == "" {
+		value.TagMode = defaults.TagMode
+	}
+	if value.CategoryMode != "fullPath" && value.CategoryMode != "leafName" {
+		return FileListDisplaySettings{}, ErrValidation
+	}
+	if value.TagMode != "fullPath" && value.TagMode != "leafName" {
+		return FileListDisplaySettings{}, ErrValidation
 	}
 	return value, nil
 }

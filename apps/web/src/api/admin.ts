@@ -11,6 +11,7 @@ import type {
   AdminDownloadRecord,
   DownloadRecordQuery,
   DownloadSettings,
+  FileListDisplaySettings,
   FileQuery,
   FileRecord,
   LoginPayload,
@@ -126,6 +127,11 @@ export async function updateGuestDownloadSetting(guestDownloadAllowed: boolean) 
 export async function updateDownloadSettings(downloadSettings: DownloadSettings) {
   const response = await apiClient.put<ApiEnvelope<{ downloadSettings: DownloadSettings }>>('/admin/settings/download', downloadSettings);
   return response.data.data.downloadSettings;
+}
+
+export async function updateFileListDisplaySettings(fileListDisplay: FileListDisplaySettings) {
+  const response = await apiClient.put<ApiEnvelope<{ fileListDisplay: FileListDisplaySettings }>>('/admin/settings/file-list-display', fileListDisplay);
+  return response.data.data.fileListDisplay;
 }
 
 export async function updateRateLimitSettings(rateLimits: RateLimitSettings) {

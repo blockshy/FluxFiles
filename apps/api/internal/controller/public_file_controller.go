@@ -84,6 +84,15 @@ func (ctl *PublicFileController) DownloadConfig(c *gin.Context) {
 	})
 }
 
+func (ctl *PublicFileController) ListDisplayConfig(c *gin.Context) {
+	settings, err := ctl.settings.GetFileListDisplaySettings(c.Request.Context())
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
+		return
+	}
+	response.Success(c, http.StatusOK, "ok", settings)
+}
+
 func (ctl *PublicFileController) Get(c *gin.Context) {
 	file, err := ctl.files.GetPublic(c.Request.Context(), parseUintParam(c, "id"))
 	if err != nil {

@@ -66,6 +66,11 @@ type UpdateDownloadSettingsRequest struct {
 	URLExpiresSeconds    int  `json:"urlExpiresSeconds" binding:"required,min=10,max=86400"`
 }
 
+type UpdateFileListDisplaySettingsRequest struct {
+	CategoryMode string `json:"categoryMode" binding:"required,oneof=fullPath leafName"`
+	TagMode      string `json:"tagMode" binding:"required,oneof=fullPath leafName"`
+}
+
 type UpdateCaptchaSettingsRequest struct {
 	LoginEnabled        bool `json:"loginEnabled"`
 	RegistrationEnabled bool `json:"registrationEnabled"`

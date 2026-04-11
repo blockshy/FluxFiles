@@ -1,6 +1,6 @@
 import { PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Space, Switch, Table, Typography, message } from 'antd';
+import { Alert, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 import {
@@ -8,12 +8,13 @@ import {
   fetchPermissionTemplates,
   updateCaptchaSettings,
   updateDownloadSettings,
+  updateFileListDisplaySettings,
   updatePermissionTemplates,
   updateRateLimitSettings,
   updateRegistrationSetting,
   updateUploadSettings,
 } from '../api/admin';
-import type { DownloadSettings, PermissionTemplate, RateLimitSettings, UploadSettings } from '../api/types';
+import type { DownloadSettings, FileListDisplaySettings, PermissionTemplate, RateLimitSettings, UploadSettings } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { getPermissionCombinationFeedback, getPermissionGroups, getPermissionLabels } from '../features/user/permissionConfig';
 import { getApiErrorMessage } from '../lib/apiError';
@@ -35,6 +36,7 @@ export function AdminSettingsPage() {
   const [templateForm] = Form.useForm<PermissionTemplate>();
   const [rateLimitForm] = Form.useForm<RateLimitSettings>();
   const [downloadForm] = Form.useForm<DownloadSettings>();
+  const [fileListDisplayForm] = Form.useForm<FileListDisplaySettings>();
   const [uploadForm] = Form.useForm<UploadSettings & { allowedExtensionsText?: string; allowedMimeTypesText?: string }>();
   const selectedPermissions = Form.useWatch('permissions', templateForm) as string[] | undefined;
   const restrictFileTypes = Form.useWatch('restrictFileTypes', uploadForm);
@@ -55,7 +57,8 @@ export function AdminSettingsPage() {
       allowedExtensionsText: joinList(settingsQuery.data.uploadSettings.allowedExtensions),
       allowedMimeTypesText: joinList(settingsQuery.data.uploadSettings.allowedMimeTypes),
     });
-  }, [downloadForm, rateLimitForm, settingsQuery.data, uploadForm]);
+    fileListDisplayForm.setFieldsValue(settingsQuery.data.fileListDisplay);
+  }, [downloadForm, fileListDisplayForm, rateLimitForm, settingsQuery.data, uploadForm]);
 
   const registrationMutation = useMutation({
     mutationFn: updateRegistrationSetting,
@@ -95,6 +98,18 @@ export function AdminSettingsPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
     },
     onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '限流配置保存失败，请检查数值。' : 'Failed to save rate limits. Please check values.', locale)),
+  });
+
+  const fileListDisplayMutation = useMutation({
+    mutationFn: updateFileListDisplaySettings,
+    onSuccess: () => {
+      messageApi.success(t('settings.saved'));
+      void queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
+      void queryClient.invalidateQueries({ queryKey: ['public-file-list-display-config'] });
+      void queryClient.invalidateQueries({ queryKey: ['public-files'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
+    },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '文件列表显示方式保存失败，请检查配置。' : 'Failed to save file list display settings.', locale)),
   });
 
   const uploadMutation = useMutation({
@@ -233,6 +248,37 @@ export function AdminSettingsPage() {
               rules={[{ required: true, message: locale === 'zh-CN' ? '请输入下载链接有效期' : 'Please enter download URL expiry.' }]}
             >
               <InputNumber min={10} max={86400} style={{ width: '100%' }} />
+            </Form.Item>
+          </div>
+        </Form>
+      </Card>
+
+      <Card className="surface-card" style={{ marginTop: 24 }} loading={settingsQuery.isLoading}>
+        <div className="toolbar-row">
+          <div>
+            <h2 className="section-title">{locale === 'zh-CN' ? '首页文件列表显示' : 'Public File List Display'}</h2>
+            <p className="section-subtitle">
+              {locale === 'zh-CN' ? '控制首页文件列表中的分类列和标签列显示完整路径，还是只显示当前节点名称。' : 'Choose whether category and tag columns show full paths or only the current node names.'}
+            </p>
+          </div>
+          <Button type="primary" loading={fileListDisplayMutation.isPending} onClick={() => fileListDisplayForm.submit()}>
+            {t('common.save')}
+          </Button>
+        </div>
+
+        <Form form={fileListDisplayForm} layout="vertical" onFinish={(values) => fileListDisplayMutation.mutate(values)}>
+          <div className="detail-metadata">
+            <Form.Item label={locale === 'zh-CN' ? '分类列显示方式' : 'Category column mode'} name="categoryMode" rules={[{ required: true }]}>
+              <Select options={[
+                { label: locale === 'zh-CN' ? '显示完整路径' : 'Show full path', value: 'fullPath' },
+                { label: locale === 'zh-CN' ? '只显示当前节点名称' : 'Show current node name only', value: 'leafName' },
+              ]} />
+            </Form.Item>
+            <Form.Item label={locale === 'zh-CN' ? '标签列显示方式' : 'Tag column mode'} name="tagMode" rules={[{ required: true }]}>
+              <Select options={[
+                { label: locale === 'zh-CN' ? '显示完整路径' : 'Show full path', value: 'fullPath' },
+                { label: locale === 'zh-CN' ? '只显示当前节点名称' : 'Show current node name only', value: 'leafName' },
+              ]} />
             </Form.Item>
           </div>
         </Form>

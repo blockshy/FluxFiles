@@ -189,6 +189,11 @@ func (ctl *AdminUserController) GetSettings(c *gin.Context) {
 		response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
 		return
 	}
+	fileListDisplay, err := ctl.admins.GetFileListDisplaySettings(c.Request.Context())
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
+		return
+	}
 
 	response.Success(c, http.StatusOK, "ok", gin.H{
 		"registrationEnabled":  enabled,
@@ -197,6 +202,7 @@ func (ctl *AdminUserController) GetSettings(c *gin.Context) {
 		"captcha":              captcha,
 		"rateLimits":           rateLimits,
 		"uploadSettings":       uploadSettings,
+		"fileListDisplay":      fileListDisplay,
 	})
 }
 
@@ -224,6 +230,32 @@ func (ctl *AdminUserController) UpdateDownloadSettings(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "download settings updated", gin.H{
 		"downloadSettings": settings,
+	})
+}
+
+func (ctl *AdminUserController) UpdateFileListDisplaySettings(c *gin.Context) {
+	var req dto.UpdateFileListDisplaySettingsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid file list display payload")
+		return
+	}
+
+	settings, err := ctl.admins.UpdateFileListDisplaySettings(c.Request.Context(), c.GetUint("adminUserID"), c.ClientIP(), service.FileListDisplaySettings{
+		CategoryMode: req.CategoryMode,
+		TagMode:      req.TagMode,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrValidation):
+			response.Error(c, http.StatusBadRequest, err.Error())
+		default:
+			response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, "file list display settings updated", gin.H{
+		"fileListDisplay": settings,
 	})
 }
 

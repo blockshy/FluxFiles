@@ -116,7 +116,7 @@ function buildCategorySelectTreeData(items: TaxonomyRecord[], excludedId?: numbe
     sortTaxonomyItems(childrenByParent.get(parentId) ?? []).map((item) => ({
       key: item.id,
       value: item.id,
-      title: item.fullPath || item.name,
+      title: item.name,
       children: build(item.id),
     }));
 
@@ -259,7 +259,6 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
     <Flex align="center" justify="space-between" gap={12} className="taxonomy-tree-row">
       <div className="taxonomy-tree-main">
         <Typography.Text strong>{record.name}</Typography.Text>
-        <Typography.Text type="secondary">{record.fullPath || record.name}</Typography.Text>
         <Typography.Text type="secondary">
           {props.kind === 'category'
             ? (props.locale === 'zh-CN'

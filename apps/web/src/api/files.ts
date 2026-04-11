@@ -4,6 +4,7 @@ import type {
   CommentListPayload,
   DownloadPayload,
   FileQuery,
+  FileListDisplaySettings,
   FileRecord,
   PaginatedPayload,
   PublicDownloadConfig,
@@ -45,6 +46,11 @@ export async function fetchPublicFile(id: number) {
 
 export async function fetchPublicDownloadConfig() {
   const response = await apiClient.get<ApiEnvelope<PublicDownloadConfig>>('/files/download-config');
+  return response.data.data;
+}
+
+export async function fetchPublicFileListDisplayConfig() {
+  const response = await apiClient.get<ApiEnvelope<FileListDisplaySettings>>('/files/list-display-config');
   return response.data.data;
 }
 

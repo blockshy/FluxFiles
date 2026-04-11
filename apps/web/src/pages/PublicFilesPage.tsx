@@ -5,8 +5,8 @@ import type { DataNode } from 'antd/es/tree';
 import type { ColumnsType } from 'antd/es/table';
 import { useDeferredValue, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchPublicCategoryOptions, fetchPublicFiles, fetchPublicTagOptions } from '../api/files';
-import type { FileRecord, TaxonomyRecord } from '../api/types';
+import { fetchPublicCategoryOptions, fetchPublicFileListDisplayConfig, fetchPublicFiles, fetchPublicTagOptions } from '../api/files';
+import type { FileListDisplaySettings, FileRecord, TaxonomyRecord } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { useUserAuth } from '../features/user/AuthProvider';
 import { formatBytes, formatDate } from '../lib/format';
@@ -35,6 +35,14 @@ function buildNodeTitle(label: string, selectedLeaves: number, totalLeaves: numb
   );
 }
 
+function resolveLeafName(value?: string) {
+  if (!value) {
+    return '';
+  }
+  const parts = value.split('.');
+  return parts[parts.length - 1] || value;
+}
+
 function buildCategoryTreeOptions(items: TaxonomyRecord[], selected: string[]) {
   const selectedSet = new Set(selected);
   const childrenByParent = new Map<number | null, TaxonomyRecord[]>();
@@ -54,7 +62,7 @@ function buildCategoryTreeOptions(items: TaxonomyRecord[], selected: string[]) {
       descendants.set(item.name, ownDescendants);
       const selectedLeaves = ownDescendants.filter((entry) => selectedSet.has(entry)).length;
       return {
-        title: buildNodeTitle(item.fullPath || item.name, selectedLeaves, ownDescendants.length, selectedLeaves === ownDescendants.length, selectedLeaves > 0 && selectedLeaves < ownDescendants.length),
+        title: buildNodeTitle(item.name, selectedLeaves, ownDescendants.length, selectedLeaves === ownDescendants.length, selectedLeaves > 0 && selectedLeaves < ownDescendants.length),
         key: item.name,
         children,
       };
@@ -81,7 +89,7 @@ function buildTagTreeOptions(tags: TaxonomyRecord[], selected: string[]) {
       descendants.set(`tag:${item.name}`, ownDescendants);
       const selectedLeaves = ownDescendants.filter((entry) => selectedSet.has(entry)).length;
       return {
-        title: buildNodeTitle(item.fullPath || item.name, selectedLeaves, ownDescendants.length, selectedLeaves === ownDescendants.length, selectedLeaves > 0 && selectedLeaves < ownDescendants.length),
+        title: buildNodeTitle(item.name, selectedLeaves, ownDescendants.length, selectedLeaves === ownDescendants.length, selectedLeaves > 0 && selectedLeaves < ownDescendants.length),
         key: `tag:${item.name}`,
         children,
       };
@@ -107,6 +115,7 @@ export function PublicFilesPage() {
 
   const categoryOptionsQuery = useQuery({ queryKey: ['public-category-options'], queryFn: fetchPublicCategoryOptions });
   const tagOptionsQuery = useQuery({ queryKey: ['public-tag-options'], queryFn: fetchPublicTagOptions });
+  const fileListDisplayQuery = useQuery({ queryKey: ['public-file-list-display-config'], queryFn: fetchPublicFileListDisplayConfig });
   const filesQuery = useQuery({
     queryKey: ['public-files', page, pageSize, deferredSearch, categories.join('|'), tags.join('|'), sortBy, sortOrder],
     queryFn: () => fetchPublicFiles({
@@ -129,6 +138,7 @@ export function PublicFilesPage() {
     [tagOptionsQuery.data, draftTags],
   );
   const taxonomyLoading = categoryOptionsQuery.isLoading || tagOptionsQuery.isLoading;
+  const fileListDisplay = fileListDisplayQuery.data ?? ({ categoryMode: 'fullPath', tagMode: 'fullPath' } satisfies FileListDisplaySettings);
   const categoryPathMap = useMemo(() => new Map((categoryOptionsQuery.data ?? []).map((item) => [item.name, item.fullPath || item.name])), [categoryOptionsQuery.data]);
   const tagPathMap = useMemo(() => new Map((tagOptionsQuery.data ?? []).map((item) => [item.name, item.fullPath || item.name])), [tagOptionsQuery.data]);
   const appliedFilterCount = categories.length + tags.length;
@@ -173,10 +183,13 @@ export function PublicFilesPage() {
         if (!items?.length) {
           return '-';
         }
+        const displayItems = fileListDisplay.tagMode === 'leafName'
+          ? items.map((item) => resolveLeafName(item))
+          : items;
         return (
           <div className="public-tag-grid adaptive">
-            {items.map((tag) => (
-              <Tag key={tag} className="public-tag-grid-item" title={tag}>{tag}</Tag>
+            {displayItems.map((tag, index) => (
+              <Tag key={`${items[index]}-${index}`} className="public-tag-grid-item" title={tag}>{tag}</Tag>
             ))}
           </div>
         );
@@ -187,7 +200,12 @@ export function PublicFilesPage() {
       dataIndex: 'categoryPath',
       key: 'categoryPath',
       width: 150,
-      render: (value, record) => ((value || record.category) ? <Tag>{value || record.category}</Tag> : '-'),
+      render: (value, record) => {
+        const displayValue = fileListDisplay.categoryMode === 'leafName'
+          ? (record.category || resolveLeafName(value))
+          : (value || record.category);
+        return displayValue ? <Tag>{displayValue}</Tag> : '-';
+      },
     },
     {
       title: locale === 'zh-CN' ? '上传者' : 'Uploader',
@@ -299,7 +317,7 @@ export function PublicFilesPage() {
           scroll={{ x: 1500 }}
           columns={columns}
           dataSource={filesQuery.data?.items ?? []}
-          loading={filesQuery.isLoading}
+          loading={filesQuery.isLoading || fileListDisplayQuery.isLoading}
           pagination={{ current: page, pageSize, total: filesQuery.data?.pagination.total ?? 0, onChange: (nextPage, nextPageSize) => { setPage(nextPage); setPageSize(nextPageSize); } }}
         />
       </Card>

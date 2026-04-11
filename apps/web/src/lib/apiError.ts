@@ -37,6 +37,7 @@ const zhMessageMap: Record<string, string> = {
   'invalid community post payload': '社区帖子内容无效，请检查标题和正文。',
   'invalid community reply payload': '社区回复内容无效，请检查内容是否为空、过长或帖子已锁定。',
   'invalid download settings payload': '下载设置格式不正确，请检查游客下载开关、验证码开关和链接有效期。',
+  'invalid file list display payload': '文件列表显示设置格式不正确，请检查分类和标签显示方式。',
   'invalid endAt': '结束时间格式无效。',
   'invalid login payload': '登录信息格式不正确，请检查账号和密码。',
   'invalid password payload': '密码信息格式不正确，请检查后重新提交。',

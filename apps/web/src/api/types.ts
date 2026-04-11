@@ -216,6 +216,11 @@ export interface PublicDownloadConfig {
   captchaEnabled: boolean;
 }
 
+export interface FileListDisplaySettings {
+  categoryMode: 'fullPath' | 'leafName';
+  tagMode: 'fullPath' | 'leafName';
+}
+
 export interface CaptchaChallenge {
   id: string;
   question: string;
@@ -382,6 +387,7 @@ export interface AdminSettings {
   captcha: CaptchaSettings;
   rateLimits: RateLimitSettings;
   uploadSettings: UploadSettings;
+  fileListDisplay: FileListDisplaySettings;
 }
 
 export interface RateLimitRuleSettings {

@@ -3,9 +3,9 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { Avatar, Button, Card, Empty, Form, Input, Modal, Skeleton, Space, Tag, Typography, message } from 'antd';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { fetchPublicDownloadConfig, fetchPublicFile, fetchPublicFileComments, requestDownloadLink } from '../api/files';
+import { fetchPublicDownloadConfig, fetchPublicFile, fetchPublicFileComments, fetchPublicFileListDisplayConfig, requestDownloadLink } from '../api/files';
 import { addFavoriteFile, createComment, deleteComment, fetchCaptcha, fetchFavoriteFiles, voteComment, removeFavoriteFile } from '../api/user';
-import type { CommentRecord } from '../api/types';
+import type { CommentRecord, FileListDisplaySettings } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { useUserAuth } from '../features/user/AuthProvider';
 import { getApiErrorMessage } from '../lib/apiError';
@@ -45,6 +45,14 @@ interface CommentNodeProps {
   hasMoreReplies?: boolean;
   loadingMoreReplies?: boolean;
   onLoadMoreReplies?: () => void;
+}
+
+function resolveLeafName(value?: string) {
+  if (!value) {
+    return '';
+  }
+  const parts = value.split('.');
+  return parts[parts.length - 1] || value;
 }
 
 function mergeComments(existing: CommentRecord[], incoming: CommentRecord[]) {
@@ -490,6 +498,14 @@ export function PublicFileDetailPage() {
   });
 
   const file = fileQuery.data;
+  const fileListDisplayQuery = useQuery({ queryKey: ['public-file-list-display-config'], queryFn: fetchPublicFileListDisplayConfig });
+  const fileListDisplay = fileListDisplayQuery.data ?? ({ categoryMode: 'fullPath', tagMode: 'fullPath' } satisfies FileListDisplaySettings);
+  const detailCategory = fileListDisplay.categoryMode === 'leafName'
+    ? (file?.category || resolveLeafName(file?.categoryPath))
+    : (file?.categoryPath || file?.category);
+  const detailTags = file
+    ? ((file.tagPaths?.length ? file.tagPaths : file.tags || []).map((tag) => fileListDisplay.tagMode === 'leafName' ? resolveLeafName(tag) : tag))
+    : [];
 
   return (
     <>
@@ -517,12 +533,12 @@ export function PublicFileDetailPage() {
               <div className="detail-metadata">
                 <div className="detail-item">
                   <span className="detail-label">{locale === 'zh-CN' ? '分类' : 'Category'}</span>
-                  <span className="detail-value">{file.categoryPath || file.category || (locale === 'zh-CN' ? '未分类' : 'Uncategorized')}</span>
+                  <span className="detail-value">{detailCategory || (locale === 'zh-CN' ? '未分类' : 'Uncategorized')}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">{locale === 'zh-CN' ? '标签' : 'Tags'}</span>
                   <div className="detail-tag-list">
-                    {(file.tagPaths?.length ? file.tagPaths : file.tags || []).length > 0 ? (file.tagPaths?.length ? file.tagPaths : file.tags).map((tag) => <Tag key={tag}>{tag}</Tag>) : <Tag>{locale === 'zh-CN' ? '无标签' : 'No tags'}</Tag>}
+                    {detailTags.length > 0 ? detailTags.map((tag, index) => <Tag key={`${tag}-${index}`}>{tag}</Tag>) : <Tag>{locale === 'zh-CN' ? '无标签' : 'No tags'}</Tag>}
                   </div>
                 </div>
                 <div className="detail-item">
@@ -565,7 +581,7 @@ export function PublicFileDetailPage() {
                 </div>
               </div>
             </Space>
-          ) : fileQuery.isLoading ? (
+          ) : fileQuery.isLoading || fileListDisplayQuery.isLoading ? (
             <Skeleton active paragraph={{ rows: 8 }} />
           ) : <Empty description={locale === 'zh-CN' ? '文件不存在或已下线' : 'File not found'} />}
         </Card>
