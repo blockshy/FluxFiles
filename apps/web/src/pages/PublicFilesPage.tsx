@@ -87,7 +87,6 @@ function buildTagTreeOptions(categories: TaxonomyRecord[], tags: TaxonomyRecord[
   const build = (parentId: number | null): DataNode[] =>
     sortTaxonomyItems(categoryChildrenByParent.get(parentId) ?? []).map((category) => {
       const childCategories = build(category.id);
-      const childCategoryTags = childCategories.flatMap((child) => descendants.get(String(child.key)) ?? []);
       const leafTags = sortTaxonomyItems(tagsByCategory.get(category.id) ?? []).map((tag) => {
         const tagKey = `tag:${tag.name}`;
         descendants.set(tagKey, [tag.name]);
@@ -97,15 +96,16 @@ function buildTagTreeOptions(categories: TaxonomyRecord[], tags: TaxonomyRecord[
           key: tagKey,
         };
       });
-      const ownTags = [...childCategoryTags, ...leafTags.flatMap((item) => descendants.get(String(item.key)) ?? [])];
+      const ownTags = [
+        ...childCategories.flatMap((child) => descendants.get(String(child.key)) ?? []),
+        ...leafTags.flatMap((item) => descendants.get(String(item.key)) ?? []),
+      ];
       const categoryKey = `tag-category:${category.id}`;
       descendants.set(categoryKey, ownTags);
       const selectedLeaves = ownTags.filter((entry) => selectedSet.has(entry)).length;
       return {
         title: buildNodeTitle(category.fullPath || category.name, selectedLeaves, ownTags.length, ownTags.length > 0 && selectedLeaves === ownTags.length, selectedLeaves > 0 && selectedLeaves < ownTags.length),
         key: categoryKey,
-        selectable: true,
-        disableCheckbox: true,
         children: [...childCategories, ...leafTags],
       };
     });
@@ -387,7 +387,19 @@ export function PublicFilesPage() {
                 defaultExpandAll
                 checkedKeys={draftTags.map((item) => `tag:${item}`)}
                 treeData={tagTree.treeData}
-                onCheck={(checkedKeys) => setDraftTags((checkedKeys as string[]).filter((item) => item.startsWith('tag:')).map((item) => item.slice(4)))}
+                onCheck={(checkedKeys) => {
+                  const explicitKeys = Array.isArray(checkedKeys) ? checkedKeys : checkedKeys.checked;
+                  const nextTags = new Set<string>();
+                  for (const key of explicitKeys as string[]) {
+                    const mapped = tagTree.descendants.get(String(key));
+                    if (mapped?.length) {
+                      mapped.forEach((item) => nextTags.add(item));
+                    } else if (String(key).startsWith('tag:')) {
+                      nextTags.add(String(key).slice(4));
+                    }
+                  }
+                  setDraftTags(Array.from(nextTags));
+                }}
                 onSelect={(selectedKeys, info) => {
                   const key = String(info.node.key);
                   const targets = tagTree.descendants.get(key) ?? (key.startsWith('tag:') ? [key.slice(4)] : []);

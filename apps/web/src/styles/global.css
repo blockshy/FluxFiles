@@ -82,6 +82,21 @@ a {
   min-height: 100vh;
 }
 
+.desktop-scale-shell {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.desktop-scale-spacer {
+  position: relative;
+}
+
+.desktop-scale-stage {
+  position: absolute;
+  inset: 0 auto auto 0;
+  transform-origin: top left;
+}
+
 .app-shell {
   min-height: 100vh;
 }
@@ -169,6 +184,10 @@ a {
 .user-menu-name {
   font-size: 14px;
   font-weight: 500;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shell-body {
@@ -449,6 +468,13 @@ a {
   gap: 12px;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.toolbar-controls > .ant-input-affix-wrapper,
+.toolbar-controls > .ant-select,
+.toolbar-controls > .ant-btn,
+.toolbar-controls > a {
+  max-width: 100%;
 }
 
 .public-filter-summary {
@@ -1069,69 +1095,10 @@ body[data-theme='dark'] .ant-table-container {
   background: transparent;
 }
 
-@media (max-width: 1080px) {
-  .public-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .metric-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 640px) {
-  .shell-header,
-  .shell-body {
-    padding: 18px;
-  }
-
-  .shell-header,
-  .shell-header-left,
-  .avatar-editor,
-  .profile-hero,
-  .detail-hero {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .shell-nav {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .admin-header {
-    padding: 14px 18px !important;
-    flex-wrap: wrap;
-  }
-
-  .admin-header-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .login-toolbar {
-    top: 16px;
-    right: 18px;
-  }
-
-  .toolbar-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .toolbar-controls,
-  .detail-metadata,
-  .metric-grid,
-  .permission-groups {
-    grid-template-columns: 1fr;
-    display: grid;
-  }
-
-  .public-tag-grid.adaptive {
-    grid-template-columns: 1fr;
-  }
-
-  .community-post-owner-actions {
-    padding-left: 0;
+  .desktop-scale-shell {
+    width: 100vw;
+    overflow-x: auto;
+    overflow-y: visible;
   }
 }
