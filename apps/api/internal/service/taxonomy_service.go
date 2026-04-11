@@ -39,7 +39,6 @@ type ListTaxonomiesInput struct {
 type SaveTaxonomyInput struct {
 	Name       string
 	ParentID   *uint
-	CategoryID *uint
 }
 
 type MoveTaxonomyInput struct {
@@ -129,12 +128,11 @@ func (s *TaxonomyService) Create(ctx context.Context, kind repository.TaxonomyKi
 	}
 
 	item := &model.Category{
-		Name:       name,
-		ParentID:   normalizeOptionalID(input.ParentID),
-		CategoryID: normalizeOptionalID(input.CategoryID),
-		SortOrder:  0,
-		CreatedBy:  adminID,
-		UpdatedBy:  adminID,
+		Name:      name,
+		ParentID:  normalizeOptionalID(input.ParentID),
+		SortOrder: 0,
+		CreatedBy: adminID,
+		UpdatedBy: adminID,
 	}
 	sortOrder, err := s.repo.NextSortOrder(ctx, kind, taxonomyParentID(kind, item))
 	if err != nil {
@@ -188,19 +186,14 @@ func (s *TaxonomyService) Update(ctx context.Context, kind repository.TaxonomyKi
 	}
 	parentChanged := false
 	switch kind {
-	case repository.TaxonomyKindCategory, repository.TaxonomyKindTagCategory:
+	case repository.TaxonomyKindCategory, repository.TaxonomyKindTag:
 		nextParentID := normalizeOptionalID(input.ParentID)
 		values["parent_id"] = nextParentID
 		parentChanged = !sameOptionalUint(item.ParentID, nextParentID)
-	case repository.TaxonomyKindTag:
-		nextCategoryID := normalizeOptionalID(input.CategoryID)
-		values["tag_category_id"] = nextCategoryID
-		parentChanged = !sameOptionalUint(item.CategoryID, nextCategoryID)
 	}
 	if parentChanged {
 		sortOrder, sortErr := s.repo.NextSortOrder(ctx, kind, taxonomyParentID(kind, &model.Category{
-			ParentID:   normalizeOptionalID(input.ParentID),
-			CategoryID: normalizeOptionalID(input.CategoryID),
+			ParentID: normalizeOptionalID(input.ParentID),
 		}))
 		if sortErr != nil {
 			return nil, ErrDependencyUnavailable
@@ -245,13 +238,13 @@ func (s *TaxonomyService) Delete(ctx context.Context, kind repository.TaxonomyKi
 	if usageCount > 0 {
 		return fmt.Errorf("%w: taxonomy is still used by files", ErrValidation)
 	}
-	if kind == repository.TaxonomyKindCategory || kind == repository.TaxonomyKindTagCategory {
+	if kind == repository.TaxonomyKindCategory || kind == repository.TaxonomyKindTag {
 		childCategories, childTags, childErr := s.repo.CountCategoryChildren(ctx, kind, id)
 		if childErr != nil {
 			return ErrDependencyUnavailable
 		}
 		if childCategories > 0 || childTags > 0 {
-			return fmt.Errorf("%w: category still contains subcategories or tags", ErrValidation)
+			return fmt.Errorf("%w: taxonomy still contains child nodes", ErrValidation)
 		}
 	}
 	before := *item
@@ -356,18 +349,13 @@ func (s *TaxonomyService) EnrichFiles(ctx context.Context, files []model.File) e
 	if err != nil {
 		return ErrDependencyUnavailable
 	}
-	tagCategoryItems, err := s.repo.ListOptions(ctx, repository.TaxonomyKindTagCategory)
-	if err != nil {
-		return ErrDependencyUnavailable
-	}
 	tagItems, err := s.repo.ListOptions(ctx, repository.TaxonomyKindTag)
 	if err != nil {
 		return ErrDependencyUnavailable
 	}
 
 	categoryPathMap := buildCategoryPathMap(categoryItems)
-	tagCategoryPathMap := buildCategoryPathMap(tagCategoryItems)
-	tagPathMap := buildTagPathMap(tagItems, tagCategoryPathMap)
+	tagPathMap := buildTagPathMap(tagItems)
 	for index := range files {
 		if files[index].Category != "" {
 			files[index].CategoryPath = categoryPathMap[files[index].Category]
@@ -390,8 +378,6 @@ func (s *TaxonomyService) countUsage(ctx context.Context, kind repository.Taxono
 		return s.files.CountByCategory(ctx, name)
 	case repository.TaxonomyKindTag:
 		return s.files.CountByTag(ctx, name)
-	case repository.TaxonomyKindTagCategory:
-		return 0, nil
 	default:
 		return 0, ErrValidation
 	}
@@ -439,7 +425,7 @@ func (s *TaxonomyService) enrichItems(ctx context.Context, kind repository.Taxon
 		return nil
 	}
 	switch kind {
-	case repository.TaxonomyKindCategory, repository.TaxonomyKindTagCategory:
+	case repository.TaxonomyKindCategory, repository.TaxonomyKindTag:
 		treeItems, err := s.repo.ListOptions(ctx, kind)
 		if err != nil {
 			return ErrDependencyUnavailable
@@ -456,25 +442,13 @@ func (s *TaxonomyService) enrichItems(ctx context.Context, kind repository.Taxon
 			if err != nil {
 				return ErrDependencyUnavailable
 			}
-			items[index].ChildCount = childCategories
+			items[index].ChildCount = childCategories + childTags
 			items[index].TagCount = childTags
 			if items[index].ParentID != nil {
 				if parent, ok := idMap[*items[index].ParentID]; ok {
 					items[index].ParentName = parent.Name
 				}
 			}
-		}
-	case repository.TaxonomyKindTag:
-		tagCategoryItems, err := s.repo.ListOptions(ctx, repository.TaxonomyKindTagCategory)
-		if err != nil {
-			return ErrDependencyUnavailable
-		}
-		categoryPathMap := buildCategoryPathMap(tagCategoryItems)
-		for index := range items {
-			if items[index].CategoryName != "" {
-				items[index].CategoryPath = categoryPathMap[items[index].CategoryName]
-			}
-			items[index].FullPath = joinPath(items[index].CategoryPath, items[index].Name)
 		}
 	}
 	return nil
@@ -494,17 +468,17 @@ func (s *TaxonomyService) enrichSingle(ctx context.Context, kind repository.Taxo
 
 func (s *TaxonomyService) validateSaveInput(ctx context.Context, kind repository.TaxonomyKind, currentID uint, input SaveTaxonomyInput) error {
 	switch kind {
-	case repository.TaxonomyKindCategory, repository.TaxonomyKindTagCategory:
+	case repository.TaxonomyKindCategory, repository.TaxonomyKindTag:
 		if input.ParentID == nil || *input.ParentID == 0 {
 			return nil
 		}
 		if currentID > 0 && *input.ParentID == currentID {
-			return fmt.Errorf("%w: category cannot be its own parent", ErrValidation)
+			return fmt.Errorf("%w: taxonomy cannot be its own parent", ErrValidation)
 		}
 		parent, err := s.repo.GetByID(ctx, kind, *input.ParentID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("%w: parent category does not exist", ErrValidation)
+				return fmt.Errorf("%w: parent taxonomy does not exist", ErrValidation)
 			}
 			return ErrDependencyUnavailable
 		}
@@ -524,7 +498,7 @@ func (s *TaxonomyService) validateSaveInput(ctx context.Context, kind repository
 		seen := map[uint]struct{}{}
 		for cursor > 0 {
 			if cursor == currentID {
-				return fmt.Errorf("%w: category hierarchy cannot contain cycles", ErrValidation)
+				return fmt.Errorf("%w: taxonomy hierarchy cannot contain cycles", ErrValidation)
 			}
 			if _, ok := seen[cursor]; ok {
 				break
@@ -535,16 +509,6 @@ func (s *TaxonomyService) validateSaveInput(ctx context.Context, kind repository
 				break
 			}
 			cursor = *next
-		}
-	case repository.TaxonomyKindTag:
-		if input.CategoryID == nil || *input.CategoryID == 0 {
-			return fmt.Errorf("%w: tag category is required", ErrValidation)
-		}
-		if _, err := s.repo.GetByID(ctx, repository.TaxonomyKindTagCategory, *input.CategoryID); err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("%w: tag category does not exist", ErrValidation)
-			}
-			return ErrDependencyUnavailable
 		}
 	}
 	return nil
@@ -558,10 +522,10 @@ func normalizeOptionalID(value *uint) *uint {
 }
 
 func taxonomyParentID(kind repository.TaxonomyKind, item *model.Category) *uint {
-	if kind == repository.TaxonomyKindCategory || kind == repository.TaxonomyKindTagCategory {
+	if kind == repository.TaxonomyKindCategory || kind == repository.TaxonomyKindTag {
 		return item.ParentID
 	}
-	return item.CategoryID
+	return nil
 }
 
 func sameOptionalUint(left, right *uint) bool {
@@ -627,13 +591,9 @@ func buildCategoryPathMaps(items []model.Category) (map[string]string, map[strin
 	return pathByName, depthByName
 }
 
-func buildTagPathMap(items []model.Category, categoryPathMap map[string]string) map[string]string {
-	result := make(map[string]string, len(items))
-	for _, item := range items {
-		categoryPath := categoryPathMap[item.CategoryName]
-		result[item.Name] = joinPath(categoryPath, item.Name)
-	}
-	return result
+func buildTagPathMap(items []model.Category) map[string]string {
+	pathMap, _ := buildCategoryPathMaps(items)
+	return pathMap
 }
 
 func joinPath(parent, current string) string {

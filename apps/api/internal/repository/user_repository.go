@@ -205,11 +205,6 @@ func (r *UserRepository) FindDeletionBlocker(ctx context.Context, userID uint) (
 			args:    []any{userID, userID},
 		},
 		{
-			query:   "SELECT COUNT(*) FROM tag_categories WHERE deleted_at IS NULL AND (created_by = ? OR updated_by = ?)",
-			message: "user still owns tag category records",
-			args:    []any{userID, userID},
-		},
-		{
 			query:   "SELECT COUNT(*) FROM tags WHERE deleted_at IS NULL AND (created_by = ? OR updated_by = ?)",
 			message: "user still owns tag records",
 			args:    []any{userID, userID},

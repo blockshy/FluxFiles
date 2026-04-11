@@ -23,28 +23,20 @@ interface TaxonomyAdminPageProps {
   title: string;
   subtitle: string;
   createLabel: string;
+  createChildLabel?: string;
   deleteConfirm: string;
   deleteInUseHint: string;
   recordLabel: string;
   searchPlaceholder: string;
   treeQueryKey: string;
-  categoryOptionsQueryKey?: string;
   logsQueryKey: string;
   extraInvalidateKeys?: string[];
   fetchTreeItems: () => Promise<TaxonomyRecord[]>;
-  fetchCategoryOptions?: () => Promise<TaxonomyRecord[]>;
   createItem: (payload: SaveTaxonomyPayload) => Promise<TaxonomyRecord>;
   updateItem: (id: number, payload: SaveTaxonomyPayload) => Promise<TaxonomyRecord>;
   moveItem: (id: number, payload: MoveTaxonomyPayload) => Promise<TaxonomyRecord>;
   deleteItem: (id: number) => Promise<unknown>;
   fetchLogs: (id: number, query: TaxonomyQuery) => Promise<{ items: TaxonomyLogRecord[]; pagination: Pagination }>;
-  categoryActions?: {
-    createItem: (payload: SaveTaxonomyPayload) => Promise<TaxonomyRecord>;
-    updateItem: (id: number, payload: SaveTaxonomyPayload) => Promise<TaxonomyRecord>;
-    moveItem: (id: number, payload: MoveTaxonomyPayload) => Promise<TaxonomyRecord>;
-    deleteItem: (id: number) => Promise<unknown>;
-    fetchLogs: (id: number, query: TaxonomyQuery) => Promise<{ items: TaxonomyLogRecord[]; pagination: Pagination }>;
-  };
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
@@ -52,8 +44,7 @@ interface TaxonomyAdminPageProps {
   locale: 'zh-CN' | 'en-US';
 }
 
-type TreeActionMode = 'create-root' | 'create-child' | 'create-tag' | 'edit';
-type TaxonomySubject = 'category' | 'tag';
+type TreeActionMode = 'create-root' | 'create-child' | 'edit';
 
 function parseLogPayload(text: string) {
   if (!text) {
@@ -88,38 +79,6 @@ function filterCategoryTree(items: TaxonomyRecord[], keyword: string) {
   return items.filter((item) => keep.has(item.id));
 }
 
-function filterTagTree(categories: TaxonomyRecord[], tags: TaxonomyRecord[], keyword: string) {
-  if (!keyword) {
-    return { categories, tags };
-  }
-  const normalized = keyword.toLowerCase();
-  const keepCategoryIds = new Set<number>();
-  const filteredTags = tags.filter((item) => {
-    const label = `${item.name} ${item.fullPath ?? ''} ${item.categoryPath ?? ''}`.toLowerCase();
-    if (!label.includes(normalized)) {
-      return false;
-    }
-    if (item.categoryId) {
-      keepCategoryIds.add(item.categoryId);
-    }
-    return true;
-  });
-
-  const byId = new Map(categories.map((item) => [item.id, item]));
-  for (const categoryId of Array.from(keepCategoryIds)) {
-    let cursor: number | undefined = categoryId;
-    while (cursor) {
-      keepCategoryIds.add(cursor);
-      cursor = byId.get(cursor)?.parentId;
-    }
-  }
-
-  return {
-    categories: categories.filter((item) => keepCategoryIds.has(item.id)),
-    tags: filteredTags,
-  };
-}
-
 function sortTaxonomyItems(items: TaxonomyRecord[]) {
   return [...items].sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'zh-Hans-CN'));
 }
@@ -138,47 +97,6 @@ function buildCategoryTreeData(items: TaxonomyRecord[], renderTitle: (item: Taxo
       key: `category-${item.id}`,
       title: renderTitle(item),
       children: build(item.id),
-    }));
-
-  return build(null);
-}
-
-function buildTagTreeData(
-  categories: TaxonomyRecord[],
-  tags: TaxonomyRecord[],
-  renderCategoryTitle: (item: TaxonomyRecord) => ReactNode,
-  renderTagTitle: (item: TaxonomyRecord) => ReactNode,
-): DataNode[] {
-  const tagsByCategory = new Map<number, TaxonomyRecord[]>();
-  for (const tag of tags) {
-    if (!tag.categoryId) {
-      continue;
-    }
-    const siblings = tagsByCategory.get(tag.categoryId) ?? [];
-    siblings.push(tag);
-    tagsByCategory.set(tag.categoryId, siblings);
-  }
-
-  const childrenByParent = new Map<number | null, TaxonomyRecord[]>();
-  for (const item of categories) {
-    const key = item.parentId ?? null;
-    const siblings = childrenByParent.get(key) ?? [];
-    siblings.push(item);
-    childrenByParent.set(key, siblings);
-  }
-
-  const build = (parentId: number | null): DataNode[] =>
-    sortTaxonomyItems(childrenByParent.get(parentId) ?? []).map((category) => ({
-      key: `category-${category.id}`,
-      title: renderCategoryTitle(category),
-      children: [
-        ...build(category.id),
-        ...sortTaxonomyItems(tagsByCategory.get(category.id) ?? []).map((tag) => ({
-          key: `tag-${tag.id}`,
-          isLeaf: true,
-          title: renderTagTitle(tag),
-        })),
-      ],
     }));
 
   return build(null);
@@ -210,14 +128,12 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
   const [messageApi, contextHolder] = message.useMessage();
   const [search, setSearch] = useState('');
   const [expandedKeys, setExpandedKeys] = useState<Key[]>([]);
-  const [actionState, setActionState] = useState<{ open: boolean; mode: TreeActionMode; subject: TaxonomySubject; target: TaxonomyRecord | null }>({
+  const [actionState, setActionState] = useState<{ open: boolean; mode: TreeActionMode; target: TaxonomyRecord | null }>({
     open: false,
     mode: 'create-root',
-    subject: props.kind,
     target: null,
   });
   const [logsTarget, setLogsTarget] = useState<TaxonomyRecord | null>(null);
-  const [logsSubject, setLogsSubject] = useState<TaxonomySubject>(props.kind);
   const [logsPage] = useState(1);
   const [logsPageSize] = useState(20);
   const [form] = Form.useForm<SaveTaxonomyPayload>();
@@ -228,25 +144,14 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
     queryKey: [props.treeQueryKey],
     queryFn: props.fetchTreeItems,
   });
-  const categoryOptionsQuery = useQuery({
-    queryKey: [props.categoryOptionsQueryKey ?? 'admin-category-options'],
-    queryFn: () => props.fetchCategoryOptions?.() ?? Promise.resolve([]),
-    enabled: Boolean(props.fetchCategoryOptions),
-  });
   const logsQuery = useQuery({
-    queryKey: ['taxonomy-logs', logsSubject, logsTarget?.id, logsPage, logsPageSize],
-    queryFn: () => {
-      const fetcher = logsSubject === 'category' && props.categoryActions ? props.categoryActions.fetchLogs : props.fetchLogs;
-      return fetcher(logsTarget!.id, { page: logsPage, pageSize: logsPageSize });
-    },
+    queryKey: ['taxonomy-logs', props.kind, logsTarget?.id, logsPage, logsPageSize],
+    queryFn: () => props.fetchLogs(logsTarget!.id, { page: logsPage, pageSize: logsPageSize }),
     enabled: Boolean(logsTarget && props.canViewLogs),
   });
 
   const invalidateRelated = async () => {
     await queryClient.invalidateQueries({ queryKey: [props.treeQueryKey] });
-    if (props.categoryOptionsQueryKey) {
-      await queryClient.invalidateQueries({ queryKey: [props.categoryOptionsQueryKey] });
-    }
     if (props.kind === 'category') {
       await queryClient.invalidateQueries({ queryKey: ['admin-tags-tree'] });
       await queryClient.invalidateQueries({ queryKey: ['admin-tag-options'] });
@@ -257,18 +162,15 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
       }
     }
     if (logsTarget) {
-      await queryClient.invalidateQueries({ queryKey: ['taxonomy-logs', logsSubject, logsTarget.id] });
+      await queryClient.invalidateQueries({ queryKey: ['taxonomy-logs', props.kind, logsTarget.id] });
     }
   };
 
   const createMutation = useMutation({
-    mutationFn: ({ subject, payload }: { subject: TaxonomySubject; payload: SaveTaxonomyPayload }) => {
-      const creator = subject === 'category' && props.categoryActions ? props.categoryActions.createItem : props.createItem;
-      return creator(payload);
-    },
+    mutationFn: (payload: SaveTaxonomyPayload) => props.createItem(payload),
     onSuccess: async () => {
       messageApi.success(props.locale === 'zh-CN' ? '已创建。' : 'Created.');
-      setActionState({ open: false, mode: 'create-root', subject: props.kind, target: null });
+      setActionState({ open: false, mode: 'create-root', target: null });
       form.resetFields();
       await invalidateRelated();
     },
@@ -276,13 +178,10 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, subject, payload }: { id: number; subject: TaxonomySubject; payload: SaveTaxonomyPayload }) => {
-      const updater = subject === 'category' && props.categoryActions ? props.categoryActions.updateItem : props.updateItem;
-      return updater(id, payload);
-    },
+    mutationFn: ({ id, payload }: { id: number; payload: SaveTaxonomyPayload }) => props.updateItem(id, payload),
     onSuccess: async () => {
       messageApi.success(props.locale === 'zh-CN' ? '已更新。' : 'Updated.');
-      setActionState({ open: false, mode: 'create-root', subject: props.kind, target: null });
+      setActionState({ open: false, mode: 'create-root', target: null });
       form.resetFields();
       await invalidateRelated();
     },
@@ -290,10 +189,7 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
   });
 
   const moveMutation = useMutation({
-    mutationFn: ({ id, direction, subject }: { id: number; direction: 'up' | 'down'; subject: TaxonomySubject }) => {
-      const mover = subject === 'category' && props.categoryActions ? props.categoryActions.moveItem : props.moveItem;
-      return mover(id, { direction });
-    },
+    mutationFn: ({ id, direction }: { id: number; direction: 'up' | 'down' }) => props.moveItem(id, { direction }),
     onSuccess: async () => {
       setMovingKey(null);
       await invalidateRelated();
@@ -305,10 +201,7 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: ({ id, subject }: { id: number; subject: TaxonomySubject }) => {
-      const deleter = subject === 'category' && props.categoryActions ? props.categoryActions.deleteItem : props.deleteItem;
-      return deleter(id);
-    },
+    mutationFn: (id: number) => props.deleteItem(id),
     onSuccess: async () => {
       messageApi.success(props.locale === 'zh-CN' ? '已删除。' : 'Deleted.');
       await invalidateRelated();
@@ -316,95 +209,81 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
     onError: (error) => messageApi.error(getApiErrorMessage(error, props.deleteInUseHint, props.locale)),
   });
 
-  const categoryItems = useMemo(() => categoryOptionsQuery.data ?? [], [categoryOptionsQuery.data]);
   const treeItems = useMemo(() => treeQuery.data ?? [], [treeQuery.data]);
 
   const filteredCategoryItems = useMemo(
-    () => filterCategoryTree(props.kind === 'category' ? treeItems : categoryItems, deferredSearch),
-    [categoryItems, deferredSearch, props.kind, treeItems],
-  );
-  const filteredTagPayload = useMemo(
-    () => filterTagTree(categoryItems, treeItems, deferredSearch),
-    [categoryItems, deferredSearch, treeItems],
+    () => filterCategoryTree(treeItems, deferredSearch),
+    [deferredSearch, treeItems],
   );
 
   const categorySelectTreeData = useMemo(
-    () => buildCategorySelectTreeData(categoryItems, actionState.mode === 'edit' ? actionState.target?.id : undefined),
-    [actionState.mode, actionState.target?.id, categoryItems],
+    () => buildCategorySelectTreeData(treeItems, actionState.mode === 'edit' ? actionState.target?.id : undefined),
+    [actionState.mode, actionState.target?.id, treeItems],
   );
 
-  const defaultExpandedKeys = useMemo(() => {
-    const source = props.kind === 'category' ? filteredCategoryItems : filteredTagPayload.categories;
-    return source.map((item) => `category-${item.id}`);
-  }, [filteredCategoryItems, filteredTagPayload.categories, props.kind]);
+  const defaultExpandedKeys = useMemo(() => filteredCategoryItems.map((item) => `category-${item.id}`), [filteredCategoryItems]);
 
   const effectiveExpandedKeys = expandedKeys.length > 0 ? expandedKeys : defaultExpandedKeys;
 
-  const openCreateModal = (mode: TreeActionMode, subject: TaxonomySubject, target: TaxonomyRecord | null = null) => {
-    setActionState({ open: true, mode, subject, target });
+  const openCreateModal = (mode: TreeActionMode, target: TaxonomyRecord | null = null) => {
+    setActionState({ open: true, mode, target });
     if (mode === 'edit' && target) {
       form.setFieldsValue({
         name: target.name,
         parentId: target.parentId,
-        categoryId: target.categoryId,
       });
       return;
     }
     form.setFieldsValue({
       name: '',
-      parentId: mode === 'create-child' && subject === 'category' ? target?.id : undefined,
-      categoryId: subject === 'tag' ? target?.id : undefined,
+      parentId: mode === 'create-child' ? target?.id : undefined,
     });
   };
 
-  const renderMoveButtons = (record: TaxonomyRecord, subject: TaxonomySubject) => (
+  const renderMoveButtons = (record: TaxonomyRecord) => (
     <Space size={0}>
-      <Button type="text" size="small" icon={<ArrowUpOutlined />} loading={movingKey === `${subject}-${record.id}-up`} onClick={(event) => {
+      <Button type="text" size="small" icon={<ArrowUpOutlined />} loading={movingKey === `${props.kind}-${record.id}-up`} onClick={(event) => {
         event.stopPropagation();
-        setMovingKey(`${subject}-${record.id}-up`);
-        moveMutation.mutate({ id: record.id, direction: 'up', subject });
+        setMovingKey(`${props.kind}-${record.id}-up`);
+        moveMutation.mutate({ id: record.id, direction: 'up' });
       }} />
-      <Button type="text" size="small" icon={<ArrowDownOutlined />} loading={movingKey === `${subject}-${record.id}-down`} onClick={(event) => {
+      <Button type="text" size="small" icon={<ArrowDownOutlined />} loading={movingKey === `${props.kind}-${record.id}-down`} onClick={(event) => {
         event.stopPropagation();
-        setMovingKey(`${subject}-${record.id}-down`);
-        moveMutation.mutate({ id: record.id, direction: 'down', subject });
+        setMovingKey(`${props.kind}-${record.id}-down`);
+        moveMutation.mutate({ id: record.id, direction: 'down' });
       }} />
     </Space>
   );
 
-  const renderCategoryTitle = (record: TaxonomyRecord, includeTagCreate: boolean) => (
+  const renderCategoryTitle = (record: TaxonomyRecord) => (
     <Flex align="center" justify="space-between" gap={12} className="taxonomy-tree-row">
       <div className="taxonomy-tree-main">
         <Typography.Text strong>{record.name}</Typography.Text>
         <Typography.Text type="secondary">{record.fullPath || record.name}</Typography.Text>
         <Typography.Text type="secondary">
-          {props.locale === 'zh-CN'
-            ? `子分类 ${record.childCount ?? 0} · 标签 ${record.tagCount ?? 0} · 使用 ${record.usageCount}`
-            : `Children ${record.childCount ?? 0} · Tags ${record.tagCount ?? 0} · Usage ${record.usageCount}`}
+          {props.kind === 'category'
+            ? (props.locale === 'zh-CN'
+              ? `子分类 ${record.childCount ?? 0} · 使用 ${record.usageCount}`
+              : `Children ${record.childCount ?? 0} · Usage ${record.usageCount}`)
+            : (props.locale === 'zh-CN'
+              ? `子标签 ${record.childCount ?? 0} · 使用 ${record.usageCount}`
+              : `Children ${record.childCount ?? 0} · Usage ${record.usageCount}`)}
         </Typography.Text>
       </div>
       <Space size={4} wrap>
-        {renderMoveButtons(record, 'category')}
+        {renderMoveButtons(record)}
         {props.canCreate ? (
           <Button type="text" size="small" icon={<FolderAddOutlined />} onClick={(event) => {
             event.stopPropagation();
-            openCreateModal('create-child', 'category', record);
+            openCreateModal('create-child', record);
           }}>
-            {props.locale === 'zh-CN' ? '子分类' : 'Child'}
-          </Button>
-        ) : null}
-        {props.canCreate && includeTagCreate ? (
-          <Button type="text" size="small" icon={<TagOutlined />} onClick={(event) => {
-            event.stopPropagation();
-            openCreateModal('create-tag', 'tag', record);
-          }}>
-            {props.locale === 'zh-CN' ? '标签' : 'Tag'}
+            {props.createChildLabel ?? (props.locale === 'zh-CN' ? '子级' : 'Child')}
           </Button>
         ) : null}
         {props.canEdit ? (
           <Button type="text" size="small" icon={<EditOutlined />} onClick={(event) => {
             event.stopPropagation();
-            openCreateModal('edit', 'category', record);
+            openCreateModal('edit', record);
           }}>
             {props.locale === 'zh-CN' ? '编辑' : 'Edit'}
           </Button>
@@ -412,14 +291,13 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
         {props.canViewLogs ? (
           <Button type="text" size="small" icon={<FileSearchOutlined />} onClick={(event) => {
             event.stopPropagation();
-            setLogsSubject('category');
             setLogsTarget(record);
           }}>
             {props.locale === 'zh-CN' ? '记录' : 'Logs'}
           </Button>
         ) : null}
         {props.canDelete ? (
-          <Popconfirm title={props.deleteConfirm} onConfirm={() => deleteMutation.mutate({ id: record.id, subject: 'category' })}>
+          <Popconfirm title={props.deleteConfirm} onConfirm={() => deleteMutation.mutate(record.id)}>
             <Button danger type="text" size="small" icon={<DeleteOutlined />} onClick={(event) => event.stopPropagation()}>
               {props.locale === 'zh-CN' ? '删除' : 'Delete'}
             </Button>
@@ -429,58 +307,10 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
     </Flex>
   );
 
-  const renderTagTitle = (record: TaxonomyRecord) => (
-    <Flex align="center" justify="space-between" gap={12} className="taxonomy-tree-row taxonomy-tree-leaf">
-      <div className="taxonomy-tree-main">
-        <Typography.Text strong>{record.name}</Typography.Text>
-        <Typography.Text type="secondary">{record.fullPath || record.name}</Typography.Text>
-        <Typography.Text type="secondary">
-          {props.locale === 'zh-CN' ? `使用 ${record.usageCount}` : `Usage ${record.usageCount}`}
-        </Typography.Text>
-      </div>
-      <Space size={4} wrap>
-        {renderMoveButtons(record, 'tag')}
-        {props.canEdit ? (
-          <Button type="text" size="small" icon={<EditOutlined />} onClick={(event) => {
-            event.stopPropagation();
-            openCreateModal('edit', 'tag', record);
-          }}>
-            {props.locale === 'zh-CN' ? '编辑' : 'Edit'}
-          </Button>
-        ) : null}
-        {props.canViewLogs ? (
-          <Button type="text" size="small" icon={<FileSearchOutlined />} onClick={(event) => {
-            event.stopPropagation();
-            setLogsSubject('tag');
-            setLogsTarget(record);
-          }}>
-            {props.locale === 'zh-CN' ? '记录' : 'Logs'}
-          </Button>
-        ) : null}
-        {props.canDelete ? (
-          <Popconfirm title={props.deleteConfirm} onConfirm={() => deleteMutation.mutate({ id: record.id, subject: 'tag' })}>
-            <Button danger type="text" size="small" icon={<DeleteOutlined />} onClick={(event) => event.stopPropagation()}>
-              {props.locale === 'zh-CN' ? '删除' : 'Delete'}
-            </Button>
-          </Popconfirm>
-        ) : null}
-      </Space>
-    </Flex>
+  const treeData = useMemo(
+    () => buildCategoryTreeData(filteredCategoryItems, (item) => renderCategoryTitle(item)),
+    [filteredCategoryItems, props.kind, movingKey],
   );
-
-  const treeData = useMemo(() => {
-    if (props.kind === 'category') {
-      return buildCategoryTreeData(filteredCategoryItems, (item) => renderCategoryTitle(item, false));
-    }
-    return buildTagTreeData(
-      filteredTagPayload.categories,
-      filteredTagPayload.tags,
-      (item) => renderCategoryTitle(item, true),
-      (item) => renderTagTitle(item),
-    );
-  }, [filteredCategoryItems, filteredTagPayload.categories, filteredTagPayload.tags, props.kind]);
-
-  const isCategoryModal = actionState.subject === 'category';
 
   return (
     <>
@@ -495,19 +325,14 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
             <Input allowClear placeholder={props.searchPlaceholder} style={{ width: 300 }} value={search} onChange={(event) => setSearch(event.target.value)} />
             <Button icon={<ReloadOutlined />} onClick={() => treeQuery.refetch()}>{props.locale === 'zh-CN' ? '刷新' : 'Refresh'}</Button>
             {props.canCreate ? (
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreateModal('create-root', props.kind)}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreateModal('create-root')}>
                 {props.createLabel}
-              </Button>
-            ) : null}
-            {props.canCreate && props.kind === 'tag' && props.categoryActions ? (
-              <Button icon={<FolderAddOutlined />} onClick={() => openCreateModal('create-root', 'category')}>
-                {props.locale === 'zh-CN' ? '新建顶级分类' : 'New root category'}
               </Button>
             ) : null}
           </div>
         </div>
 
-        {treeQuery.isLoading || (props.kind === 'tag' && categoryOptionsQuery.isLoading) ? (
+        {treeQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 10 }} />
         ) : treeData.length === 0 ? (
           <Empty description={props.locale === 'zh-CN' ? '暂无内容' : 'No items'} />
@@ -528,11 +353,9 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
         open={actionState.open}
         title={actionState.mode === 'edit'
           ? (props.locale === 'zh-CN' ? '编辑' : 'Edit')
-          : (actionState.subject === 'category'
-            ? (props.locale === 'zh-CN' ? '新建分类' : 'New category')
-            : props.createLabel)}
+          : props.createLabel}
         onCancel={() => {
-          setActionState({ open: false, mode: 'create-root', subject: props.kind, target: null });
+          setActionState({ open: false, mode: 'create-root', target: null });
           form.resetFields();
         }}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
@@ -543,46 +366,35 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
           layout="vertical"
           onFinish={(values) => {
             if (actionState.mode === 'edit' && actionState.target) {
-              updateMutation.mutate({ id: actionState.target.id, subject: actionState.subject, payload: values });
+              updateMutation.mutate({ id: actionState.target.id, payload: values });
               return;
             }
-            createMutation.mutate({ subject: actionState.subject, payload: values });
+            createMutation.mutate(values);
           }}
         >
           <Form.Item
             name="name"
-            label={actionState.subject === 'category'
-              ? (props.locale === 'zh-CN' ? '分类名称' : 'Category name')
-              : props.recordLabel}
+            label={props.recordLabel}
             rules={[{ required: true }]}
           >
             <Input maxLength={128} />
           </Form.Item>
 
-          {isCategoryModal ? (
-            <Form.Item name="parentId" label={props.locale === 'zh-CN' ? '父分类' : 'Parent category'}>
-              <TreeSelect
-                allowClear
-                treeDefaultExpandAll
-                showSearch
-                treeNodeFilterProp="title"
-                treeData={categorySelectTreeData}
-                placeholder={props.locale === 'zh-CN' ? '顶级分类可留空' : 'Leave empty for top-level category'}
-              />
-            </Form.Item>
-          ) : null}
-
-          {!isCategoryModal ? (
-            <Form.Item name="categoryId" label={props.locale === 'zh-CN' ? '所属分类' : 'Category'} rules={[{ required: true }]}>
-              <TreeSelect
-                treeDefaultExpandAll
-                showSearch
-                treeNodeFilterProp="title"
-                treeData={categorySelectTreeData}
-                placeholder={props.locale === 'zh-CN' ? '请选择所属分类' : 'Select category'}
-              />
-            </Form.Item>
-          ) : null}
+          <Form.Item
+            name="parentId"
+            label={props.kind === 'category' ? (props.locale === 'zh-CN' ? '父分类' : 'Parent category') : (props.locale === 'zh-CN' ? '父标签' : 'Parent tag')}
+          >
+            <TreeSelect
+              allowClear
+              treeDefaultExpandAll
+              showSearch
+              treeNodeFilterProp="title"
+              treeData={categorySelectTreeData}
+              placeholder={props.kind === 'category'
+                ? (props.locale === 'zh-CN' ? '留空表示顶级分类' : 'Leave empty for top-level category')
+                : (props.locale === 'zh-CN' ? '留空表示顶级标签' : 'Leave empty for top-level tag')}
+            />
+          </Form.Item>
         </Form>
       </Modal>
 

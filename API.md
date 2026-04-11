@@ -85,13 +85,9 @@ Base URL: `/api`
 
 公开文件分类树选项。
 
-### `GET /api/files/tag-categories/options`
-
-公开标签分类树选项。
-
 ### `GET /api/files/tags/options`
 
-公开标签选项树。
+公开标签树选项。
 
 ### `GET /api/files/download-config`
 
@@ -443,16 +439,6 @@ Base URL: `/api`
 获取分类变更记录。
 
 ## 后台标签接口
-
-标签分类树接口：
-
-- `GET /api/admin/tag-categories`
-- `GET /api/admin/tag-categories/options`
-- `POST /api/admin/tag-categories`
-- `PUT /api/admin/tag-categories/:id`
-- `POST /api/admin/tag-categories/:id/move`
-- `DELETE /api/admin/tag-categories/:id`
-- `GET /api/admin/tag-categories/:id/logs`
 
 标签接口：
 

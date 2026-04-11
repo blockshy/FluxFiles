@@ -80,7 +80,6 @@ docker exec -i postgresql psql -U postgres -d fluxfiles_dev -f - < deploy/pgsql/
 - `files`
 - `operation_logs`
 - `categories`
-- `tag_categories`
 - `tags`
 - `taxonomy_change_logs`
 - `user_favorites`
@@ -133,16 +132,11 @@ docker exec -i postgresql psql -U postgres -d fluxfiles_dev -f - < deploy/pgsql/
 - 数据表：`categories`
 - 路径形式：`顶级分类.子分类.子分类`
 
-标签分类树：
-
-- 数据表：`tag_categories`
-- 用于组织标签目录，不等同于文件分类
-
 标签：
 
 - 数据表：`tags`
-- 当前使用 `tags.tag_category_id`
-- 路径形式：`顶级标签分类.子标签分类.标签`
+- 当前使用 `tags.parent_id` 表示层级关系
+- 路径形式：`顶级标签.子标签.子标签`
 
 ## 下载与互动规则
 

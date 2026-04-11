@@ -28,16 +28,8 @@ func (ctl *AdminTaxonomyController) ListTags(c *gin.Context) {
 	ctl.list(c, repository.TaxonomyKindTag)
 }
 
-func (ctl *AdminTaxonomyController) ListTagCategories(c *gin.Context) {
-	ctl.list(c, repository.TaxonomyKindTagCategory)
-}
-
 func (ctl *AdminTaxonomyController) CategoryOptions(c *gin.Context) {
 	ctl.options(c, repository.TaxonomyKindCategory)
-}
-
-func (ctl *AdminTaxonomyController) TagCategoryOptions(c *gin.Context) {
-	ctl.options(c, repository.TaxonomyKindTagCategory)
 }
 
 func (ctl *AdminTaxonomyController) TagOptions(c *gin.Context) {
@@ -52,10 +44,6 @@ func (ctl *AdminTaxonomyController) CreateTag(c *gin.Context) {
 	ctl.create(c, repository.TaxonomyKindTag)
 }
 
-func (ctl *AdminTaxonomyController) CreateTagCategory(c *gin.Context) {
-	ctl.create(c, repository.TaxonomyKindTagCategory)
-}
-
 func (ctl *AdminTaxonomyController) UpdateCategory(c *gin.Context) {
 	ctl.update(c, repository.TaxonomyKindCategory)
 }
@@ -64,24 +52,12 @@ func (ctl *AdminTaxonomyController) UpdateTag(c *gin.Context) {
 	ctl.update(c, repository.TaxonomyKindTag)
 }
 
-func (ctl *AdminTaxonomyController) UpdateTagCategory(c *gin.Context) {
-	ctl.update(c, repository.TaxonomyKindTagCategory)
-}
-
 func (ctl *AdminTaxonomyController) DeleteCategory(c *gin.Context) {
 	ctl.remove(c, repository.TaxonomyKindCategory)
 }
 
 func (ctl *AdminTaxonomyController) MoveCategory(c *gin.Context) {
 	ctl.move(c, repository.TaxonomyKindCategory)
-}
-
-func (ctl *AdminTaxonomyController) DeleteTagCategory(c *gin.Context) {
-	ctl.remove(c, repository.TaxonomyKindTagCategory)
-}
-
-func (ctl *AdminTaxonomyController) MoveTagCategory(c *gin.Context) {
-	ctl.move(c, repository.TaxonomyKindTagCategory)
 }
 
 func (ctl *AdminTaxonomyController) DeleteTag(c *gin.Context) {
@@ -98,10 +74,6 @@ func (ctl *AdminTaxonomyController) CategoryLogs(c *gin.Context) {
 
 func (ctl *AdminTaxonomyController) TagLogs(c *gin.Context) {
 	ctl.logs(c, repository.TaxonomyKindTag)
-}
-
-func (ctl *AdminTaxonomyController) TagCategoryLogs(c *gin.Context) {
-	ctl.logs(c, repository.TaxonomyKindTagCategory)
 }
 
 func (ctl *AdminTaxonomyController) list(c *gin.Context, kind repository.TaxonomyKind) {
@@ -166,9 +138,8 @@ func (ctl *AdminTaxonomyController) create(c *gin.Context, kind repository.Taxon
 		return
 	}
 	item, err := ctl.taxonomies.Create(c.Request.Context(), kind, c.GetUint("adminUserID"), c.ClientIP(), service.SaveTaxonomyInput{
-		Name:       req.Name,
-		ParentID:   req.ParentID,
-		CategoryID: req.CategoryID,
+		Name:     req.Name,
+		ParentID: req.ParentID,
 	})
 	if err != nil {
 		switch {
@@ -193,9 +164,8 @@ func (ctl *AdminTaxonomyController) update(c *gin.Context, kind repository.Taxon
 		return
 	}
 	item, err := ctl.taxonomies.Update(c.Request.Context(), kind, parseUintParam(c, "id"), c.GetUint("adminUserID"), c.ClientIP(), service.SaveTaxonomyInput{
-		Name:       req.Name,
-		ParentID:   req.ParentID,
-		CategoryID: req.CategoryID,
+		Name:     req.Name,
+		ParentID: req.ParentID,
 	})
 	if err != nil {
 		switch {
@@ -293,19 +263,6 @@ func taxonomyPermission(kind repository.TaxonomyKind, action string) string {
 			return service.PermissionAdminCategoriesLogs
 		}
 	case repository.TaxonomyKindTag:
-		switch action {
-		case "view":
-			return service.PermissionAdminTagsView
-		case "create":
-			return service.PermissionAdminTagsCreate
-		case "edit":
-			return service.PermissionAdminTagsEdit
-		case "delete":
-			return service.PermissionAdminTagsDelete
-		case "logs":
-			return service.PermissionAdminTagsLogs
-		}
-	case repository.TaxonomyKindTagCategory:
 		switch action {
 		case "view":
 			return service.PermissionAdminTagsView

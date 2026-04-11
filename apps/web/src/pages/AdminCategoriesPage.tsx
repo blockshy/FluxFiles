@@ -19,11 +19,9 @@ export function AdminCategoriesPage() {
       recordLabel={locale === 'zh-CN' ? '分类名称' : 'Category name'}
       searchPlaceholder={locale === 'zh-CN' ? '搜索分类名称' : 'Search categories'}
       treeQueryKey="admin-categories-tree"
-      categoryOptionsQueryKey="admin-category-options"
       logsQueryKey="admin-category-logs"
       extraInvalidateKeys={['admin-files', 'public-files']}
       fetchTreeItems={fetchAdminCategoryOptions}
-      fetchCategoryOptions={fetchAdminCategoryOptions}
       createItem={createAdminCategory}
       updateItem={updateAdminCategory}
       moveItem={moveAdminCategory}

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useDeferredValue, useMemo, useState } from 'react';
-import { createAdminFile, deleteAdminFile, fetchAdminCategoryOptions, fetchAdminFileDownloads, fetchAdminFiles, fetchAdminStats, fetchAdminTagCategoryOptions, fetchAdminTagOptions, fetchAdminUploadSettings, prepareAdminUpload, updateAdminFile, uploadFileToOSS } from '../api/admin';
+import { createAdminFile, deleteAdminFile, fetchAdminCategoryOptions, fetchAdminFileDownloads, fetchAdminFiles, fetchAdminStats, fetchAdminTagOptions, fetchAdminUploadSettings, prepareAdminUpload, updateAdminFile, uploadFileToOSS } from '../api/admin';
 import type { AdminDownloadRecord, FileRecord, TaxonomyRecord, UpdateFilePayload } from '../api/types';
 import { FileFormModal } from '../features/admin/FileFormModal';
 import { useI18n } from '../features/i18n/LocaleProvider';
@@ -75,38 +75,20 @@ function buildCategoryTreeOptions(items: TaxonomyRecord[]) {
   return build(null);
 }
 
-function buildTagTreeOptions(categories: TaxonomyRecord[], tags: TaxonomyRecord[]) {
-  const categoryChildrenByParent = new Map<number | null, TaxonomyRecord[]>();
-  for (const item of categories) {
-    const key = item.parentId ?? null;
-    const siblings = categoryChildrenByParent.get(key) ?? [];
-    siblings.push(item);
-    categoryChildrenByParent.set(key, siblings);
-  }
-
-  const tagsByCategory = new Map<number, TaxonomyRecord[]>();
+function buildTagTreeOptions(tags: TaxonomyRecord[]) {
+  const childrenByParent = new Map<number | null, TaxonomyRecord[]>();
   for (const item of tags) {
-    if (!item.categoryId) {
-      continue;
-    }
-    const siblings = tagsByCategory.get(item.categoryId) ?? [];
+    const key = item.parentId ?? null;
+    const siblings = childrenByParent.get(key) ?? [];
     siblings.push(item);
-    tagsByCategory.set(item.categoryId, siblings);
+    childrenByParent.set(key, siblings);
   }
 
   const build = (parentId: number | null): TreeOptionNode[] =>
-    sortTaxonomyItems(categoryChildrenByParent.get(parentId) ?? []).map((category) => ({
-      title: category.fullPath || category.name,
-      value: `category-${category.id}`,
-      selectable: false,
-      disabled: true,
-      children: [
-        ...build(category.id),
-        ...sortTaxonomyItems(tagsByCategory.get(category.id) ?? []).map((tag) => ({
-          title: tag.fullPath || tag.name,
-          value: tag.name,
-        })),
-      ],
+    sortTaxonomyItems(childrenByParent.get(parentId) ?? []).map((item) => ({
+      title: item.fullPath || item.name,
+      value: item.name,
+      children: build(item.id),
     }));
 
   return build(null);
@@ -141,7 +123,6 @@ export function AdminFilesPage() {
   const statsQuery = useQuery({ queryKey: ['admin-stats'], queryFn: fetchAdminStats });
   const uploadSettingsQuery = useQuery({ queryKey: ['admin-upload-settings'], queryFn: fetchAdminUploadSettings, enabled: canUpload });
   const categoryOptionsQuery = useQuery({ queryKey: ['admin-category-options'], queryFn: fetchAdminCategoryOptions });
-  const tagCategoryOptionsQuery = useQuery({ queryKey: ['admin-tag-category-options'], queryFn: fetchAdminTagCategoryOptions });
   const tagOptionsQuery = useQuery({ queryKey: ['admin-tag-options'], queryFn: fetchAdminTagOptions });
   const fileDownloadsQuery = useQuery({
     queryKey: ['admin-file-downloads', downloadFile?.id, downloadPage, downloadPageSize],
@@ -205,8 +186,8 @@ export function AdminFilesPage() {
     [categoryOptionsQuery.data],
   );
   const tagTreeData = useMemo(
-    () => buildTagTreeOptions(tagCategoryOptionsQuery.data ?? [], tagOptionsQuery.data ?? []),
-    [tagCategoryOptionsQuery.data, tagOptionsQuery.data],
+    () => buildTagTreeOptions(tagOptionsQuery.data ?? []),
+    [tagOptionsQuery.data],
   );
 
   const columns = useMemo<ColumnsType<FileRecord>>(() => {
@@ -311,7 +292,7 @@ export function AdminFilesPage() {
         initialValue={modalState.file}
         loading={createMutation.isPending || updateMutation.isPending}
         uploadSettings={uploadSettingsQuery.data}
-        taxonomyLoading={categoryOptionsQuery.isLoading || tagCategoryOptionsQuery.isLoading || tagOptionsQuery.isLoading}
+        taxonomyLoading={categoryOptionsQuery.isLoading || tagOptionsQuery.isLoading}
         categoryTreeData={categoryTreeData}
         tagTreeData={tagTreeData}
         onCancel={() => setModalState({ open: false, mode: 'create', file: null })}

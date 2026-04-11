@@ -69,12 +69,10 @@ type Category struct {
 	ID                uint           `gorm:"primaryKey" json:"id"`
 	Name              string         `gorm:"size:128;uniqueIndex;not null" json:"name"`
 	ParentID          *uint          `gorm:"index" json:"parentId,omitempty"`
-	CategoryID        *uint          `gorm:"index" json:"categoryId,omitempty"`
 	SortOrder         int            `gorm:"column:sort_order;not null;default:0" json:"sortOrder"`
 	CreatedBy         uint           `gorm:"not null;index" json:"createdBy"`
 	UpdatedBy         uint           `gorm:"not null;index" json:"updatedBy"`
 	ParentName        string         `gorm:"->;column:parent_name;-:migration" json:"parentName,omitempty"`
-	CategoryName      string         `gorm:"->;column:category_name;-:migration" json:"categoryName,omitempty"`
 	CreatedByUsername string         `gorm:"->;column:created_by_username;-:migration" json:"createdByUsername,omitempty"`
 	UpdatedByUsername string         `gorm:"->;column:updated_by_username;-:migration" json:"updatedByUsername,omitempty"`
 	UsageCount        int64          `gorm:"->;column:usage_count;-:migration" json:"usageCount"`
@@ -82,7 +80,6 @@ type Category struct {
 	TagCount          int64          `gorm:"-" json:"tagCount,omitempty"`
 	FullPath          string         `gorm:"-" json:"fullPath,omitempty"`
 	Depth             int            `gorm:"-" json:"depth,omitempty"`
-	CategoryPath      string         `gorm:"-" json:"categoryPath,omitempty"`
 	CreatedAt         time.Time      `json:"createdAt"`
 	UpdatedAt         time.Time      `json:"updatedAt"`
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
@@ -91,15 +88,14 @@ type Category struct {
 type Tag struct {
 	ID                uint           `gorm:"primaryKey" json:"id"`
 	Name              string         `gorm:"size:128;uniqueIndex;not null" json:"name"`
-	CategoryID        *uint          `gorm:"index" json:"categoryId,omitempty"`
+	ParentID          *uint          `gorm:"index" json:"parentId,omitempty"`
 	SortOrder         int            `gorm:"column:sort_order;not null;default:0" json:"sortOrder"`
 	CreatedBy         uint           `gorm:"not null;index" json:"createdBy"`
 	UpdatedBy         uint           `gorm:"not null;index" json:"updatedBy"`
-	CategoryName      string         `gorm:"->;column:category_name;-:migration" json:"categoryName,omitempty"`
+	ParentName        string         `gorm:"->;column:parent_name;-:migration" json:"parentName,omitempty"`
 	CreatedByUsername string         `gorm:"->;column:created_by_username;-:migration" json:"createdByUsername,omitempty"`
 	UpdatedByUsername string         `gorm:"->;column:updated_by_username;-:migration" json:"updatedByUsername,omitempty"`
 	UsageCount        int64          `gorm:"->;column:usage_count;-:migration" json:"usageCount"`
-	CategoryPath      string         `gorm:"-" json:"categoryPath,omitempty"`
 	FullPath          string         `gorm:"-" json:"fullPath,omitempty"`
 	CreatedAt         time.Time      `json:"createdAt"`
 	UpdatedAt         time.Time      `json:"updatedAt"`

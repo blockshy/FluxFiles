@@ -5,7 +5,7 @@ import type { DataNode } from 'antd/es/tree';
 import type { ColumnsType } from 'antd/es/table';
 import { useDeferredValue, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchPublicCategoryOptions, fetchPublicFiles, fetchPublicTagCategoryOptions, fetchPublicTagOptions } from '../api/files';
+import { fetchPublicCategoryOptions, fetchPublicFiles, fetchPublicTagOptions } from '../api/files';
 import type { FileRecord, TaxonomyRecord } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { useUserAuth } from '../features/user/AuthProvider';
@@ -63,50 +63,27 @@ function buildCategoryTreeOptions(items: TaxonomyRecord[], selected: string[]) {
   return { treeData: build(null), descendants };
 }
 
-function buildTagTreeOptions(categories: TaxonomyRecord[], tags: TaxonomyRecord[], selected: string[]) {
+function buildTagTreeOptions(tags: TaxonomyRecord[], selected: string[]) {
   const selectedSet = new Set(selected);
-  const categoryChildrenByParent = new Map<number | null, TaxonomyRecord[]>();
-  for (const item of categories) {
-    const key = item.parentId ?? null;
-    const siblings = categoryChildrenByParent.get(key) ?? [];
-    siblings.push(item);
-    categoryChildrenByParent.set(key, siblings);
-  }
-
-  const tagsByCategory = new Map<number, TaxonomyRecord[]>();
+  const childrenByParent = new Map<number | null, TaxonomyRecord[]>();
   for (const item of tags) {
-    if (!item.categoryId) {
-      continue;
-    }
-    const siblings = tagsByCategory.get(item.categoryId) ?? [];
+    const key = item.parentId ?? null;
+    const siblings = childrenByParent.get(key) ?? [];
     siblings.push(item);
-    tagsByCategory.set(item.categoryId, siblings);
+    childrenByParent.set(key, siblings);
   }
 
   const descendants = new Map<string, string[]>();
   const build = (parentId: number | null): DataNode[] =>
-    sortTaxonomyItems(categoryChildrenByParent.get(parentId) ?? []).map((category) => {
-      const childCategories = build(category.id);
-      const leafTags = sortTaxonomyItems(tagsByCategory.get(category.id) ?? []).map((tag) => {
-        const tagKey = `tag:${tag.name}`;
-        descendants.set(tagKey, [tag.name]);
-        const selectedLeaves = selectedSet.has(tag.name) ? 1 : 0;
-        return {
-          title: buildNodeTitle(tag.fullPath || tag.name, selectedLeaves, 1, selectedLeaves === 1, false),
-          key: tagKey,
-        };
-      });
-      const ownTags = [
-        ...childCategories.flatMap((child) => descendants.get(String(child.key)) ?? []),
-        ...leafTags.flatMap((item) => descendants.get(String(item.key)) ?? []),
-      ];
-      const categoryKey = `tag-category:${category.id}`;
-      descendants.set(categoryKey, ownTags);
-      const selectedLeaves = ownTags.filter((entry) => selectedSet.has(entry)).length;
+    sortTaxonomyItems(childrenByParent.get(parentId) ?? []).map((item) => {
+      const children = build(item.id);
+      const ownDescendants = [item.name, ...children.flatMap((child) => descendants.get(String(child.key)) ?? [])];
+      descendants.set(`tag:${item.name}`, ownDescendants);
+      const selectedLeaves = ownDescendants.filter((entry) => selectedSet.has(entry)).length;
       return {
-        title: buildNodeTitle(category.fullPath || category.name, selectedLeaves, ownTags.length, ownTags.length > 0 && selectedLeaves === ownTags.length, selectedLeaves > 0 && selectedLeaves < ownTags.length),
-        key: categoryKey,
-        children: [...childCategories, ...leafTags],
+        title: buildNodeTitle(item.fullPath || item.name, selectedLeaves, ownDescendants.length, selectedLeaves === ownDescendants.length, selectedLeaves > 0 && selectedLeaves < ownDescendants.length),
+        key: `tag:${item.name}`,
+        children,
       };
     });
 
@@ -129,7 +106,6 @@ export function PublicFilesPage() {
   const { token } = useUserAuth();
 
   const categoryOptionsQuery = useQuery({ queryKey: ['public-category-options'], queryFn: fetchPublicCategoryOptions });
-  const tagCategoryOptionsQuery = useQuery({ queryKey: ['public-tag-category-options'], queryFn: fetchPublicTagCategoryOptions });
   const tagOptionsQuery = useQuery({ queryKey: ['public-tag-options'], queryFn: fetchPublicTagOptions });
   const filesQuery = useQuery({
     queryKey: ['public-files', page, pageSize, deferredSearch, categories.join('|'), tags.join('|'), sortBy, sortOrder],
@@ -149,10 +125,10 @@ export function PublicFilesPage() {
     [categoryOptionsQuery.data, draftCategories],
   );
   const tagTree = useMemo(
-    () => buildTagTreeOptions(tagCategoryOptionsQuery.data ?? [], tagOptionsQuery.data ?? [], draftTags),
-    [tagCategoryOptionsQuery.data, tagOptionsQuery.data, draftTags],
+    () => buildTagTreeOptions(tagOptionsQuery.data ?? [], draftTags),
+    [tagOptionsQuery.data, draftTags],
   );
-  const taxonomyLoading = categoryOptionsQuery.isLoading || tagCategoryOptionsQuery.isLoading || tagOptionsQuery.isLoading;
+  const taxonomyLoading = categoryOptionsQuery.isLoading || tagOptionsQuery.isLoading;
   const categoryPathMap = useMemo(() => new Map((categoryOptionsQuery.data ?? []).map((item) => [item.name, item.fullPath || item.name])), [categoryOptionsQuery.data]);
   const tagPathMap = useMemo(() => new Map((tagOptionsQuery.data ?? []).map((item) => [item.name, item.fullPath || item.name])), [tagOptionsQuery.data]);
   const appliedFilterCount = categories.length + tags.length;
@@ -379,7 +355,7 @@ export function PublicFilesPage() {
               <div className="filter-panel-header">
                 <Typography.Title level={5}><TagsOutlined /> {locale === 'zh-CN' ? '标签' : 'Tags'}</Typography.Title>
                 <Typography.Text type="secondary">
-                  {locale === 'zh-CN' ? '勾选标签即可生效，点击标签分类可批量选中其下全部标签。' : 'Select tags directly, or click a category to batch select its tags.'}
+                  {locale === 'zh-CN' ? '勾选标签即可生效，点击父标签可批量选中其下全部子标签。' : 'Select tags directly, or click a parent tag to batch select its descendants.'}
                 </Typography.Text>
               </div>
               <Tree

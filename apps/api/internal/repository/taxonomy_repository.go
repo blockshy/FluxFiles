@@ -13,9 +13,8 @@ import (
 type TaxonomyKind string
 
 const (
-	TaxonomyKindCategory    TaxonomyKind = "category"
-	TaxonomyKindTagCategory TaxonomyKind = "tag_category"
-	TaxonomyKindTag         TaxonomyKind = "tag"
+	TaxonomyKindCategory TaxonomyKind = "category"
+	TaxonomyKindTag      TaxonomyKind = "tag"
 )
 
 type TaxonomyListQuery struct {
@@ -142,7 +141,7 @@ func (r *TaxonomyRepository) Create(ctx context.Context, kind TaxonomyKind, item
 		return err
 	}
 	switch kind {
-	case TaxonomyKindCategory, TaxonomyKindTagCategory:
+	case TaxonomyKindCategory, TaxonomyKindTag:
 		row := struct {
 			ID        uint   `gorm:"column:id"`
 			Name      string `gorm:"column:name"`
@@ -156,26 +155,6 @@ func (r *TaxonomyRepository) Create(ctx context.Context, kind TaxonomyKind, item
 			SortOrder: item.SortOrder,
 			CreatedBy: item.CreatedBy,
 			UpdatedBy: item.UpdatedBy,
-		}
-		if err := r.db.WithContext(ctx).Table(table).Create(&row).Error; err != nil {
-			return err
-		}
-		item.ID = row.ID
-		return nil
-	case TaxonomyKindTag:
-		row := struct {
-			ID            uint   `gorm:"column:id"`
-			Name          string `gorm:"column:name"`
-			TagCategoryID *uint  `gorm:"column:tag_category_id"`
-			SortOrder     int    `gorm:"column:sort_order"`
-			CreatedBy     uint   `gorm:"column:created_by"`
-			UpdatedBy     uint   `gorm:"column:updated_by"`
-		}{
-			Name:          item.Name,
-			TagCategoryID: item.CategoryID,
-			SortOrder:     item.SortOrder,
-			CreatedBy:     item.CreatedBy,
-			UpdatedBy:     item.UpdatedBy,
 		}
 		if err := r.db.WithContext(ctx).Table(table).Create(&row).Error; err != nil {
 			return err
@@ -230,16 +209,12 @@ func (r *TaxonomyRepository) CountCategoryChildren(ctx context.Context, kind Tax
 			return 0, 0, err
 		}
 		return childCategories, 0, nil
-	case TaxonomyKindTagCategory:
-		var childCategories int64
-		if err := r.db.WithContext(ctx).Table("tag_categories").Where("parent_id = ? AND deleted_at IS NULL", id).Count(&childCategories).Error; err != nil {
-			return 0, 0, err
-		}
+	case TaxonomyKindTag:
 		var childTags int64
-		if err := r.db.WithContext(ctx).Table("tags").Where("tag_category_id = ? AND deleted_at IS NULL", id).Count(&childTags).Error; err != nil {
+		if err := r.db.WithContext(ctx).Table("tags").Where("parent_id = ? AND deleted_at IS NULL", id).Count(&childTags).Error; err != nil {
 			return 0, 0, err
 		}
-		return childCategories, childTags, nil
+		return 0, childTags, nil
 	default:
 		return 0, 0, nil
 	}
@@ -297,10 +272,8 @@ func taxonomyTable(kind TaxonomyKind) (string, string, string, error) {
 	switch kind {
 	case TaxonomyKindCategory:
 		return "categories", "(SELECT COUNT(*) FROM files WHERE files.category = categories.name AND files.deleted_at IS NULL)", "LOWER(categories.name) LIKE ? OR LOWER(COALESCE(parent.name, '')) LIKE ?", nil
-	case TaxonomyKindTagCategory:
-		return "tag_categories", "0", "LOWER(tag_categories.name) LIKE ? OR LOWER(COALESCE(parent.name, '')) LIKE ?", nil
 	case TaxonomyKindTag:
-		return "tags", "(SELECT COUNT(*) FROM files WHERE jsonb_exists(files.tags, tags.name) AND files.deleted_at IS NULL)", "LOWER(tags.name) LIKE ? OR LOWER(COALESCE(category.name, '')) LIKE ?", nil
+		return "tags", "(SELECT COUNT(*) FROM files WHERE jsonb_exists(files.tags, tags.name) AND files.deleted_at IS NULL)", "LOWER(tags.name) LIKE ? OR LOWER(COALESCE(parent.name, '')) LIKE ?", nil
 	default:
 		return "", "", "", fmt.Errorf("invalid taxonomy kind")
 	}
@@ -308,16 +281,11 @@ func taxonomyTable(kind TaxonomyKind) (string, string, string, error) {
 
 func selectClause(kind TaxonomyKind, table, usageExpr string) string {
 	switch kind {
-	case TaxonomyKindCategory, TaxonomyKindTagCategory:
+	case TaxonomyKindCategory, TaxonomyKindTag:
 		return fmt.Sprintf(
 			"%s.*, parent.name AS parent_name, creator.username AS created_by_username, updater.username AS updated_by_username, %s AS usage_count",
 			table,
 			usageExpr,
-		)
-	case TaxonomyKindTag:
-		return fmt.Sprintf(
-			"%s.id, %s.name, %s.tag_category_id AS category_id, %s.sort_order, %s.created_by, %s.updated_by, %s.created_at, %s.updated_at, %s.deleted_at, category.name AS category_name, creator.username AS created_by_username, updater.username AS updated_by_username, %s AS usage_count",
-			table, table, table, table, table, table, table, table, table, usageExpr,
 		)
 	default:
 		return table + ".*"
@@ -328,10 +296,8 @@ func extraJoinClause(kind TaxonomyKind, table string) string {
 	switch kind {
 	case TaxonomyKindCategory:
 		return fmt.Sprintf("LEFT JOIN categories parent ON parent.id = %s.parent_id AND parent.deleted_at IS NULL", table)
-	case TaxonomyKindTagCategory:
-		return fmt.Sprintf("LEFT JOIN tag_categories parent ON parent.id = %s.parent_id AND parent.deleted_at IS NULL", table)
 	case TaxonomyKindTag:
-		return fmt.Sprintf("LEFT JOIN tag_categories category ON category.id = %s.tag_category_id AND category.deleted_at IS NULL", table)
+		return fmt.Sprintf("LEFT JOIN tags parent ON parent.id = %s.parent_id AND parent.deleted_at IS NULL", table)
 	default:
 		return ""
 	}
@@ -339,10 +305,8 @@ func extraJoinClause(kind TaxonomyKind, table string) string {
 
 func orderClause(kind TaxonomyKind, table string) string {
 	switch kind {
-	case TaxonomyKindCategory, TaxonomyKindTagCategory:
+	case TaxonomyKindCategory, TaxonomyKindTag:
 		return fmt.Sprintf("%s.sort_order ASC, %s.name ASC", table, table)
-	case TaxonomyKindTag:
-		return "category.sort_order ASC NULLS FIRST, category.name ASC NULLS FIRST, tags.sort_order ASC, tags.name ASC"
 	default:
 		return fmt.Sprintf("%s.name ASC", table)
 	}
@@ -350,10 +314,10 @@ func orderClause(kind TaxonomyKind, table string) string {
 
 func relationColumn(kind TaxonomyKind) string {
 	switch kind {
-	case TaxonomyKindCategory, TaxonomyKindTagCategory:
-		return "parent_id"
 	case TaxonomyKindTag:
-		return "tag_category_id"
+		return "parent_id"
+	case TaxonomyKindCategory:
+		return "parent_id"
 	default:
 		return "parent_id"
 	}
@@ -361,10 +325,8 @@ func relationColumn(kind TaxonomyKind) string {
 
 func relationID(kind TaxonomyKind, item *model.Category) *uint {
 	switch kind {
-	case TaxonomyKindCategory, TaxonomyKindTagCategory:
+	case TaxonomyKindCategory, TaxonomyKindTag:
 		return item.ParentID
-	case TaxonomyKindTag:
-		return item.CategoryID
 	default:
 		return nil
 	}

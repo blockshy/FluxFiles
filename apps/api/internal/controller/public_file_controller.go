@@ -72,19 +72,6 @@ func (ctl *PublicFileController) TagOptions(c *gin.Context) {
 	response.Success(c, http.StatusOK, "ok", gin.H{"items": items})
 }
 
-func (ctl *PublicFileController) TagCategoryOptions(c *gin.Context) {
-	if ctl.taxonomies == nil {
-		response.Error(c, http.StatusServiceUnavailable, "taxonomy service is temporarily unavailable")
-		return
-	}
-	items, err := ctl.taxonomies.ListOptions(c.Request.Context(), repository.TaxonomyKindTagCategory)
-	if err != nil {
-		response.Error(c, http.StatusServiceUnavailable, "taxonomy service is temporarily unavailable")
-		return
-	}
-	response.Success(c, http.StatusOK, "ok", gin.H{"items": items})
-}
-
 func (ctl *PublicFileController) DownloadConfig(c *gin.Context) {
 	settings, err := ctl.settings.GetDownloadSettings(c.Request.Context())
 	if err != nil {

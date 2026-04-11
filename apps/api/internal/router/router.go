@@ -63,7 +63,6 @@ func New(deps Dependencies) *gin.Engine {
 		deps.PublicFiles.List,
 	)
 	api.GET("/files/categories/options", deps.PublicFiles.CategoryOptions)
-	api.GET("/files/tag-categories/options", deps.PublicFiles.TagCategoryOptions)
 	api.GET("/files/tags/options", deps.PublicFiles.TagOptions)
 	api.GET("/files/download-config", deps.PublicFiles.DownloadConfig)
 	api.GET("/files/:id", deps.PublicFiles.Get)
@@ -195,27 +194,6 @@ func New(deps Dependencies) *gin.Engine {
 	adminTags.POST("/:id/move", deps.AdminTaxonomies.MoveTag)
 	adminTags.DELETE("/:id", deps.AdminTaxonomies.DeleteTag)
 	adminTags.GET("/:id/logs", deps.AdminTaxonomies.TagLogs)
-
-	adminTagCategories := adminAuthorized.Group("/tag-categories")
-	adminTagCategories.Use(middleware.RequireAnyPermission(
-		deps.AuthService,
-		service.PermissionAdminFilesOwn,
-		service.PermissionAdminFilesAll,
-		service.PermissionAdminFilesUpload,
-		service.PermissionAdminFilesEdit,
-		service.PermissionAdminTagsView,
-		service.PermissionAdminTagsCreate,
-		service.PermissionAdminTagsEdit,
-		service.PermissionAdminTagsDelete,
-		service.PermissionAdminTagsLogs,
-	))
-	adminTagCategories.GET("", deps.AdminTaxonomies.ListTagCategories)
-	adminTagCategories.GET("/options", deps.AdminTaxonomies.TagCategoryOptions)
-	adminTagCategories.POST("", deps.AdminTaxonomies.CreateTagCategory)
-	adminTagCategories.PUT("/:id", deps.AdminTaxonomies.UpdateTagCategory)
-	adminTagCategories.POST("/:id/move", deps.AdminTaxonomies.MoveTagCategory)
-	adminTagCategories.DELETE("/:id", deps.AdminTaxonomies.DeleteTagCategory)
-	adminTagCategories.GET("/:id/logs", deps.AdminTaxonomies.TagCategoryLogs)
 
 	adminSettings := adminAuthorized.Group("")
 	adminSettings.Use(middleware.RequirePermission(deps.AuthService, service.PermissionAdminSettings))

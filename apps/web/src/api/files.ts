@@ -33,11 +33,6 @@ export async function fetchPublicCategoryOptions() {
   return response.data.data.items;
 }
 
-export async function fetchPublicTagCategoryOptions() {
-  const response = await apiClient.get<ApiEnvelope<{ items: TaxonomyRecord[] }>>('/files/tag-categories/options');
-  return response.data.data.items;
-}
-
 export async function fetchPublicTagOptions() {
   const response = await apiClient.get<ApiEnvelope<{ items: TaxonomyRecord[] }>>('/files/tags/options');
   return response.data.data.items;

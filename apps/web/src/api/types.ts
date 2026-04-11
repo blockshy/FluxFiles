@@ -462,9 +462,6 @@ export interface TaxonomyRecord {
   name: string;
   parentId?: number;
   parentName?: string;
-  categoryId?: number;
-  categoryName?: string;
-  categoryPath?: string;
   fullPath?: string;
   depth?: number;
   sortOrder: number;
@@ -482,7 +479,6 @@ export interface TaxonomyRecord {
 export interface SaveTaxonomyPayload {
   name: string;
   parentId?: number;
-  categoryId?: number;
 }
 
 export interface MoveTaxonomyPayload {
