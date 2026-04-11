@@ -260,10 +260,10 @@ export function PublicFilesPage() {
 
           <div className="toolbar-controls">
             <Input
+              className="public-files-search-input"
               allowClear
               placeholder={locale === 'zh-CN' ? '搜索展示名称、原文件名、描述、上传者等关键词' : 'Search by keywords'}
               prefix={<SearchOutlined />}
-              style={{ width: 360 }}
               value={search}
               onChange={(event) => { setSearch(event.target.value); setPage(1); }}
             />
@@ -281,9 +281,9 @@ export function PublicFilesPage() {
                 {locale === 'zh-CN' ? '清空筛选' : 'Clear filters'}
               </Button>
             ) : null}
-            <Select style={{ width: 150 }} value={sortBy} options={[{ label: locale === 'zh-CN' ? '按上传时间' : 'Created at', value: 'createdAt' }, { label: locale === 'zh-CN' ? '按名称' : 'Name', value: 'name' }, { label: locale === 'zh-CN' ? '按大小' : 'Size', value: 'size' }]} onChange={(value) => { setSortBy(value); setPage(1); }} />
-            <Select style={{ width: 110 }} value={sortOrder} options={[{ label: locale === 'zh-CN' ? '降序' : 'Desc', value: 'desc' }, { label: locale === 'zh-CN' ? '升序' : 'Asc', value: 'asc' }]} onChange={(value) => { setSortOrder(value); setPage(1); }} />
-            <Button icon={<ReloadOutlined />} onClick={() => filesQuery.refetch()}>{locale === 'zh-CN' ? '刷新' : 'Refresh'}</Button>
+            <Select className="toolbar-select medium" value={sortBy} options={[{ label: locale === 'zh-CN' ? '按上传时间' : 'Created at', value: 'createdAt' }, { label: locale === 'zh-CN' ? '按名称' : 'Name', value: 'name' }, { label: locale === 'zh-CN' ? '按大小' : 'Size', value: 'size' }]} onChange={(value) => { setSortBy(value); setPage(1); }} />
+            <Select className="toolbar-select compact" value={sortOrder} options={[{ label: locale === 'zh-CN' ? '降序' : 'Desc', value: 'desc' }, { label: locale === 'zh-CN' ? '升序' : 'Asc', value: 'asc' }]} onChange={(value) => { setSortOrder(value); setPage(1); }} />
+            <Button icon={<ReloadOutlined />} loading={filesQuery.isFetching} onClick={() => filesQuery.refetch()}>{locale === 'zh-CN' ? '刷新' : 'Refresh'}</Button>
           </div>
         </div>
 

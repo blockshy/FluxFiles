@@ -191,7 +191,7 @@ export function NotificationsPage() {
             </p>
           </div>
           {activeTab !== 'mine' ? (
-            <Button icon={<CheckOutlined />} onClick={() => markAllReadMutation.mutate()} loading={markAllReadMutation.isPending}>
+            <Button className="toolbar-primary-button" icon={<CheckOutlined />} onClick={() => markAllReadMutation.mutate()} loading={markAllReadMutation.isPending}>
               {locale === 'zh-CN' ? '本页全部已读' : 'Mark tab as read'}
             </Button>
           ) : null}

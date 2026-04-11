@@ -192,16 +192,16 @@ export function AdminFilesPage() {
 
   const columns = useMemo<ColumnsType<FileRecord>>(() => {
     const baseColumns: ColumnsType<FileRecord> = [
-      { title: locale === 'zh-CN' ? '显示名称' : 'Name', dataIndex: 'name', key: 'name', width: 220, render: (value) => <Typography.Text strong>{value}</Typography.Text> },
-      { title: locale === 'zh-CN' ? '原文件名' : 'Original name', dataIndex: 'originalName', key: 'originalName', width: 240, render: (value) => <Typography.Text type="secondary">{value}</Typography.Text> },
+      { title: locale === 'zh-CN' ? '显示名称' : 'Name', dataIndex: 'name', key: 'name', width: 220, render: (value) => <Typography.Text strong className="table-strong-text">{value}</Typography.Text> },
+      { title: locale === 'zh-CN' ? '原文件名' : 'Original name', dataIndex: 'originalName', key: 'originalName', width: 240, render: (value) => <Typography.Text type="secondary" className="table-muted-text">{value}</Typography.Text> },
       { title: locale === 'zh-CN' ? '描述' : 'Description', dataIndex: 'description', key: 'description', width: 220, render: (value) => <div className="table-text-ellipsis" title={value || '-'}>{value || '-'}</div> },
-      { title: locale === 'zh-CN' ? '分类' : 'Category', dataIndex: 'categoryPath', key: 'categoryPath', width: 220, render: (value, record) => value || record.category || '-' },
-      { title: locale === 'zh-CN' ? '标签' : 'Tags', dataIndex: 'tagPaths', key: 'tagPaths', width: 260, render: (value: string[] | undefined, record) => <Space size={[4, 4]} wrap>{(value?.length ? value : record.tags)?.length ? (value?.length ? value : record.tags).map((tag) => <Tag key={tag}>{tag}</Tag>) : '-'}</Space> },
-      { title: locale === 'zh-CN' ? '大小' : 'Size', dataIndex: 'size', key: 'size', width: 110, render: (value) => formatBytes(value) },
-      { title: locale === 'zh-CN' ? '公开' : 'Public', dataIndex: 'isPublic', key: 'isPublic', width: 100, render: (value) => (value ? <Tag color="green">{locale === 'zh-CN' ? '公开' : 'Public'}</Tag> : <Tag>{locale === 'zh-CN' ? '隐藏' : 'Hidden'}</Tag>) },
-      { title: locale === 'zh-CN' ? '下载量' : 'Downloads', dataIndex: 'downloadCount', key: 'downloadCount', width: 110 },
-      { title: locale === 'zh-CN' ? '上传用户' : 'Uploader', key: 'createdByUser', width: 180, render: (_, record) => record.createdByDisplayName || record.createdByUsername || '-' },
-      { title: locale === 'zh-CN' ? '更新时间' : 'Updated at', dataIndex: 'updatedAt', key: 'updatedAt', width: 160, render: (value) => formatDate(value) },
+      { title: locale === 'zh-CN' ? '分类' : 'Category', dataIndex: 'categoryPath', key: 'categoryPath', width: 220, render: (value, record) => value || record.category ? <Tag className="data-pill is-info">{value || record.category}</Tag> : <span className="table-empty-text">-</span> },
+      { title: locale === 'zh-CN' ? '标签' : 'Tags', dataIndex: 'tagPaths', key: 'tagPaths', width: 260, render: (value: string[] | undefined, record) => <Space size={[4, 4]} wrap className="taxonomy-pill-list">{(value?.length ? value : record.tags)?.length ? (value?.length ? value : record.tags).map((tag) => <Tag className="data-pill" key={tag}>{tag}</Tag>) : <span className="table-empty-text">-</span>}</Space> },
+      { title: locale === 'zh-CN' ? '大小' : 'Size', dataIndex: 'size', key: 'size', width: 110, render: (value) => <span className="table-mono-text">{formatBytes(value)}</span> },
+      { title: locale === 'zh-CN' ? '公开' : 'Public', dataIndex: 'isPublic', key: 'isPublic', width: 100, render: (value) => (value ? <Tag className="data-pill is-success">{locale === 'zh-CN' ? '公开' : 'Public'}</Tag> : <Tag className="data-pill">{locale === 'zh-CN' ? '隐藏' : 'Hidden'}</Tag>) },
+      { title: locale === 'zh-CN' ? '下载量' : 'Downloads', dataIndex: 'downloadCount', key: 'downloadCount', width: 110, render: (value) => <span className="table-mono-text">{value}</span> },
+      { title: locale === 'zh-CN' ? '上传用户' : 'Uploader', key: 'createdByUser', width: 180, render: (_, record) => record.createdByDisplayName || record.createdByUsername || <span className="table-empty-text">-</span> },
+      { title: locale === 'zh-CN' ? '更新时间' : 'Updated at', dataIndex: 'updatedAt', key: 'updatedAt', width: 160, render: (value) => <span className="table-muted-text">{formatDate(value)}</span> },
     ];
 
     if (canViewDownloads || canEdit || canDelete) {
@@ -264,12 +264,12 @@ export function AdminFilesPage() {
             </p>
           </div>
           <div className="toolbar-controls">
-            <Input allowClear placeholder={t('files.search')} style={{ width: 320 }} value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
-            <Select style={{ width: 160 }} value={sortBy} options={[{ label: locale === 'zh-CN' ? '按上传时间' : 'Created at', value: 'createdAt' }, { label: locale === 'zh-CN' ? '按名称' : 'Name', value: 'name' }, { label: locale === 'zh-CN' ? '按下载量' : 'Downloads', value: 'downloadCount' }]} onChange={(value) => { setSortBy(value); setPage(1); }} />
-            <Select style={{ width: 120 }} value={sortOrder} options={[{ label: locale === 'zh-CN' ? '降序' : 'Desc', value: 'desc' }, { label: locale === 'zh-CN' ? '升序' : 'Asc', value: 'asc' }]} onChange={(value) => { setSortOrder(value); setPage(1); }} />
-            <Button icon={<ReloadOutlined />} onClick={() => filesQuery.refetch()}>{t('files.refresh')}</Button>
+            <Input className="toolbar-search-input" allowClear placeholder={t('files.search')} value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
+            <Select className="toolbar-select medium-plus" value={sortBy} options={[{ label: locale === 'zh-CN' ? '按上传时间' : 'Created at', value: 'createdAt' }, { label: locale === 'zh-CN' ? '按名称' : 'Name', value: 'name' }, { label: locale === 'zh-CN' ? '按下载量' : 'Downloads', value: 'downloadCount' }]} onChange={(value) => { setSortBy(value); setPage(1); }} />
+            <Select className="toolbar-select compact" value={sortOrder} options={[{ label: locale === 'zh-CN' ? '降序' : 'Desc', value: 'desc' }, { label: locale === 'zh-CN' ? '升序' : 'Asc', value: 'asc' }]} onChange={(value) => { setSortOrder(value); setPage(1); }} />
+            <Button icon={<ReloadOutlined />} loading={filesQuery.isFetching} onClick={() => filesQuery.refetch()}>{t('files.refresh')}</Button>
             {canUpload ? (
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => { void uploadSettingsQuery.refetch(); setModalState({ open: true, mode: 'create', file: null }); }}>
+              <Button className="toolbar-primary-button" type="primary" icon={<PlusOutlined />} onClick={() => { void uploadSettingsQuery.refetch(); setModalState({ open: true, mode: 'create', file: null }); }}>
                 {canManageAll ? t('files.upload') : (locale === 'zh-CN' ? '上传我的文件' : 'Upload my file')}
               </Button>
             ) : null}

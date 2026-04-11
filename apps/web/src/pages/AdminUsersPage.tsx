@@ -86,19 +86,19 @@ export function AdminUsersPage() {
 
   const columns = useMemo<ColumnsType<AdminUser>>(() => {
     const base: ColumnsType<AdminUser> = [
-      { title: t('login.username'), dataIndex: 'username', key: 'username', width: 150 },
-      { title: t('register.displayName'), dataIndex: 'displayName', key: 'displayName', width: 180 },
-      { title: t('register.email'), dataIndex: 'email', key: 'email', width: 220 },
-      { title: 'Role', dataIndex: 'role', key: 'role', width: 120, render: (value: string) => <Tag color={value === 'admin' ? 'gold' : 'default'}>{value}</Tag> },
+      { title: t('login.username'), dataIndex: 'username', key: 'username', width: 150, render: (value: string) => <span className="table-strong-text">{value}</span> },
+      { title: t('register.displayName'), dataIndex: 'displayName', key: 'displayName', width: 180, render: (value: string) => <span className="table-main-text">{value}</span> },
+      { title: t('register.email'), dataIndex: 'email', key: 'email', width: 220, render: (value: string) => <span className="table-muted-text">{value}</span> },
+      { title: 'Role', dataIndex: 'role', key: 'role', width: 120, render: (value: string) => <Tag className={`data-pill ${value === 'admin' ? 'is-warning' : ''}`}>{value}</Tag> },
       {
         title: t('users.permissions'),
         dataIndex: 'permissions',
         key: 'permissions',
         width: 360,
-        render: (value: string[]) => value?.length ? <Space size={[4, 4]} wrap>{value.map((permission) => <Tag key={permission}>{permissionLabels[permission] ?? permission}</Tag>)}</Space> : '-',
+        render: (value: string[]) => value?.length ? <Space size={[4, 4]} wrap className="taxonomy-pill-list">{value.map((permission) => <Tag className="data-pill" key={permission}>{permissionLabels[permission] ?? permission}</Tag>)}</Space> : <span className="table-empty-text">-</span>,
       },
-      { title: 'Status', dataIndex: 'isEnabled', key: 'isEnabled', width: 120, render: (value: boolean) => <Tag color={value ? 'green' : 'red'}>{value ? t('common.enabled') : t('common.disabled')}</Tag> },
-      { title: 'Last login', dataIndex: 'lastLoginAt', key: 'lastLoginAt', width: 180, render: (value?: string) => (value ? formatDate(value) : '-') },
+      { title: 'Status', dataIndex: 'isEnabled', key: 'isEnabled', width: 120, render: (value: boolean) => <Tag className={`data-pill ${value ? 'is-success' : 'is-danger'}`}>{value ? t('common.enabled') : t('common.disabled')}</Tag> },
+      { title: 'Last login', dataIndex: 'lastLoginAt', key: 'lastLoginAt', width: 180, render: (value?: string) => (value ? <span className="table-muted-text">{formatDate(value)}</span> : <span className="table-empty-text">-</span>) },
     ];
 
     if (canEdit) {
@@ -163,10 +163,10 @@ export function AdminUsersPage() {
           </div>
 
           <div className="toolbar-controls">
-            <Input allowClear placeholder={t('publicFiles.search')} style={{ width: 280 }} value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
-            <Button icon={<ReloadOutlined />} onClick={() => usersQuery.refetch()}>{t('users.refresh')}</Button>
+            <Input className="toolbar-search-input compact" allowClear placeholder={t('publicFiles.search')} value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
+            <Button icon={<ReloadOutlined />} loading={usersQuery.isFetching} onClick={() => usersQuery.refetch()}>{t('users.refresh')}</Button>
             {canCreate ? (
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => { setModalState({ open: true, mode: 'create', user: null }); form.resetFields(); form.setFieldsValue({ role: 'user', permissions: [], permissionTemplate: undefined, isEnabled: true }); }}>
+              <Button className="toolbar-primary-button" type="primary" icon={<PlusOutlined />} onClick={() => { setModalState({ open: true, mode: 'create', user: null }); form.resetFields(); form.setFieldsValue({ role: 'user', permissions: [], permissionTemplate: undefined, isEnabled: true }); }}>
                 {t('users.new')}
               </Button>
             ) : null}
@@ -184,6 +184,7 @@ export function AdminUsersPage() {
       </Card>
 
       <Modal
+        className="surface-modal"
         title={modalState.mode === 'create' ? t('common.create') : t('common.edit')}
         open={modalState.open}
         onCancel={() => { setModalState({ open: false, mode: 'create', user: null }); form.resetFields(); }}
@@ -193,6 +194,7 @@ export function AdminUsersPage() {
       >
         <Form
           form={form}
+          className="surface-form"
           layout="vertical"
           initialValues={{ role: 'user', permissions: [], permissionTemplate: undefined, isEnabled: true }}
           onFinish={(values) => {

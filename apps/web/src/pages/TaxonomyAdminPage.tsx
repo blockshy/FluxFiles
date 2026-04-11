@@ -322,7 +322,7 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
           </div>
           <div className="toolbar-controls">
             <Input allowClear placeholder={props.searchPlaceholder} style={{ width: 300 }} value={search} onChange={(event) => setSearch(event.target.value)} />
-            <Button icon={<ReloadOutlined />} onClick={() => treeQuery.refetch()}>{props.locale === 'zh-CN' ? '刷新' : 'Refresh'}</Button>
+            <Button icon={<ReloadOutlined />} loading={treeQuery.isFetching} onClick={() => treeQuery.refetch()}>{props.locale === 'zh-CN' ? '刷新' : 'Refresh'}</Button>
             {props.canCreate ? (
               <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreateModal('create-root')}>
                 {props.createLabel}

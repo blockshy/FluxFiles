@@ -132,7 +132,7 @@ export function AdminCommunityPage() {
                 setPage(1);
               }}
             />
-            <Button icon={<ReloadOutlined />} onClick={() => postsQuery.refetch()}>
+            <Button icon={<ReloadOutlined />} loading={postsQuery.isFetching} onClick={() => postsQuery.refetch()}>
               {locale === 'zh-CN' ? '刷新' : 'Refresh'}
             </Button>
           </div>

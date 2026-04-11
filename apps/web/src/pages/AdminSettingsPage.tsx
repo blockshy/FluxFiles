@@ -221,7 +221,7 @@ export function AdminSettingsPage() {
         </Space>
       </Card>
 
-      <Card className="surface-card" style={{ marginTop: 24 }} loading={settingsQuery.isLoading}>
+      <Card className="surface-card settings-section-card" loading={settingsQuery.isLoading}>
         <div className="toolbar-row">
           <div>
             <h2 className="section-title">{locale === 'zh-CN' ? '文件下载设置' : 'Download Settings'}</h2>
@@ -253,7 +253,7 @@ export function AdminSettingsPage() {
         </Form>
       </Card>
 
-      <Card className="surface-card" style={{ marginTop: 24 }} loading={settingsQuery.isLoading}>
+      <Card className="surface-card settings-section-card" loading={settingsQuery.isLoading}>
         <div className="toolbar-row">
           <div>
             <h2 className="section-title">{locale === 'zh-CN' ? '首页文件列表显示' : 'Public File List Display'}</h2>
@@ -284,7 +284,7 @@ export function AdminSettingsPage() {
         </Form>
       </Card>
 
-      <Card className="surface-card" style={{ marginTop: 24 }} loading={settingsQuery.isLoading}>
+      <Card className="surface-card settings-section-card" loading={settingsQuery.isLoading}>
         <div className="toolbar-row">
           <div>
             <h2 className="section-title">{locale === 'zh-CN' ? '限流配置' : 'Rate Limits'}</h2>
@@ -315,7 +315,7 @@ export function AdminSettingsPage() {
         </Form>
       </Card>
 
-      <Card className="surface-card" style={{ marginTop: 24 }} loading={settingsQuery.isLoading}>
+      <Card className="surface-card settings-section-card" loading={settingsQuery.isLoading}>
         <div className="toolbar-row">
           <div>
             <h2 className="section-title">{locale === 'zh-CN' ? '文件上传限制' : 'Upload Restrictions'}</h2>
@@ -364,7 +364,7 @@ export function AdminSettingsPage() {
         </Form>
       </Card>
 
-      <Card className="surface-card" style={{ marginTop: 24 }} loading={templatesQuery.isLoading}>
+      <Card className="surface-card settings-section-card" loading={templatesQuery.isLoading}>
         <div className="toolbar-row">
           <div>
             <h2 className="section-title">{t('settings.templateTitle')}</h2>
@@ -395,6 +395,7 @@ export function AdminSettingsPage() {
       </Card>
 
       <Modal
+        className="surface-modal"
         open={modalOpen}
         title={editingIndex === null ? t('settings.templateNew') : t('common.edit')}
         onCancel={() => setModalOpen(false)}
@@ -410,7 +411,7 @@ export function AdminSettingsPage() {
           setModalOpen(false);
         }}
       >
-        <Form form={templateForm} layout="vertical">
+        <Form form={templateForm} className="surface-form" layout="vertical">
           <Form.Item name="key" label="Key" rules={[{ required: true }]}>
             <Input />
           </Form.Item>

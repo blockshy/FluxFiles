@@ -1,8 +1,9 @@
 import { CloudServerOutlined, DownloadOutlined, FileSearchOutlined, FolderOpenOutlined, HomeOutlined, LogoutOutlined, MessageOutlined, SettingOutlined, TagsOutlined, TeamOutlined } from '@ant-design/icons';
-import { Button, Layout, Menu, Typography } from 'antd';
+import { Avatar, Button, Layout, Menu, Typography } from 'antd';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { LocaleToggle } from '../features/i18n/LocaleToggle';
 import { useI18n } from '../features/i18n/LocaleProvider';
+import { useThemeMode } from '../features/theme/ThemeProvider';
 import { ThemeToggle } from '../features/theme/ThemeToggle';
 import {
   PERMISSION_ADMIN_AUDIT,
@@ -38,6 +39,7 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const { user, logout } = useUserAuth();
   const { t, locale } = useI18n();
+  const { themeMode } = useThemeMode();
 
   const items = [];
   if (
@@ -84,16 +86,21 @@ export function AdminLayout() {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider width={232} theme="dark">
-        <div className="sider-brand">FluxFiles Console</div>
-        <Menu theme="dark" selectedKeys={[location.pathname]} items={items} />
+    <Layout className="admin-shell">
+      <Sider width={248} theme={themeMode} className={`admin-sider admin-sider-${themeMode}`}>
+        <div className="sider-brand">
+          <div>
+            <div className="sider-brand-title">FluxFiles</div>
+            <div className="sider-brand-subtitle">Console</div>
+          </div>
+        </div>
+        <Menu theme={themeMode} selectedKeys={[location.pathname]} items={items} />
       </Sider>
 
-      <Layout>
+      <Layout className="admin-main-shell">
         <Header className="admin-header">
           <div className="admin-header-meta">
-            <Typography.Title level={4} style={{ margin: 0, lineHeight: 1.2 }}>
+            <Typography.Title level={4} className="admin-header-title">
               {t('admin.console')}
             </Typography.Title>
             <Typography.Text type="secondary">
@@ -104,6 +111,15 @@ export function AdminLayout() {
           <div className="admin-header-actions">
             <LocaleToggle />
             <ThemeToggle />
+            <div className="admin-user-chip">
+              <Avatar src={user?.avatarUrl} size={34}>
+                {(user?.displayName || user?.username || 'A').slice(0, 1).toUpperCase()}
+              </Avatar>
+              <div className="admin-user-chip-copy">
+                <span>{user?.displayName || user?.username || '-'}</span>
+                <span>{user?.username || '-'}</span>
+              </div>
+            </div>
             <Button icon={<HomeOutlined />} onClick={() => navigate('/')}>
               {locale === 'zh-CN' ? '返回首页' : 'Back to home'}
             </Button>
@@ -119,7 +135,7 @@ export function AdminLayout() {
           </div>
         </Header>
 
-        <Content style={{ padding: 24 }}>
+        <Content className="admin-content">
           <Outlet />
         </Content>
       </Layout>

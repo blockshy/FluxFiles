@@ -20,7 +20,7 @@ export function CommunityPage() {
   });
 
   return (
-    <Card className="surface-card">
+    <Card className="surface-card community-list-card">
         <div className="toolbar-row">
           <div>
             <h2 className="section-title">社区</h2>
@@ -28,17 +28,17 @@ export function CommunityPage() {
           </div>
           <div className="toolbar-controls">
             <Input
+              className="community-search-input"
               allowClear
               prefix={<SearchOutlined />}
               placeholder={locale === 'zh-CN' ? '搜索帖子标题、正文或作者' : 'Search posts'}
-              style={{ width: 320 }}
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value);
                 setPage(1);
               }}
             />
-            <Button icon={<ReloadOutlined />} onClick={() => postsQuery.refetch()}>
+            <Button icon={<ReloadOutlined />} loading={postsQuery.isFetching} onClick={() => postsQuery.refetch()}>
               刷新
             </Button>
             <Link to="/community/new" className="table-action-link file-action-button">
@@ -66,7 +66,7 @@ export function CommunityPage() {
                 <div className="community-post-shell">
                   <List.Item
                     actions={[
-                      <Link key="open" to={`/community/${item.id}`} className="table-action-link file-action-button">
+                      <Link key="open" to={`/community/${item.id}`} className="table-action-link file-action-button community-open-button">
                         <MessageOutlined />
                         <span>进入讨论</span>
                       </Link>,
@@ -84,7 +84,7 @@ export function CommunityPage() {
                       )}
                       description={(
                         <div className="community-post-summary">
-                          <Typography.Paragraph ellipsis={{ rows: 2 }} style={{ marginBottom: 8 }}>
+                          <Typography.Paragraph ellipsis={{ rows: 2 }} className="community-post-excerpt">
                             {item.contentText}
                           </Typography.Paragraph>
                           <Space size={12} wrap className="community-post-meta">

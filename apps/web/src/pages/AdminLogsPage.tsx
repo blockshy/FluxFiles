@@ -16,10 +16,10 @@ function renderDetail(record: OperationLogRecord) {
     return record.detail;
   }
   return (
-    <Space direction="vertical" size={4}>
+    <Space direction="vertical" size={4} className="log-detail-cell">
       <Typography.Text>{record.detailParsed.summary}</Typography.Text>
       {(record.detailParsed.changes ?? []).map((change, index) => (
-        <Typography.Text key={`${record.id}-${index}`} type="secondary">
+        <Typography.Text key={`${record.id}-${index}`} type="secondary" className="log-change-line">
           {change.label}: {JSON.stringify(change.before)} {'->'} {JSON.stringify(change.after)}
         </Typography.Text>
       ))}
@@ -65,26 +65,26 @@ export function AdminLogsPage() {
       key: 'adminUsername',
       width: 240,
       render: (_, record) => (
-        <Space>
+        <Space className="table-entity">
           <Avatar src={record.adminAvatarUrl}>{(record.adminDisplayName || record.adminUsername || 'A').slice(0, 1).toUpperCase()}</Avatar>
-          <Space direction="vertical" size={0}>
+          <Space direction="vertical" size={0} className="table-entity-copy">
             <Typography.Text strong>{record.adminDisplayName || record.adminUsername || '-'}</Typography.Text>
             <Typography.Text type="secondary">@{record.adminUsername || '-'}</Typography.Text>
           </Space>
         </Space>
       ),
     },
-    { title: t('logs.action'), dataIndex: 'action', key: 'action', width: 220, render: (value: string) => <Tag>{value}</Tag> },
-    { title: t('logs.target'), dataIndex: 'targetType', key: 'targetType', width: 120, render: (value: string) => <Tag color="blue">{value}</Tag> },
+    { title: t('logs.action'), dataIndex: 'action', key: 'action', width: 220, render: (value: string) => <Tag className="data-pill">{value}</Tag> },
+    { title: t('logs.target'), dataIndex: 'targetType', key: 'targetType', width: 120, render: (value: string) => <Tag className="data-pill is-info">{value}</Tag> },
     {
       title: 'Target',
       key: 'targetId',
       width: 300,
       render: (_, record) => record.targetType === 'user' && record.targetUserId ? (
         <Space direction="vertical" size={4}>
-          <Space>
+          <Space className="table-entity">
             <Avatar src={record.targetAvatarUrl}>{(record.targetDisplayName || record.targetUsername || 'U').slice(0, 1).toUpperCase()}</Avatar>
-            <Space direction="vertical" size={0}>
+            <Space direction="vertical" size={0} className="table-entity-copy">
               <Typography.Text strong>{record.targetDisplayName || record.targetUsername}</Typography.Text>
               <Typography.Text type="secondary">@{record.targetUsername}</Typography.Text>
             </Space>
@@ -104,7 +104,7 @@ export function AdminLogsPage() {
       ) : record.targetId,
     },
     { title: t('logs.detail'), key: 'detail', width: 420, render: (_, record) => renderDetail(record) },
-    { title: 'IP', dataIndex: 'ip', key: 'ip', width: 140 },
+    { title: 'IP', dataIndex: 'ip', key: 'ip', width: 140, render: (value) => value ? <span className="table-mono-text">{value}</span> : <span className="table-empty-text">-</span> },
   ];
 
   return (
@@ -119,10 +119,10 @@ export function AdminLogsPage() {
 
         <div className="toolbar-controls">
           <Input
+            className="toolbar-search-input compact"
             allowClear
             prefix={<SearchOutlined />}
             placeholder={t('logs.search')}
-            style={{ width: 280 }}
             value={search}
             onChange={(event) => {
               setSearch(event.target.value);
@@ -130,9 +130,9 @@ export function AdminLogsPage() {
             }}
           />
           <Select
+            className="toolbar-select large"
             allowClear
             placeholder={t('logs.action')}
-            style={{ width: 220 }}
             value={action}
             options={[
               { label: 'user.create', value: 'user.create' },
@@ -151,9 +151,9 @@ export function AdminLogsPage() {
             }}
           />
           <Select
+            className="toolbar-select slim"
             allowClear
             placeholder={t('logs.target')}
-            style={{ width: 180 }}
             value={targetType}
             options={[
               { label: 'user', value: 'user' },
@@ -165,7 +165,7 @@ export function AdminLogsPage() {
               setPage(1);
             }}
           />
-          <Button icon={<ReloadOutlined />} onClick={() => logsQuery.refetch()}>
+          <Button icon={<ReloadOutlined />} loading={logsQuery.isFetching} onClick={() => logsQuery.refetch()}>
             {t('logs.refresh')}
           </Button>
         </div>

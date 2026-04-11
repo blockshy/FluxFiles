@@ -102,14 +102,14 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                 </button>
               </Dropdown>
             ) : (
-              <>
-                <Button type="default">
-                  <Link to="/login">{t('nav.login')}</Link>
-                </Button>
-                <Button type="default">
-                  <Link to="/register">{t('nav.register')}</Link>
-                </Button>
-              </>
+              <div className="shell-auth-actions">
+                <Link to="/login" className="shell-auth-link">
+                  <Button type="default">{t('nav.login')}</Button>
+                </Link>
+                <Link to="/register" className="shell-auth-link">
+                  <Button type="default">{t('nav.register')}</Button>
+                </Link>
+              </div>
             )}
           </Space>
         </header>

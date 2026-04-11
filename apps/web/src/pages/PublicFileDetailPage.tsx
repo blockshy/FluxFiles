@@ -131,19 +131,19 @@ function CommentNode({
             </div>
           </Space>
         </div>
-        <Typography.Paragraph style={{ marginBottom: 8, whiteSpace: 'pre-wrap' }}>{comment.content}</Typography.Paragraph>
-        <Space wrap>
-          <Button type={comment.currentUserVote === 1 ? 'primary' : 'text'} icon={<LikeOutlined />} disabled={!token} onClick={() => onVote(comment.id, threadRootId, 1)}>
+        <Typography.Paragraph className="comment-body-copy">{comment.content}</Typography.Paragraph>
+        <Space wrap className="comment-action-row">
+          <Button className="comment-action-button" type={comment.currentUserVote === 1 ? 'primary' : 'text'} icon={<LikeOutlined />} disabled={!token} onClick={() => onVote(comment.id, threadRootId, 1)}>
             {comment.likeCount}
           </Button>
-          <Button type={comment.currentUserVote === -1 ? 'primary' : 'text'} danger={comment.currentUserVote === -1} icon={<DislikeOutlined />} disabled={!token} onClick={() => onVote(comment.id, threadRootId, -1)}>
+          <Button className="comment-action-button" type={comment.currentUserVote === -1 ? 'primary' : 'text'} danger={comment.currentUserVote === -1} icon={<DislikeOutlined />} disabled={!token} onClick={() => onVote(comment.id, threadRootId, -1)}>
             {comment.dislikeCount}
           </Button>
-          <Button type="text" icon={<MessageOutlined />} disabled={!token} onClick={() => onStartReply(comment.id)}>
+          <Button className="comment-action-button" type="text" icon={<MessageOutlined />} disabled={!token} onClick={() => onStartReply(comment.id)}>
             {locale === 'zh-CN' ? '回复' : 'Reply'}
           </Button>
           {comment.canDelete ? (
-            <Button type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(comment.id, threadRootId)}>
+            <Button className="comment-action-button" type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(comment.id, threadRootId)}>
               {locale === 'zh-CN' ? '删除' : 'Delete'}
             </Button>
           ) : null}
@@ -513,12 +513,12 @@ export function PublicFileDetailPage() {
       <div className="detail-page">
         <Card className="surface-card">
           {file ? (
-            <Space direction="vertical" size={20} style={{ width: '100%' }}>
+            <Space direction="vertical" size={20} className="detail-stack">
               <div className="detail-hero">
-                <div>
-                  <Typography.Title level={2} style={{ marginTop: 0, marginBottom: 8 }}>{file.name}</Typography.Title>
+                <div className="detail-hero-copy">
+                  <Typography.Title level={2} className="detail-page-title">{file.name}</Typography.Title>
                 </div>
-                <Space wrap>
+                <Space wrap className="detail-hero-actions">
                   <Button type="primary" icon={<DownloadOutlined />} loading={downloadMutation.isPending || downloadConfigQuery.isLoading} onClick={() => void startDownload()}>
                     {locale === 'zh-CN' ? '下载文件' : 'Download'}
                   </Button>
@@ -586,17 +586,17 @@ export function PublicFileDetailPage() {
           ) : <Empty description={locale === 'zh-CN' ? '文件不存在或已下线' : 'File not found'} />}
         </Card>
 
-        <Card className="surface-card" title={locale === 'zh-CN' ? `评论区 (${overallCommentTotal})` : `Comments (${overallCommentTotal})`}>
+        <Card className="surface-card detail-comments-card" title={locale === 'zh-CN' ? `评论区 (${overallCommentTotal})` : `Comments (${overallCommentTotal})`}>
           {token ? (
             <Form
               form={commentForm}
               layout="vertical"
               onFinish={(values: { content: string }) => createCommentMutation.mutate({ content: values.content })}
             >
-              <Form.Item name="content" rules={[{ required: true, message: locale === 'zh-CN' ? '请输入评论内容' : 'Please enter a comment.' }]}>
+              <Form.Item name="content" className="comment-composer-field" rules={[{ required: true, message: locale === 'zh-CN' ? '请输入评论内容' : 'Please enter a comment.' }]}>
                 <Input.TextArea rows={4} placeholder={locale === 'zh-CN' ? '说点什么吧…' : 'Share your thoughts...'} />
               </Form.Item>
-              <Button type="primary" htmlType="submit" loading={createCommentMutation.isPending}>
+              <Button className="toolbar-primary-button" type="primary" htmlType="submit" loading={createCommentMutation.isPending}>
                 {locale === 'zh-CN' ? '发布评论' : 'Post comment'}
               </Button>
             </Form>
@@ -629,19 +629,19 @@ export function PublicFileDetailPage() {
                           </div>
                         </Space>
                       </div>
-                      <Typography.Paragraph style={{ marginBottom: 8, whiteSpace: 'pre-wrap' }}>{comment.content}</Typography.Paragraph>
-                      <Space wrap>
-                        <Button type={comment.currentUserVote === 1 ? 'primary' : 'text'} icon={<LikeOutlined />} disabled={!token} onClick={() => voteMutation.mutate({ commentId: comment.id, threadRootId: comment.id, value: 1 })}>
+                      <Typography.Paragraph className="comment-body-copy">{comment.content}</Typography.Paragraph>
+                      <Space wrap className="comment-action-row">
+                        <Button className="comment-action-button" type={comment.currentUserVote === 1 ? 'primary' : 'text'} icon={<LikeOutlined />} disabled={!token} onClick={() => voteMutation.mutate({ commentId: comment.id, threadRootId: comment.id, value: 1 })}>
                           {comment.likeCount}
                         </Button>
-                        <Button type={comment.currentUserVote === -1 ? 'primary' : 'text'} danger={comment.currentUserVote === -1} icon={<DislikeOutlined />} disabled={!token} onClick={() => voteMutation.mutate({ commentId: comment.id, threadRootId: comment.id, value: -1 })}>
+                        <Button className="comment-action-button" type={comment.currentUserVote === -1 ? 'primary' : 'text'} danger={comment.currentUserVote === -1} icon={<DislikeOutlined />} disabled={!token} onClick={() => voteMutation.mutate({ commentId: comment.id, threadRootId: comment.id, value: -1 })}>
                           {comment.dislikeCount}
                         </Button>
-                        <Button type="text" icon={<MessageOutlined />} disabled={!token} onClick={() => setReplyingTo(comment.id)}>
+                        <Button className="comment-action-button" type="text" icon={<MessageOutlined />} disabled={!token} onClick={() => setReplyingTo(comment.id)}>
                           {locale === 'zh-CN' ? '回复' : 'Reply'}
                         </Button>
                         {comment.canDelete ? (
-                          <Button type="text" danger icon={<DeleteOutlined />} onClick={() => deleteCommentMutation.mutate({ commentId: comment.id, threadRootId: comment.id })}>
+                          <Button className="comment-action-button" type="text" danger icon={<DeleteOutlined />} onClick={() => deleteCommentMutation.mutate({ commentId: comment.id, threadRootId: comment.id })}>
                             {locale === 'zh-CN' ? '删除' : 'Delete'}
                           </Button>
                         ) : null}
@@ -789,7 +789,7 @@ export function PublicFileDetailPage() {
             }}
           >
             <Form.Item label={locale === 'zh-CN' ? '验证码题目' : 'Captcha challenge'} required>
-              <Space.Compact style={{ width: '100%' }}>
+              <Space.Compact className="auth-captcha-compact">
                 <Input value={downloadCaptchaQuery.data?.question ?? ''} readOnly />
                 <Button onClick={() => downloadCaptchaQuery.refetch()} loading={downloadCaptchaQuery.isFetching}>
                   {locale === 'zh-CN' ? '刷新' : 'Refresh'}

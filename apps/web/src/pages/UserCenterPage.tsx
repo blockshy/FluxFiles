@@ -141,7 +141,7 @@ export function UserCenterPage() {
                     {({ getFieldValue }) => (
                       <div className="avatar-editor">
                         <Avatar src={avatarPreview || getFieldValue('avatarUrl')} size={88} icon={<UserOutlined />} />
-                        <Space direction="vertical" size={4}>
+                        <Space direction="vertical" size={4} className="avatar-editor-copy">
                           <Typography.Text strong>{t('account.avatar')}</Typography.Text>
                           <Typography.Text type="secondary">{t('account.avatarHint')}</Typography.Text>
                           {selectedAvatarName ? (
@@ -241,11 +241,12 @@ export function UserCenterPage() {
               label: t('account.favorites'),
               children: (
                 <List
+                  className="profile-list"
                   dataSource={favoritesQuery.data ?? []}
                   loading={favoritesQuery.isLoading}
                   renderItem={(item) => (
                     <List.Item>
-                      <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                      <Space direction="vertical" size={4} className="profile-list-copy">
                         <Typography.Text strong>{item.name}</Typography.Text>
                         <Typography.Text type="secondary">{item.originalName}</Typography.Text>
                         {item.createdByUsername ? (
@@ -273,11 +274,12 @@ export function UserCenterPage() {
               label: t('account.downloads'),
               children: (
                 <List
+                  className="profile-list"
                   dataSource={downloadsQuery.data ?? []}
                   loading={downloadsQuery.isLoading}
                   renderItem={(item) => (
                     <List.Item>
-                      <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                      <Space direction="vertical" size={4} className="profile-list-copy">
                         <Typography.Text strong>{item.name}</Typography.Text>
                         <Typography.Text type="secondary">{item.originalName}</Typography.Text>
                         {item.createdByUsername ? (

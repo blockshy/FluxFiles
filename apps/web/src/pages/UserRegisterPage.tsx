@@ -88,15 +88,15 @@ export function UserRegisterPage() {
         <ThemeToggle />
       </div>
       <Card className="surface-card login-card">
-        <Typography.Title level={3} style={{ marginTop: 0, marginBottom: 6 }}>
+        <Typography.Title level={3} className="auth-card-title">
           {t('register.title')}
         </Typography.Title>
-        <Typography.Paragraph type="secondary" style={{ marginBottom: 28 }}>
+        <Typography.Paragraph type="secondary" className="auth-card-subtitle">
           {t('register.subtitle')}
         </Typography.Paragraph>
 
         {registrationDisabled ? (
-          <Alert type="warning" showIcon message={t('register.closedTitle')} description={t('register.closedDesc')} style={{ marginBottom: 20 }} />
+          <Alert className="auth-state-alert" type="warning" showIcon message={t('register.closedTitle')} description={t('register.closedDesc')} />
         ) : null}
 
         <Form
@@ -152,7 +152,7 @@ export function UserRegisterPage() {
           {captchaEnabled ? (
             <>
               <Form.Item label={locale === 'zh-CN' ? '验证码' : 'Captcha'} required>
-                <Space.Compact style={{ width: '100%' }}>
+                <Space.Compact className="auth-captcha-compact">
                   <Input value={captchaQuery.data?.question ?? ''} readOnly />
                   <Button onClick={() => captchaQuery.refetch()} loading={captchaQuery.isFetching}>
                     {locale === 'zh-CN' ? '刷新' : 'Refresh'}
@@ -173,7 +173,7 @@ export function UserRegisterPage() {
           </Button>
         </Form>
 
-        <Typography.Paragraph style={{ marginTop: 18, marginBottom: 0 }}>
+        <Typography.Paragraph className="auth-card-footer">
           {t('register.hasAccount')} <Link to="/login">{t('register.goLogin')}</Link>
         </Typography.Paragraph>
       </Card>

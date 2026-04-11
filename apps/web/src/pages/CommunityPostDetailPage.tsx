@@ -67,10 +67,10 @@ function ReplyItem({ item, depth, replyingTo, submitting, onReply, onDelete, onS
             </div>
           </Space>
         </div>
-        <Typography.Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 8 }}>{item.content}</Typography.Paragraph>
-        <Space wrap>
-          <Button type="text" icon={<MessageOutlined />} onClick={() => onStartReply(item.id)}>回复</Button>
-          {item.canDelete ? <Button type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(item.id)}>删除</Button> : null}
+        <Typography.Paragraph className="community-reply-content">{item.content}</Typography.Paragraph>
+        <Space wrap className="comment-action-row">
+          <Button className="comment-action-button" type="text" icon={<MessageOutlined />} onClick={() => onStartReply(item.id)}>回复</Button>
+          {item.canDelete ? <Button className="comment-action-button" type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(item.id)}>删除</Button> : null}
         </Space>
         {replyingTo === item.id ? (
           <Form
@@ -206,15 +206,14 @@ export function CommunityPostDetailPage() {
         <div className="toolbar-row">
           <div>
             <Button
-              className="table-action-button"
+              className="table-action-button community-back-button"
               icon={<ArrowLeftOutlined />}
-              style={{ marginBottom: 12 }}
               onClick={() => navigate('/community')}
             >
               返回社区
             </Button>
             <Space wrap size={10}>
-              <h2 className="section-title" style={{ marginBottom: 0 }}>{post.title}</h2>
+              <h2 className="section-title community-detail-title">{post.title}</h2>
               {post.isPinned ? <Tag icon={<PushpinOutlined />} color="gold">置顶</Tag> : null}
               {post.isLocked ? <Tag icon={<LockOutlined />}>已锁定</Tag> : null}
             </Space>
@@ -231,10 +230,10 @@ export function CommunityPostDetailPage() {
         <div className="community-post-content" dangerouslySetInnerHTML={{ __html: post.contentHtml }} />
       </Card>
 
-      <Card className="surface-card" style={{ marginTop: 20 }}>
+      <Card className="surface-card community-reply-card-shell">
         <div className="toolbar-row">
           <div>
-            <h3 className="section-title" style={{ marginBottom: 0 }}>回复区</h3>
+            <h3 className="section-title community-detail-title">回复区</h3>
             <p className="section-subtitle">支持直接回复帖子，也支持回复楼中内容。</p>
           </div>
         </div>
@@ -254,7 +253,7 @@ export function CommunityPostDetailPage() {
           <Tag>该帖子已锁定，暂时不能继续回复。</Tag>
         )}
 
-        <div className="community-reply-list">
+        <div className="community-reply-list community-reply-list-shell">
           {replyTree.length ? replyTree.map((item) => (
             <ReplyItem
               key={item.id}

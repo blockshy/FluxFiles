@@ -81,10 +81,10 @@ export function UserLoginPage() {
         <ThemeToggle />
       </div>
       <Card className="surface-card login-card">
-        <Typography.Title level={3} style={{ marginTop: 0, marginBottom: 6 }}>
+        <Typography.Title level={3} className="auth-card-title">
           {t('login.title')}
         </Typography.Title>
-        <Typography.Paragraph type="secondary" style={{ marginBottom: 28 }}>
+        <Typography.Paragraph type="secondary" className="auth-card-subtitle">
           {t('login.subtitle')}
         </Typography.Paragraph>
 
@@ -103,7 +103,7 @@ export function UserLoginPage() {
           {captchaEnabled ? (
             <>
               <Form.Item label={locale === 'zh-CN' ? '验证码' : 'Captcha'} required>
-                <Space.Compact style={{ width: '100%' }}>
+                <Space.Compact className="auth-captcha-compact">
                   <Input value={captchaQuery.data?.question ?? ''} readOnly />
                   <Button onClick={() => captchaQuery.refetch()} loading={captchaQuery.isFetching}>
                     {locale === 'zh-CN' ? '刷新' : 'Refresh'}
@@ -124,7 +124,7 @@ export function UserLoginPage() {
           </Button>
         </Form>
 
-        <Typography.Paragraph style={{ marginTop: 18, marginBottom: 0 }}>
+        <Typography.Paragraph className="auth-card-footer">
           {t('login.noAccount')} <Link to="/register">{t('login.create')}</Link>
         </Typography.Paragraph>
       </Card>
