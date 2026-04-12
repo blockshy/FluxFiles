@@ -48,6 +48,8 @@ services:
       args:
         # 前端打包时注入 API 根路径
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        VITE_APP_BASE_PATH: ${VITE_APP_BASE_PATH:-/fluxfiles/}
+        WEB_APP_MODE: ${WEB_APP_MODE:-subpath}
     container_name: fluxfiles-web
     restart: unless-stopped
     ports:

@@ -50,6 +50,7 @@ func New(deps Dependencies) *gin.Engine {
 	engine.Use(middleware.ErrorRecovery(deps.Logger))
 	engine.Use(middleware.SecurityHeaders())
 	engine.Use(middleware.Blacklist(deps.Config.Security.BlacklistIPs))
+	engine.Use(middleware.CORS(deps.Config.App.CORSOrigins))
 
 	engine.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})

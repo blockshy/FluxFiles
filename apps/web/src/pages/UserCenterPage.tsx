@@ -15,6 +15,7 @@ import { useUserAuth } from '../features/user/AuthProvider';
 import { hasPermission, PERMISSION_PUBLIC_FILES_FAVORITE, PERMISSION_PUBLIC_PROFILE_EDIT_OWN, PERMISSION_PUBLIC_PROFILE_VIEW_PUBLIC } from '../features/user/permissions';
 import { buildDefaultAvatarDataUrl } from '../lib/avatar';
 import { getApiErrorMessage } from '../lib/apiError';
+import { withAppBase } from '../lib/base';
 import { formatBytes, formatDate } from '../lib/format';
 
 export function UserCenterPage() {
@@ -68,7 +69,7 @@ export function UserCenterPage() {
       passwordForm.resetFields();
       messageApi.success(t('account.passwordUpdated'));
       logout();
-      window.location.href = '/fluxfiles/login';
+      window.location.href = withAppBase('/login');
     },
     onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '密码修改失败，请检查当前密码和新密码。' : 'Failed to change password. Please check current and new passwords.', locale)),
   });

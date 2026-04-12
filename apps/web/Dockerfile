@@ -20,9 +20,11 @@ WORKDIR /app
 # 这里默认使用 /api，表示前端通过同域反向代理访问后端 API
 # 如果将来前后端分域部署，也可以在构建时改成完整地址
 ARG VITE_API_BASE_URL=/api
+ARG VITE_APP_BASE_PATH=/fluxfiles/
 
 # 把构建参数写入环境变量，供 `npm run build` 使用
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_APP_BASE_PATH=${VITE_APP_BASE_PATH}
 
 # 先复制 package.json，利用 Docker 缓存加速依赖安装
 COPY apps/web/package.json ./
@@ -44,17 +46,24 @@ RUN npm run build
 # ---------------------------------------------------------
 FROM nginx:1.27-alpine
 
-# 拷贝自定义 Nginx 配置
-# 该配置负责：
-# 1. 提供 /fluxfiles/ 下的前端静态资源
-# 2. 支持前端路由回退到 index.html
-# 3. 反向代理 /api/ 到后端服务
-COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
+ARG WEB_APP_MODE=subpath
 
-# 把构建好的静态资源复制到 Nginx 目录中
-# 这里放到 /usr/share/nginx/html/fluxfiles
-# 是为了配合项目当前以 /fluxfiles/ 作为前端基路径部署
-COPY --from=builder /app/dist /usr/share/nginx/html/fluxfiles
+COPY deploy/nginx/default.conf /tmp/default.subpath.conf
+COPY deploy/nginx/default.root.conf /tmp/default.root.conf
+
+COPY --from=builder /app/dist /tmp/fluxfiles-dist
+
+RUN rm -rf /usr/share/nginx/html/* \
+  && if [ "$WEB_APP_MODE" = "root" ]; then \
+    cp /tmp/default.root.conf /etc/nginx/conf.d/default.conf && \
+    mkdir -p /usr/share/nginx/html && \
+    cp -a /tmp/fluxfiles-dist/. /usr/share/nginx/html/; \
+  else \
+    cp /tmp/default.subpath.conf /etc/nginx/conf.d/default.conf && \
+    mkdir -p /usr/share/nginx/html/fluxfiles && \
+    cp -a /tmp/fluxfiles-dist/. /usr/share/nginx/html/fluxfiles/; \
+  fi \
+  && rm -rf /tmp/fluxfiles-dist /tmp/default.subpath.conf /tmp/default.root.conf
 
 # 声明 Nginx 在容器内监听的端口
 EXPOSE 80

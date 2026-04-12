@@ -4,9 +4,10 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const buildVersion = new Date().toISOString();
+  const appBasePath = env.VITE_APP_BASE_PATH || '/fluxfiles/';
 
   return {
-    base: '/fluxfiles/',
+    base: appBasePath,
     define: {
       __APP_VERSION__: JSON.stringify(buildVersion),
     },

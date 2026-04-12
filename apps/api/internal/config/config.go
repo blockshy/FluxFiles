@@ -23,6 +23,7 @@ type AppConfig struct {
 	Host           string
 	Port           string
 	ExternalURL    string
+	CORSOrigins    []string
 	TrustedProxies []string
 }
 
@@ -85,6 +86,7 @@ func Load() (*Config, error) {
 			Host:           getEnv("APP_HOST", "0.0.0.0"),
 			Port:           getEnv("APP_PORT", "8080"),
 			ExternalURL:    strings.TrimRight(getEnv("APP_EXTERNAL_URL", "http://localhost"), "/"),
+			CORSOrigins:    splitAndTrim(getEnv("CORS_ALLOWED_ORIGINS", "")),
 			TrustedProxies: splitAndTrim(getEnv("TRUSTED_PROXIES", "127.0.0.1,::1,172.16.0.0/12,10.0.0.0/8")),
 		},
 		Database: DatabaseConfig{

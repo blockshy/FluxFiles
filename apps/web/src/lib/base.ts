@@ -8,7 +8,7 @@ function normalizeBaseUrl(baseUrl: string) {
   return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`;
 }
 
-export const appBaseUrl = normalizeBaseUrl(import.meta.env.BASE_URL || '/fluxfiles/');
+export const appBaseUrl = normalizeBaseUrl(import.meta.env.BASE_URL || '/');
 export const appBasename = appBaseUrl === '/' ? '/' : appBaseUrl.replace(/\/$/, '');
 
 export function withAppBase(path: string) {
