@@ -1,6 +1,6 @@
 import { PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Typography, message } from 'antd';
+import { Button, Card, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 import {
@@ -16,7 +16,8 @@ import {
 } from '../api/admin';
 import type { DownloadSettings, FileListDisplaySettings, PermissionTemplate, RateLimitSettings, UploadSettings } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
-import { getPermissionCombinationFeedback, getPermissionGroups, getPermissionLabels } from '../features/user/permissionConfig';
+import { getPermissionCombinationFeedback, getPermissionLabels } from '../features/user/permissionConfig';
+import { PermissionSelector } from '../features/user/PermissionSelector';
 import { getApiErrorMessage } from '../lib/apiError';
 
 const splitList = (value: string) =>
@@ -38,7 +39,6 @@ export function AdminSettingsPage() {
   const [downloadForm] = Form.useForm<DownloadSettings>();
   const [fileListDisplayForm] = Form.useForm<FileListDisplaySettings>();
   const [uploadForm] = Form.useForm<UploadSettings & { allowedExtensionsText?: string; allowedMimeTypesText?: string }>();
-  const selectedPermissions = Form.useWatch('permissions', templateForm) as string[] | undefined;
   const restrictFileTypes = Form.useWatch('restrictFileTypes', uploadForm);
   const restrictFileSize = Form.useWatch('restrictFileSize', uploadForm);
   const { t, locale } = useI18n();
@@ -135,13 +135,10 @@ export function AdminSettingsPage() {
 
   const templates = draftTemplates.length > 0 ? draftTemplates : templatesQuery.data ?? [];
   const permissionLabels = getPermissionLabels(locale);
-  const permissionGroups = getPermissionGroups(locale);
-  const permissionFeedback = getPermissionCombinationFeedback(locale, selectedPermissions);
-
   const columns: ColumnsType<PermissionTemplate> = [
-    { title: 'Key', dataIndex: 'key', key: 'key', width: 180 },
-    { title: 'Name', dataIndex: 'name', key: 'name', width: 180 },
-    { title: 'Description', dataIndex: 'description', key: 'description', width: 260 },
+    { title: locale === 'zh-CN' ? '模板键' : 'Key', dataIndex: 'key', key: 'key', width: 180 },
+    { title: locale === 'zh-CN' ? '模板名称' : 'Name', dataIndex: 'name', key: 'name', width: 180 },
+    { title: locale === 'zh-CN' ? '模板说明' : 'Description', dataIndex: 'description', key: 'description', width: 260 },
     { title: t('users.permissions'), dataIndex: 'permissions', key: 'permissions', render: (value: string[]) => value.map((item) => permissionLabels[item] ?? item).join(', ') },
     {
       title: t('common.edit'),
@@ -412,19 +409,18 @@ export function AdminSettingsPage() {
         }}
       >
         <Form form={templateForm} className="surface-form" layout="vertical">
-          <Form.Item name="key" label="Key" rules={[{ required: true }]}>
+          <Form.Item name="key" label={locale === 'zh-CN' ? '模板键' : 'Key'} rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+          <Form.Item name="name" label={locale === 'zh-CN' ? '模板名称' : 'Name'} rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="description" label="Description">
+          <Form.Item name="description" label={locale === 'zh-CN' ? '模板说明' : 'Description'}>
             <Input />
           </Form.Item>
           <Form.Item label={t('users.permissions')} required>
             <Form.Item
               name="permissions"
-              noStyle
               rules={[
                 { required: true, type: 'array', min: 1 },
                 {
@@ -437,27 +433,8 @@ export function AdminSettingsPage() {
                 },
               ]}
             >
-              <Checkbox.Group>
-                <div className="permission-groups">
-                  {permissionGroups.map((group) => (
-                    <div key={group.key} className="permission-group-card">
-                      <div className="permission-group-title">{group.title}</div>
-                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                        {group.options.map((permission) => (
-                          <Checkbox key={permission} value={permission}>
-                            {permissionLabels[permission] ?? permission}
-                          </Checkbox>
-                        ))}
-                      </Space>
-                    </div>
-                  ))}
-                </div>
-              </Checkbox.Group>
+              <PermissionSelector />
             </Form.Item>
-            {permissionFeedback.errors.length > 0 ? <Alert style={{ marginTop: 12 }} type="error" showIcon message={permissionFeedback.errors[0]} /> : null}
-            {permissionFeedback.warnings.map((warning) => (
-              <Alert key={warning} style={{ marginTop: 12 }} type="warning" showIcon message={warning} />
-            ))}
           </Form.Item>
         </Form>
       </Modal>

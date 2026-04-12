@@ -45,6 +45,8 @@ import {
 export interface PermissionGroup {
   key: string;
   title: string;
+  description: string;
+  scope: 'public' | 'admin';
   options: string[];
 }
 
@@ -103,6 +105,8 @@ export function getPermissionGroups(locale: AppLocale): PermissionGroup[] {
     {
       key: 'public-files',
       title: locale === 'zh-CN' ? '前台文件权限' : 'Public file permissions',
+      description: locale === 'zh-CN' ? '控制文件列表、详情、下载、收藏和评论互动。' : 'Controls file listing, detail, download, favorite, and comment interactions.',
+      scope: 'public',
       options: [
         PERMISSION_PUBLIC_FILES_VIEW,
         PERMISSION_PUBLIC_FILES_DETAIL,
@@ -117,6 +121,8 @@ export function getPermissionGroups(locale: AppLocale): PermissionGroup[] {
     {
       key: 'public-community',
       title: locale === 'zh-CN' ? '前台社区权限' : 'Public community permissions',
+      description: locale === 'zh-CN' ? '控制社区浏览、发帖、编辑、删除和回复。' : 'Controls community browsing, posting, editing, deleting, and replying.',
+      scope: 'public',
       options: [
         PERMISSION_PUBLIC_COMMUNITY_VIEW,
         PERMISSION_PUBLIC_COMMUNITY_POST_CREATE,
@@ -129,6 +135,8 @@ export function getPermissionGroups(locale: AppLocale): PermissionGroup[] {
     {
       key: 'public-account',
       title: locale === 'zh-CN' ? '前台账号权限' : 'Public account permissions',
+      description: locale === 'zh-CN' ? '控制个人中心、公开主页和消息通知。' : 'Controls account center, public profile, and notifications.',
+      scope: 'public',
       options: [
         PERMISSION_PUBLIC_PROFILE_VIEW_OWN,
         PERMISSION_PUBLIC_PROFILE_EDIT_OWN,
@@ -139,6 +147,8 @@ export function getPermissionGroups(locale: AppLocale): PermissionGroup[] {
     {
       key: 'files',
       title: locale === 'zh-CN' ? '文件权限' : 'File permissions',
+      description: locale === 'zh-CN' ? '控制后台文件查看范围、上传、编辑、删除和下载记录。' : 'Controls admin file scope, upload, edit, delete, and download logs.',
+      scope: 'admin',
       options: [
         PERMISSION_ADMIN_FILES_OWN,
         PERMISSION_ADMIN_FILES_ALL,
@@ -151,6 +161,8 @@ export function getPermissionGroups(locale: AppLocale): PermissionGroup[] {
     {
       key: 'users',
       title: locale === 'zh-CN' ? '用户权限' : 'User permissions',
+      description: locale === 'zh-CN' ? '控制后台用户创建、编辑、启停和删除。' : 'Controls admin user creation, editing, enabling, and deletion.',
+      scope: 'admin',
       options: [
         PERMISSION_ADMIN_USERS_CREATE,
         PERMISSION_ADMIN_USERS_EDIT,
@@ -159,6 +171,8 @@ export function getPermissionGroups(locale: AppLocale): PermissionGroup[] {
     {
       key: 'categories',
       title: locale === 'zh-CN' ? '分类权限' : 'Category permissions',
+      description: locale === 'zh-CN' ? '控制文件分类树的查看、维护和变更记录。' : 'Controls category tree viewing, maintenance, and change logs.',
+      scope: 'admin',
       options: [
         PERMISSION_ADMIN_CATEGORIES_VIEW,
         PERMISSION_ADMIN_CATEGORIES_CREATE,
@@ -170,6 +184,8 @@ export function getPermissionGroups(locale: AppLocale): PermissionGroup[] {
     {
       key: 'tags',
       title: locale === 'zh-CN' ? '标签权限' : 'Tag permissions',
+      description: locale === 'zh-CN' ? '控制标签树的查看、维护和变更记录。' : 'Controls tag tree viewing, maintenance, and change logs.',
+      scope: 'admin',
       options: [
         PERMISSION_ADMIN_TAGS_VIEW,
         PERMISSION_ADMIN_TAGS_CREATE,
@@ -181,6 +197,8 @@ export function getPermissionGroups(locale: AppLocale): PermissionGroup[] {
     {
       key: 'community',
       title: locale === 'zh-CN' ? '社区权限' : 'Community permissions',
+      description: locale === 'zh-CN' ? '控制后台社区帖子查看和管理。' : 'Controls admin community post viewing and moderation.',
+      scope: 'admin',
       options: [
         PERMISSION_ADMIN_COMMUNITY_VIEW,
         PERMISSION_ADMIN_COMMUNITY_MODERATE,
@@ -189,6 +207,8 @@ export function getPermissionGroups(locale: AppLocale): PermissionGroup[] {
     {
       key: 'system',
       title: locale === 'zh-CN' ? '系统权限' : 'System permissions',
+      description: locale === 'zh-CN' ? '控制系统设置和审计日志。' : 'Controls system settings and audit logs.',
+      scope: 'admin',
       options: [
         PERMISSION_ADMIN_SETTINGS,
         PERMISSION_ADMIN_AUDIT,

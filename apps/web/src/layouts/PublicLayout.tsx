@@ -10,6 +10,7 @@ import { useI18n } from '../features/i18n/LocaleProvider';
 import { ThemeToggle } from '../features/theme/ThemeToggle';
 import { canAccessAdmin, canAccessCommunity, getAdminHomePath, hasPermission, PERMISSION_PUBLIC_NOTIFICATIONS_VIEW } from '../features/user/permissions';
 import { useUserAuth } from '../features/user/AuthProvider';
+import { withAppBase } from '../lib/base';
 
 export function PublicLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useUserAuth();
@@ -24,6 +25,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   });
   const unreadCount = notificationsQuery.data?.unread ?? 0;
   const canViewNotifications = hasPermission(user, PERMISSION_PUBLIC_NOTIFICATIONS_VIEW);
+  const brandIconSrc = withAppBase('/favicon.ico');
 
   const userMenuItems: MenuProps['items'] = user ? [
     ...(canViewNotifications ? [{ key: 'notifications', icon: <BellOutlined />, label: <Badge count={unreadCount} size="small" offset={[10, 0]}>{t('nav.notifications') || '消息通知'}</Badge> }] : []),
@@ -61,9 +63,9 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         <header className="shell-header">
           <div className="shell-header-left">
             <Link to="/" className="brand-link">
-              <div>
+              <img src={brandIconSrc} alt="" className="brand-mark" />
+              <div className="brand-copy">
                 <h1 className="brand-title">{t('public.title')}</h1>
-                <p className="brand-subtitle">{t('public.subtitle')}</p>
               </div>
             </Link>
             <nav className="shell-nav" aria-label="Primary">

@@ -91,6 +91,9 @@ a {
 }
 
 .brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
   color: inherit;
   text-decoration: none;
 }
@@ -174,6 +177,21 @@ a {
   background: var(--brand-accent-soft);
   color: var(--brand-accent-strong);
   transform: translateY(-1px);
+}
+
+.brand-copy {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: block;
+  border-radius: 10px;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--brand-accent-soft) 48%, transparent);
 }
 
 .brand-title {
@@ -1298,6 +1316,96 @@ body[data-theme='light'] .ant-btn-color-primary.ant-btn-variant-solid:focus-visi
   gap: 12px;
 }
 
+.permission-selector {
+  display: grid;
+  gap: 14px;
+}
+
+.permission-selector-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--inner-radius);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--detail-bg) 82%, transparent), var(--detail-bg));
+}
+
+.permission-selector-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--detail-value);
+}
+
+.permission-selector-subtitle {
+  margin-top: 4px;
+  color: var(--subtle-text);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.permission-search-input {
+  max-width: 420px;
+}
+
+.permission-section-list {
+  display: grid;
+  gap: 14px;
+}
+
+.permission-section {
+  padding: 16px 18px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--inner-radius);
+  background: var(--surface-elevated);
+}
+
+.permission-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.permission-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--subtle-text);
+}
+
+.permission-section-meta {
+  color: var(--subtle-text);
+  font-size: 12px;
+}
+
+.permission-group-collapse .ant-collapse-item {
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--inner-radius) !important;
+  background: var(--detail-bg);
+  overflow: hidden;
+}
+
+.permission-group-collapse .ant-collapse-item + .ant-collapse-item {
+  margin-top: 10px;
+}
+
+.permission-group-collapse .ant-collapse-header {
+  align-items: flex-start !important;
+}
+
+.permission-group-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding-right: 12px;
+}
+
 .permission-group-card {
   padding: 14px;
   border: 1px solid var(--surface-border);
@@ -1305,13 +1413,78 @@ body[data-theme='light'] .ant-btn-color-primary.ant-btn-variant-solid:focus-visi
   background: var(--detail-bg);
 }
 
+.permission-group-card.refined {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 .permission-group-title {
-  margin-bottom: 10px;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--subtle-text);
+}
+
+.permission-group-description {
+  margin-top: 4px;
+  color: var(--muted-text);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.permission-group-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.permission-option-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.permission-option {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-elevated) 84%, transparent);
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+
+.permission-option:hover {
+  border-color: var(--brand-accent-border);
+  background: color-mix(in srgb, var(--brand-accent-soft) 35%, var(--surface-elevated));
+  transform: translateY(-1px);
+}
+
+.permission-option.is-selected {
+  border-color: color-mix(in srgb, var(--brand-accent-border) 75%, var(--surface-border));
+  background: color-mix(in srgb, var(--brand-accent-soft) 52%, var(--surface-elevated));
+}
+
+.permission-option .ant-checkbox-wrapper {
+  width: 100%;
+}
+
+.permission-option-label {
+  color: var(--app-text);
+  line-height: 1.55;
+}
+
+.permission-feedback-alert {
+  margin-top: 4px;
+}
+
+@media (max-width: 960px) {
+  .permission-option-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .table-text-ellipsis {

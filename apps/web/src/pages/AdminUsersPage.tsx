@@ -1,12 +1,13 @@
 import { DeleteOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Card, Checkbox, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'antd';
+import { Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useDeferredValue, useMemo, useState } from 'react';
 import { createAdminUser, deleteAdminUser, fetchAdminUsers, fetchPermissionTemplates, updateAdminUser } from '../api/admin';
 import type { AdminUser, CreateManagedUserPayload, PermissionTemplate, UpdateManagedUserPayload } from '../api/types';
 import { useI18n } from '../features/i18n/LocaleProvider';
-import { getPermissionCombinationFeedback, getPermissionGroups, getPermissionLabels } from '../features/user/permissionConfig';
+import { getPermissionCombinationFeedback, getPermissionLabels } from '../features/user/permissionConfig';
+import { PermissionSelector } from '../features/user/PermissionSelector';
 import { useUserAuth } from '../features/user/AuthProvider';
 import { DEFAULT_USER_PERMISSION_TEMPLATE_KEY, hasPermission, PERMISSION_ADMIN_USERS_CREATE, PERMISSION_ADMIN_USERS_EDIT } from '../features/user/permissions';
 import { getApiErrorMessage } from '../lib/apiError';
@@ -27,7 +28,6 @@ export function AdminUsersPage() {
   const [modalState, setModalState] = useState<UserModalState>({ open: false, mode: 'create', user: null });
   const [form] = Form.useForm();
   const deferredSearch = useDeferredValue(search.trim());
-  const selectedPermissions = Form.useWatch('permissions', form) as string[] | undefined;
   const { t, locale } = useI18n();
   const { user } = useUserAuth();
 
@@ -80,15 +80,12 @@ export function AdminUsersPage() {
 
   const templates = templatesQuery.data ?? [];
   const permissionLabels = getPermissionLabels(locale);
-  const permissionGroups = getPermissionGroups(locale);
-  const permissionFeedback = getPermissionCombinationFeedback(locale, selectedPermissions);
-
   const columns = useMemo<ColumnsType<AdminUser>>(() => {
     const base: ColumnsType<AdminUser> = [
       { title: t('login.username'), dataIndex: 'username', key: 'username', width: 150, render: (value: string) => <span className="table-strong-text">{value}</span> },
       { title: t('register.displayName'), dataIndex: 'displayName', key: 'displayName', width: 180, render: (value: string) => <span className="table-main-text">{value}</span> },
       { title: t('register.email'), dataIndex: 'email', key: 'email', width: 220, render: (value: string) => <span className="table-muted-text">{value}</span> },
-      { title: 'Role', dataIndex: 'role', key: 'role', width: 120, render: (value: string) => <Tag className={`data-pill ${value === 'admin' ? 'is-warning' : ''}`}>{value}</Tag> },
+      { title: locale === 'zh-CN' ? '角色' : 'Role', dataIndex: 'role', key: 'role', width: 120, render: (value: string) => <Tag className={`data-pill ${value === 'admin' ? 'is-warning' : ''}`}>{value === 'admin' ? t('common.admin') : t('common.user')}</Tag> },
       {
         title: t('users.permissions'),
         dataIndex: 'permissions',
@@ -96,8 +93,8 @@ export function AdminUsersPage() {
         width: 360,
         render: (value: string[]) => value?.length ? <Space size={[4, 4]} wrap className="taxonomy-pill-list">{value.map((permission) => <Tag className="data-pill" key={permission}>{permissionLabels[permission] ?? permission}</Tag>)}</Space> : <span className="table-empty-text">-</span>,
       },
-      { title: 'Status', dataIndex: 'isEnabled', key: 'isEnabled', width: 120, render: (value: boolean) => <Tag className={`data-pill ${value ? 'is-success' : 'is-danger'}`}>{value ? t('common.enabled') : t('common.disabled')}</Tag> },
-      { title: 'Last login', dataIndex: 'lastLoginAt', key: 'lastLoginAt', width: 180, render: (value?: string) => (value ? <span className="table-muted-text">{formatDate(value)}</span> : <span className="table-empty-text">-</span>) },
+      { title: locale === 'zh-CN' ? '状态' : 'Status', dataIndex: 'isEnabled', key: 'isEnabled', width: 120, render: (value: boolean) => <Tag className={`data-pill ${value ? 'is-success' : 'is-danger'}`}>{value ? t('common.enabled') : t('common.disabled')}</Tag> },
+      { title: locale === 'zh-CN' ? '最近登录' : 'Last login', dataIndex: 'lastLoginAt', key: 'lastLoginAt', width: 180, render: (value?: string) => (value ? <span className="table-muted-text">{formatDate(value)}</span> : <span className="table-empty-text">-</span>) },
     ];
 
     if (canEdit) {
@@ -244,7 +241,7 @@ export function AdminUsersPage() {
               <Input.Password />
             </Form.Item>
           ) : null}
-          <Form.Item name="role" label="Role" rules={[{ required: true }]}>
+          <Form.Item name="role" label={locale === 'zh-CN' ? '角色' : 'Role'} rules={[{ required: true }]}>
             <Select options={[{ label: t('common.user'), value: 'user' }, { label: t('common.admin'), value: 'admin' }]} />
           </Form.Item>
           <Form.Item name="permissionTemplate" label={t('users.template')}>
@@ -259,7 +256,6 @@ export function AdminUsersPage() {
           <Form.Item label={t('users.permissions')} required>
             <Form.Item
               name="permissions"
-              noStyle
               rules={[
                 { required: true, type: 'array', min: 1 },
                 {
@@ -272,27 +268,8 @@ export function AdminUsersPage() {
                 },
               ]}
             >
-              <Checkbox.Group>
-                <div className="permission-groups">
-                  {permissionGroups.map((group) => (
-                    <div key={group.key} className="permission-group-card">
-                      <div className="permission-group-title">{group.title}</div>
-                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                        {group.options.map((permission) => (
-                          <Checkbox key={permission} value={permission}>
-                            {permissionLabels[permission] ?? permission}
-                          </Checkbox>
-                        ))}
-                      </Space>
-                    </div>
-                  ))}
-                </div>
-              </Checkbox.Group>
+              <PermissionSelector />
             </Form.Item>
-            {permissionFeedback.errors.length > 0 ? <Alert style={{ marginTop: 12 }} type="error" showIcon message={permissionFeedback.errors[0]} /> : null}
-            {permissionFeedback.warnings.map((warning) => (
-              <Alert key={warning} style={{ marginTop: 12 }} type="warning" showIcon message={warning} />
-            ))}
           </Form.Item>
           <Form.Item name="isEnabled" label={t('common.enabled')} valuePropName="checked">
             <Switch checkedChildren={t('common.on')} unCheckedChildren={t('common.off')} />
