@@ -8,6 +8,7 @@ import type {
   FileRecord,
   PaginatedPayload,
   PublicDownloadConfig,
+  SiteContentSettings,
   TaxonomyRecord,
 } from './types';
 
@@ -51,6 +52,11 @@ export async function fetchPublicDownloadConfig() {
 
 export async function fetchPublicFileListDisplayConfig() {
   const response = await apiClient.get<ApiEnvelope<FileListDisplaySettings>>('/files/list-display-config');
+  return response.data.data;
+}
+
+export async function fetchPublicSiteContent() {
+  const response = await apiClient.get<ApiEnvelope<SiteContentSettings>>('/site/content');
   return response.data.data;
 }
 

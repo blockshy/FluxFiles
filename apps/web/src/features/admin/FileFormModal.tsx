@@ -3,6 +3,7 @@ import { Alert, Form, Input, Modal, Skeleton, Switch, TreeSelect, Upload } from 
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useEffect, useMemo, useState } from 'react';
 import type { FileRecord, UpdateFilePayload, UploadSettings } from '../../api/types';
+import { buildAccordionTreeMaps, toggleAccordionExpandedKeys } from '../../lib/treeAccordion';
 import { useI18n } from '../i18n/LocaleProvider';
 
 interface SubmitPayload {
@@ -47,13 +48,19 @@ export function FileFormModal({ open, mode, initialValue, loading, uploadSetting
   const [form] = Form.useForm<UpdateFilePayload>();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [categoryExpandedKeys, setCategoryExpandedKeys] = useState<string[]>([]);
+  const [tagExpandedKeys, setTagExpandedKeys] = useState<string[]>([]);
   const { locale, t } = useI18n();
+  const categoryTreeMaps = useMemo(() => buildAccordionTreeMaps(categoryTreeData, 'value'), [categoryTreeData]);
+  const tagTreeMaps = useMemo(() => buildAccordionTreeMaps(tagTreeData, 'value'), [tagTreeData]);
 
   useEffect(() => {
     if (!open) {
       form.resetFields();
       setFileList([]);
       setFileError(null);
+      setCategoryExpandedKeys([]);
+      setTagExpandedKeys([]);
       return;
     }
     if (mode === 'edit' && initialValue) {
@@ -165,7 +172,17 @@ export function FileFormModal({ open, mode, initialValue, loading, uploadSetting
               <TreeSelect
                 allowClear
                 showSearch
-                treeDefaultExpandAll
+                treeExpandedKeys={categoryExpandedKeys}
+                onTreeExpand={(keys) => {
+                  const nextKeys = (keys as string[]).map(String);
+                  const changedKey = nextKeys.find((key) => !categoryExpandedKeys.includes(key))
+                    ?? categoryExpandedKeys.find((key) => !nextKeys.includes(key));
+                  if (!changedKey) {
+                    setCategoryExpandedKeys(nextKeys);
+                    return;
+                  }
+                  setCategoryExpandedKeys(toggleAccordionExpandedKeys(categoryExpandedKeys, changedKey, nextKeys.includes(changedKey), categoryTreeMaps));
+                }}
                 treeNodeFilterProp="title"
                 treeData={categoryTreeData}
                 placeholder={locale === 'zh-CN' ? '请选择分类' : 'Select a category'}
@@ -176,7 +193,17 @@ export function FileFormModal({ open, mode, initialValue, loading, uploadSetting
                 multiple
                 treeCheckable
                 showSearch
-                treeDefaultExpandAll
+                treeExpandedKeys={tagExpandedKeys}
+                onTreeExpand={(keys) => {
+                  const nextKeys = (keys as string[]).map(String);
+                  const changedKey = nextKeys.find((key) => !tagExpandedKeys.includes(key))
+                    ?? tagExpandedKeys.find((key) => !nextKeys.includes(key));
+                  if (!changedKey) {
+                    setTagExpandedKeys(nextKeys);
+                    return;
+                  }
+                  setTagExpandedKeys(toggleAccordionExpandedKeys(tagExpandedKeys, changedKey, nextKeys.includes(changedKey), tagTreeMaps));
+                }}
                 showCheckedStrategy={TreeSelect.SHOW_CHILD}
                 treeNodeFilterProp="title"
                 treeData={tagTreeData}

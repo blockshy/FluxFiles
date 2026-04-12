@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BellOutlined, DownOutlined, HomeOutlined, LogoutOutlined, MessageOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { BellOutlined, DownOutlined, HomeOutlined, InfoCircleOutlined, LogoutOutlined, MessageOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import type { MenuProps } from 'antd';
 import { Avatar, Badge, Button, Dropdown, Space, message } from 'antd';
@@ -94,6 +94,10 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                   <span>社区</span>
                 </button>
               )}
+              <Link to="/about" className={`shell-nav-link${location.pathname === '/about' ? ' active' : ''}`}>
+                <InfoCircleOutlined />
+                <span>关于本站</span>
+              </Link>
             </nav>
           </div>
 

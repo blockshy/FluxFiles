@@ -25,6 +25,7 @@ import type {
   PrepareUploadPayload,
   RateLimitSettings,
   SaveTaxonomyPayload,
+  SiteContentSettings,
   TaxonomyLogRecord,
   TaxonomyQuery,
   TaxonomyRecord,
@@ -132,6 +133,11 @@ export async function updateDownloadSettings(downloadSettings: DownloadSettings)
 export async function updateFileListDisplaySettings(fileListDisplay: FileListDisplaySettings) {
   const response = await apiClient.put<ApiEnvelope<{ fileListDisplay: FileListDisplaySettings }>>('/admin/settings/file-list-display', fileListDisplay);
   return response.data.data.fileListDisplay;
+}
+
+export async function updateSiteContentSettings(siteContent: SiteContentSettings) {
+  const response = await apiClient.put<ApiEnvelope<{ siteContent: SiteContentSettings }>>('/admin/settings/site-content', siteContent);
+  return response.data.data.siteContent;
 }
 
 export async function updateRateLimitSettings(rateLimits: RateLimitSettings) {

@@ -51,6 +51,7 @@ import { CommunityPage } from '../pages/CommunityPage';
 import { CommunityPostDetailPage } from '../pages/CommunityPostDetailPage';
 import { CommunityPostEditorPage } from '../pages/CommunityPostEditorPage';
 import { NotificationsPage } from '../pages/NotificationsPage';
+import { AboutPage } from '../pages/AboutPage';
 import { UserCenterPage } from '../pages/UserCenterPage';
 import { UserLoginPage } from '../pages/UserLoginPage';
 import { UserRegisterPage } from '../pages/UserRegisterPage';
@@ -71,6 +72,14 @@ export function AppRouter() {
         element={
           <PublicLayout>
             <PublicFileDetailPage />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/about"
+        element={
+          <PublicLayout>
+            <AboutPage />
           </PublicLayout>
         }
       />

@@ -194,6 +194,11 @@ func (ctl *AdminUserController) GetSettings(c *gin.Context) {
 		response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
 		return
 	}
+	siteContent, err := ctl.admins.GetSiteContentSettings(c.Request.Context())
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
+		return
+	}
 
 	response.Success(c, http.StatusOK, "ok", gin.H{
 		"registrationEnabled":  enabled,
@@ -203,6 +208,7 @@ func (ctl *AdminUserController) GetSettings(c *gin.Context) {
 		"rateLimits":           rateLimits,
 		"uploadSettings":       uploadSettings,
 		"fileListDisplay":      fileListDisplay,
+		"siteContent":          siteContent,
 	})
 }
 
@@ -256,6 +262,31 @@ func (ctl *AdminUserController) UpdateFileListDisplaySettings(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "file list display settings updated", gin.H{
 		"fileListDisplay": settings,
+	})
+}
+
+func (ctl *AdminUserController) UpdateSiteContentSettings(c *gin.Context) {
+	var req dto.UpdateSiteContentSettingsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid site content payload")
+		return
+	}
+
+	settings, err := ctl.admins.UpdateSiteContentSettings(c.Request.Context(), c.GetUint("adminUserID"), c.ClientIP(), service.SiteContentSettings{
+		AboutHTML: req.AboutHTML,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrValidation):
+			response.Error(c, http.StatusBadRequest, err.Error())
+		default:
+			response.Error(c, http.StatusServiceUnavailable, "settings service is temporarily unavailable")
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, "site content settings updated", gin.H{
+		"siteContent": settings,
 	})
 }
 

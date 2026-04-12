@@ -1,6 +1,6 @@
 import { SearchOutlined } from '@ant-design/icons';
 import { Alert, Button, Checkbox, Collapse, Input, Space, Tag, Typography } from 'antd';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../i18n/LocaleProvider';
 import { getPermissionCombinationFeedback, getPermissionGroups, getPermissionLabels } from './permissionConfig';
 
@@ -16,6 +16,7 @@ function uniqueSorted(values: string[]) {
 export function PermissionSelector({ value, onChange }: PermissionSelectorProps) {
   const { locale } = useI18n();
   const [keyword, setKeyword] = useState('');
+  const [expandedBySection, setExpandedBySection] = useState<Record<string, string[]>>({});
   const selected = value ?? [];
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const normalizedKeyword = keyword.trim().toLowerCase();
@@ -54,6 +55,18 @@ export function PermissionSelector({ value, onChange }: PermissionSelectorProps)
       },
     ].filter((section) => section.groups.length > 0);
   }, [filteredGroups, locale]);
+
+  useEffect(() => {
+    setExpandedBySection((current) => {
+      const next: Record<string, string[]> = {};
+      sections.forEach((section) => {
+        const available = new Set(section.groups.map((group) => group.key));
+        const existing = current[section.key]?.filter((groupKey) => available.has(groupKey)) ?? [];
+        next[section.key] = existing.slice(0, 1);
+      });
+      return next;
+    });
+  }, [sections]);
 
   function updateValues(nextValues: string[]) {
     onChange?.(uniqueSorted(nextValues));
@@ -113,7 +126,15 @@ export function PermissionSelector({ value, onChange }: PermissionSelectorProps)
             <Collapse
               className="permission-group-collapse"
               ghost
-              defaultActiveKey={section.groups.map((group) => group.key)}
+              activeKey={expandedBySection[section.key] ?? []}
+              collapsible="icon"
+              onChange={(activeKeys) => {
+                const nextKeys = (Array.isArray(activeKeys) ? activeKeys : [activeKeys]).map(String).filter(Boolean);
+                setExpandedBySection((current) => ({
+                  ...current,
+                  [section.key]: nextKeys.slice(-1),
+                }));
+              }}
               items={section.groups.map((group) => {
                 const checkedCount = group.options.filter((permission) => selectedSet.has(permission)).length;
                 return {

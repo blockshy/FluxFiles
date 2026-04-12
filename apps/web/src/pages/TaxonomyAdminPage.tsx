@@ -17,6 +17,7 @@ import { useDeferredValue, useMemo, useState } from 'react';
 import type { MoveTaxonomyPayload, Pagination, SaveTaxonomyPayload, TaxonomyLogRecord, TaxonomyQuery, TaxonomyRecord } from '../api/types';
 import { getApiErrorMessage } from '../lib/apiError';
 import { formatDate } from '../lib/format';
+import { buildAccordionTreeMaps, toggleAccordionExpandedKeys } from '../lib/treeAccordion';
 
 interface TaxonomyAdminPageProps {
   kind: 'category' | 'tag';
@@ -128,6 +129,7 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
   const [messageApi, contextHolder] = message.useMessage();
   const [search, setSearch] = useState('');
   const [expandedKeys, setExpandedKeys] = useState<Key[]>([]);
+  const [parentExpandedKeys, setParentExpandedKeys] = useState<Key[]>([]);
   const [actionState, setActionState] = useState<{ open: boolean; mode: TreeActionMode; target: TaxonomyRecord | null }>({
     open: false,
     mode: 'create-root',
@@ -221,10 +223,6 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
     [actionState.mode, actionState.target?.id, treeItems],
   );
 
-  const defaultExpandedKeys = useMemo(() => filteredCategoryItems.map((item) => `category-${item.id}`), [filteredCategoryItems]);
-
-  const effectiveExpandedKeys = expandedKeys.length > 0 ? expandedKeys : defaultExpandedKeys;
-
   const openCreateModal = (mode: TreeActionMode, target: TaxonomyRecord | null = null) => {
     setActionState({ open: true, mode, target });
     if (mode === 'edit' && target) {
@@ -310,6 +308,8 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
     () => buildCategoryTreeData(filteredCategoryItems, (item) => renderCategoryTitle(item)),
     [filteredCategoryItems, props.kind, movingKey],
   );
+  const treeMaps = useMemo(() => buildAccordionTreeMaps(treeData), [treeData]);
+  const parentTreeMaps = useMemo(() => buildAccordionTreeMaps(categorySelectTreeData, 'value'), [categorySelectTreeData]);
 
   return (
     <>
@@ -336,15 +336,17 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
         ) : treeData.length === 0 ? (
           <Empty description={props.locale === 'zh-CN' ? '暂无内容' : 'No items'} />
         ) : (
-          <Tree
-            blockNode
-            showLine
-            selectable={false}
-            expandedKeys={effectiveExpandedKeys}
-            onExpand={(keys) => setExpandedKeys(keys)}
-            treeData={treeData}
-            className="taxonomy-tree"
-          />
+            <Tree
+              blockNode
+              showLine
+              selectable={false}
+              expandedKeys={expandedKeys}
+              onExpand={(keys, info) => {
+                setExpandedKeys(toggleAccordionExpandedKeys(keys, info.node.key, info.expanded, treeMaps));
+              }}
+              treeData={treeData}
+              className="taxonomy-tree"
+            />
         )}
       </Card>
 
@@ -385,8 +387,19 @@ export function TaxonomyAdminPage(props: TaxonomyAdminPageProps) {
           >
             <TreeSelect
               allowClear
-              treeDefaultExpandAll
               showSearch
+              treeExpandedKeys={parentExpandedKeys.map(String).filter((key) => parentTreeMaps.parentByKey.has(key))}
+              onTreeExpand={(keys) => {
+                const nextKeys = (keys as Key[]).map(String);
+                const previousKeys = parentExpandedKeys.map(String);
+                const changedKey = nextKeys.find((key) => !previousKeys.includes(key))
+                  ?? previousKeys.find((key) => !nextKeys.includes(key));
+                if (!changedKey) {
+                  setParentExpandedKeys(nextKeys);
+                  return;
+                }
+                setParentExpandedKeys(toggleAccordionExpandedKeys(parentExpandedKeys, changedKey, nextKeys.includes(changedKey), parentTreeMaps));
+              }}
               treeNodeFilterProp="title"
               treeData={categorySelectTreeData}
               placeholder={props.kind === 'category'

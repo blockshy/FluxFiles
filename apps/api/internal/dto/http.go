@@ -71,6 +71,10 @@ type UpdateFileListDisplaySettingsRequest struct {
 	TagMode      string `json:"tagMode" binding:"required,oneof=fullPath leafName"`
 }
 
+type UpdateSiteContentSettingsRequest struct {
+	AboutHTML string `json:"aboutHtml" binding:"max=3000000"`
+}
+
 type UpdateCaptchaSettingsRequest struct {
 	LoginEnabled        bool `json:"loginEnabled"`
 	RegistrationEnabled bool `json:"registrationEnabled"`

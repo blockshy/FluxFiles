@@ -12,9 +12,11 @@ import {
   updatePermissionTemplates,
   updateRateLimitSettings,
   updateRegistrationSetting,
+  updateSiteContentSettings,
   updateUploadSettings,
 } from '../api/admin';
-import type { DownloadSettings, FileListDisplaySettings, PermissionTemplate, RateLimitSettings, UploadSettings } from '../api/types';
+import type { DownloadSettings, FileListDisplaySettings, PermissionTemplate, RateLimitSettings, SiteContentSettings, UploadSettings } from '../api/types';
+import { RichTextEditor } from '../components/RichTextEditor';
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { getPermissionCombinationFeedback, getPermissionLabels } from '../features/user/permissionConfig';
 import { PermissionSelector } from '../features/user/PermissionSelector';
@@ -38,9 +40,11 @@ export function AdminSettingsPage() {
   const [rateLimitForm] = Form.useForm<RateLimitSettings>();
   const [downloadForm] = Form.useForm<DownloadSettings>();
   const [fileListDisplayForm] = Form.useForm<FileListDisplaySettings>();
+  const [siteContentForm] = Form.useForm<SiteContentSettings>();
   const [uploadForm] = Form.useForm<UploadSettings & { allowedExtensionsText?: string; allowedMimeTypesText?: string }>();
   const restrictFileTypes = Form.useWatch('restrictFileTypes', uploadForm);
   const restrictFileSize = Form.useWatch('restrictFileSize', uploadForm);
+  const aboutHtmlValue = Form.useWatch('aboutHtml', siteContentForm) ?? '';
   const { t, locale } = useI18n();
 
   const settingsQuery = useQuery({ queryKey: ['admin-settings'], queryFn: fetchAdminSettings });
@@ -58,7 +62,8 @@ export function AdminSettingsPage() {
       allowedMimeTypesText: joinList(settingsQuery.data.uploadSettings.allowedMimeTypes),
     });
     fileListDisplayForm.setFieldsValue(settingsQuery.data.fileListDisplay);
-  }, [downloadForm, fileListDisplayForm, rateLimitForm, settingsQuery.data, uploadForm]);
+    siteContentForm.setFieldsValue(settingsQuery.data.siteContent);
+  }, [downloadForm, fileListDisplayForm, rateLimitForm, settingsQuery.data, siteContentForm, uploadForm]);
 
   const registrationMutation = useMutation({
     mutationFn: updateRegistrationSetting,
@@ -110,6 +115,17 @@ export function AdminSettingsPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
     },
     onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '文件列表显示方式保存失败，请检查配置。' : 'Failed to save file list display settings.', locale)),
+  });
+
+  const siteContentMutation = useMutation({
+    mutationFn: updateSiteContentSettings,
+    onSuccess: () => {
+      messageApi.success(t('settings.saved'));
+      void queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
+      void queryClient.invalidateQueries({ queryKey: ['public-site-content'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
+    },
+    onError: (error) => messageApi.error(getApiErrorMessage(error, locale === 'zh-CN' ? '站点介绍保存失败，请检查内容。' : 'Failed to save site content.', locale)),
   });
 
   const uploadMutation = useMutation({
@@ -247,6 +263,30 @@ export function AdminSettingsPage() {
               <InputNumber min={10} max={86400} style={{ width: '100%' }} />
             </Form.Item>
           </div>
+        </Form>
+      </Card>
+
+      <Card className="surface-card settings-section-card" loading={settingsQuery.isLoading}>
+        <div className="toolbar-row">
+          <div>
+            <h2 className="section-title">{locale === 'zh-CN' ? '关于本站' : 'About this site'}</h2>
+            <p className="section-subtitle">
+              {locale === 'zh-CN' ? '编辑前台导航中的“关于本站”页面内容，支持富文本和图片链接。' : 'Edit the public About page with rich text and image links.'}
+            </p>
+          </div>
+          <Button type="primary" loading={siteContentMutation.isPending} onClick={() => siteContentForm.submit()}>
+            {t('common.save')}
+          </Button>
+        </div>
+
+        <Form form={siteContentForm} layout="vertical" onFinish={(values) => siteContentMutation.mutate(values)}>
+          <Form.Item name="aboutHtml" label={locale === 'zh-CN' ? '页面内容' : 'Page content'}>
+            <RichTextEditor
+              value={aboutHtmlValue}
+              onChange={(value) => siteContentForm.setFieldValue('aboutHtml', value)}
+              placeholder={locale === 'zh-CN' ? '请输入站点介绍、规则说明或其他公开内容' : 'Enter public site information'}
+            />
+          </Form.Item>
         </Form>
       </Card>
 

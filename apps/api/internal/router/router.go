@@ -67,6 +67,7 @@ func New(deps Dependencies) *gin.Engine {
 	api.GET("/files/tags/options", deps.PublicFiles.TagOptions)
 	api.GET("/files/download-config", deps.PublicFiles.DownloadConfig)
 	api.GET("/files/list-display-config", deps.PublicFiles.ListDisplayConfig)
+	api.GET("/site/content", deps.PublicFiles.SiteContentConfig)
 	api.GET("/files/:id",
 		middleware.OptionalAuth(deps.AuthService),
 		middleware.RequirePermissionWhenAuthenticated(service.PermissionPublicFilesDetail),
@@ -211,6 +212,7 @@ func New(deps Dependencies) *gin.Engine {
 	adminSettings.PUT("/settings/guest-download", deps.AdminUsers.UpdateGuestDownloadSettings)
 	adminSettings.PUT("/settings/download", deps.AdminUsers.UpdateDownloadSettings)
 	adminSettings.PUT("/settings/file-list-display", deps.AdminUsers.UpdateFileListDisplaySettings)
+	adminSettings.PUT("/settings/site-content", deps.AdminUsers.UpdateSiteContentSettings)
 	adminSettings.PUT("/settings/captcha", deps.AdminUsers.UpdateCaptchaSettings)
 	adminSettings.PUT("/settings/rate-limits", deps.AdminUsers.UpdateRateLimitSettings)
 	adminSettings.PUT("/settings/upload", deps.AdminUsers.UpdateUploadSettings)

@@ -221,6 +221,10 @@ export interface FileListDisplaySettings {
   tagMode: 'fullPath' | 'leafName';
 }
 
+export interface SiteContentSettings {
+  aboutHtml: string;
+}
+
 export interface CaptchaChallenge {
   id: string;
   question: string;
@@ -388,6 +392,7 @@ export interface AdminSettings {
   rateLimits: RateLimitSettings;
   uploadSettings: UploadSettings;
   fileListDisplay: FileListDisplaySettings;
+  siteContent: SiteContentSettings;
 }
 
 export interface RateLimitRuleSettings {

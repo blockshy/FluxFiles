@@ -377,6 +377,10 @@ func (s *AdminService) GetFileListDisplaySettings(ctx context.Context) (FileList
 	return s.settings.GetFileListDisplaySettings(ctx)
 }
 
+func (s *AdminService) GetSiteContentSettings(ctx context.Context) (SiteContentSettings, error) {
+	return s.settings.GetSiteContentSettings(ctx)
+}
+
 func (s *AdminService) UpdateGuestDownloadAllowed(ctx context.Context, adminID uint, ip string, allowed bool) error {
 	before, err := s.settings.IsGuestDownloadAllowed(ctx)
 	if err != nil {
@@ -425,6 +429,24 @@ func (s *AdminService) UpdateFileListDisplaySettings(ctx context.Context, adminI
 		Summary: "Updated file list display settings",
 		Changes: []AuditFieldChange{
 			{Field: "fileListDisplay", Label: "File List Display", Before: before, After: after},
+		},
+	}), ip)
+	return after, nil
+}
+
+func (s *AdminService) UpdateSiteContentSettings(ctx context.Context, adminID uint, ip string, value SiteContentSettings) (SiteContentSettings, error) {
+	before, err := s.settings.GetSiteContentSettings(ctx)
+	if err != nil {
+		return SiteContentSettings{}, err
+	}
+	after, err := s.settings.SetSiteContentSettings(ctx, value)
+	if err != nil {
+		return SiteContentSettings{}, err
+	}
+	s.logs.Record(ctx, adminID, "settings.site_content.update", "system_setting", siteContentSettingsKey, MarshalAuditDetail(AuditDetail{
+		Summary: "Updated site content settings",
+		Changes: []AuditFieldChange{
+			{Field: "siteContent", Label: "Site Content", Before: before, After: after},
 		},
 	}), ip)
 	return after, nil

@@ -10,6 +10,7 @@ import type { FileListDisplaySettings, FileRecord, TaxonomyRecord } from '../api
 import { useI18n } from '../features/i18n/LocaleProvider';
 import { useUserAuth } from '../features/user/AuthProvider';
 import { formatBytes, formatDate } from '../lib/format';
+import { buildAccordionTreeMaps, toggleAccordionExpandedKeys } from '../lib/treeAccordion';
 
 function sortTaxonomyItems<T extends { sortOrder: number; name: string }>(items: T[]) {
   return [...items].sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'zh-Hans-CN'));
@@ -105,6 +106,8 @@ export function PublicFilesPage() {
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [draftCategories, setDraftCategories] = useState<string[]>([]);
   const [draftTags, setDraftTags] = useState<string[]>([]);
+  const [categoryExpandedKeys, setCategoryExpandedKeys] = useState<string[]>([]);
+  const [tagExpandedKeys, setTagExpandedKeys] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState('createdAt');
@@ -138,6 +141,8 @@ export function PublicFilesPage() {
     [tagOptionsQuery.data, draftTags],
   );
   const taxonomyLoading = categoryOptionsQuery.isLoading || tagOptionsQuery.isLoading;
+  const categoryTreeMaps = useMemo(() => buildAccordionTreeMaps(categoryTree.treeData), [categoryTree.treeData]);
+  const tagTreeMaps = useMemo(() => buildAccordionTreeMaps(tagTree.treeData), [tagTree.treeData]);
   const fileListDisplay = fileListDisplayQuery.data ?? ({ categoryMode: 'fullPath', tagMode: 'fullPath' } satisfies FileListDisplaySettings);
   const categoryPathMap = useMemo(() => new Map((categoryOptionsQuery.data ?? []).map((item) => [item.name, item.fullPath || item.name])), [categoryOptionsQuery.data]);
   const tagPathMap = useMemo(() => new Map((tagOptionsQuery.data ?? []).map((item) => [item.name, item.fullPath || item.name])), [tagOptionsQuery.data]);
@@ -146,6 +151,8 @@ export function PublicFilesPage() {
   function openFilterModal() {
     setDraftCategories(categories);
     setDraftTags(tags);
+    setCategoryExpandedKeys([]);
+    setTagExpandedKeys([]);
     setFilterModalOpen(true);
   }
 
@@ -356,10 +363,13 @@ export function PublicFilesPage() {
               </div>
               <Tree
                 checkable
-                defaultExpandAll
+                expandedKeys={categoryExpandedKeys}
                 checkedKeys={draftCategories}
                 treeData={categoryTree.treeData}
                 onCheck={(checkedKeys) => setDraftCategories(checkedKeys as string[])}
+                onExpand={(keys, info) => {
+                  setCategoryExpandedKeys(toggleAccordionExpandedKeys(keys, info.node.key, info.expanded, categoryTreeMaps));
+                }}
                 onSelect={(selectedKeys, info) => {
                   const key = String(info.node.key);
                   const targets = categoryTree.descendants.get(key) ?? [key];
@@ -378,7 +388,7 @@ export function PublicFilesPage() {
               </div>
               <Tree
                 checkable
-                defaultExpandAll
+                expandedKeys={tagExpandedKeys}
                 checkedKeys={draftTags.map((item) => `tag:${item}`)}
                 treeData={tagTree.treeData}
                 onCheck={(checkedKeys) => {
@@ -393,6 +403,9 @@ export function PublicFilesPage() {
                     }
                   }
                   setDraftTags(Array.from(nextTags));
+                }}
+                onExpand={(keys, info) => {
+                  setTagExpandedKeys(toggleAccordionExpandedKeys(keys, info.node.key, info.expanded, tagTreeMaps));
                 }}
                 onSelect={(selectedKeys, info) => {
                   const key = String(info.node.key);

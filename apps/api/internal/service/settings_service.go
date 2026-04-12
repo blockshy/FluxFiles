@@ -24,6 +24,7 @@ const uploadSettingsKey = "storage.upload_policy"
 const guestDownloadAllowedSettingKey = "security.guest_download_allowed"
 const downloadSettingsKey = "security.download_settings"
 const fileListDisplaySettingsKey = "ui.file_list_display"
+const siteContentSettingsKey = "ui.site_content"
 
 type RateLimitRuleSettings struct {
 	Limit         int `json:"limit"`
@@ -64,6 +65,10 @@ type DownloadSettings struct {
 type FileListDisplaySettings struct {
 	CategoryMode string `json:"categoryMode"`
 	TagMode      string `json:"tagMode"`
+}
+
+type SiteContentSettings struct {
+	AboutHTML string `json:"aboutHtml"`
 }
 
 type SettingsService struct {
@@ -139,6 +144,12 @@ func (s *SettingsService) DefaultFileListDisplaySettings() FileListDisplaySettin
 	return FileListDisplaySettings{
 		CategoryMode: "fullPath",
 		TagMode:      "fullPath",
+	}
+}
+
+func (s *SettingsService) DefaultSiteContentSettings() SiteContentSettings {
+	return SiteContentSettings{
+		AboutHTML: "",
 	}
 }
 
@@ -225,6 +236,38 @@ func (s *SettingsService) SetFileListDisplaySettings(ctx context.Context, settin
 	}
 	if err := s.settings.Upsert(ctx, fileListDisplaySettingsKey, string(payload)); err != nil {
 		return FileListDisplaySettings{}, ErrDependencyUnavailable
+	}
+	return normalized, nil
+}
+
+func (s *SettingsService) GetSiteContentSettings(ctx context.Context) (SiteContentSettings, error) {
+	item, err := s.settings.GetByKey(ctx, siteContentSettingsKey)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return s.DefaultSiteContentSettings(), nil
+		}
+		return SiteContentSettings{}, ErrDependencyUnavailable
+	}
+
+	var settings SiteContentSettings
+	if err := json.Unmarshal([]byte(item.Value), &settings); err != nil {
+		return SiteContentSettings{}, ErrDependencyUnavailable
+	}
+	return SiteContentSettings{
+		AboutHTML: strings.TrimSpace(settings.AboutHTML),
+	}, nil
+}
+
+func (s *SettingsService) SetSiteContentSettings(ctx context.Context, settings SiteContentSettings) (SiteContentSettings, error) {
+	normalized := SiteContentSettings{
+		AboutHTML: strings.TrimSpace(settings.AboutHTML),
+	}
+	payload, err := json.Marshal(normalized)
+	if err != nil {
+		return SiteContentSettings{}, ErrDependencyUnavailable
+	}
+	if err := s.settings.Upsert(ctx, siteContentSettingsKey, string(payload)); err != nil {
+		return SiteContentSettings{}, ErrDependencyUnavailable
 	}
 	return normalized, nil
 }
